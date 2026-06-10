@@ -3,13 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Internal HGV driver shift booking system
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Internal login and current user
+  - name: contracts
+    description: Client + location contracts
+  - name: drivers
+    description: Driver records (local cache of Vincere)
+  - name: grid
+    description: The booking grid
+  - name: bookings
+    description: Booking cells
+  - name: audit
+    description: Activity / change history
+  - name: dashboard
+    description: Summary metrics
+  - name: previews
+    description: Phase 1 email / confirmation previews
 paths:
   /healthz:
     get:
@@ -24,6 +40,400 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [auth]
+      summary: List account managers (for pick-your-name login)
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in by selecting a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out current user
+      responses:
+        "204":
+          description: Logged out
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the currently logged in user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /contracts:
+    get:
+      operationId: listContracts
+      tags: [contracts]
+      summary: List all contracts
+      responses:
+        "200":
+          description: List of contracts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contract"
+    post:
+      operationId: createContract
+      tags: [contracts]
+      summary: Create a new contract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractInput"
+      responses:
+        "201":
+          description: Created contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /drivers:
+    get:
+      operationId: listDrivers
+      tags: [drivers]
+      summary: List or search drivers (local table)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by name, phone, or job role
+      responses:
+        "200":
+          description: List of drivers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Driver"
+    post:
+      operationId: createDriver
+      tags: [drivers]
+      summary: Create a new driver in the local table
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverInput"
+      responses:
+        "201":
+          description: Created driver
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Driver"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /contracts/{contractId}/drivers:
+    post:
+      operationId: addDriverToContract
+      tags: [contracts]
+      summary: Link a driver to a contract (add them to the grid)
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverContractInput"
+      responses:
+        "204":
+          description: Linked
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /contracts/{contractId}/drivers/{driverId}:
+    delete:
+      operationId: removeDriverFromContract
+      tags: [contracts]
+      summary: Remove a driver from a contract
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /grid:
+    get:
+      operationId: getGrid
+      tags: [grid]
+      summary: Get drivers and bookings for a contract within a date range
+      parameters:
+        - name: contractId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Start date YYYY-MM-DD (inclusive)
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+          description: End date YYYY-MM-DD (inclusive)
+      responses:
+        "200":
+          description: Grid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GridResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings:
+    put:
+      operationId: upsertBooking
+      tags: [bookings]
+      summary: Create or update a booking cell for a driver on a date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingInput"
+      responses:
+        "200":
+          description: Saved booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{id}:
+    delete:
+      operationId: deleteBooking
+      tags: [bookings]
+      summary: Delete a booking cell
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /audit:
+    get:
+      operationId: listAudit
+      tags: [audit]
+      summary: Recent booking change history
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Max entries to return (default 100)
+      responses:
+        "200":
+          description: Audit entries, most recent first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Top-level booking metrics
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /previews/client-email:
+    post:
+      operationId: previewClientEmail
+      tags: [previews]
+      summary: Build the client email preview for a contract and date range
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientEmailPreviewInput"
+      responses:
+        "200":
+          description: Email preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientEmailPreview"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /previews/confirmations:
+    post:
+      operationId: previewConfirmations
+      tags: [previews]
+      summary: Build candidate confirmation previews (all drivers or one)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmationPreviewInput"
+      responses:
+        "200":
+          description: Confirmation previews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConfirmationPreview"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /import:
+    post:
+      operationId: importBookings
+      tags: [grid]
+      summary: Import drivers and bookings from CSV text into a contract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +444,236 @@ components:
       required:
         - status
 
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Status:
+      type: string
+      enum: [Available, Pre-Booked, Confirmed, Rest, Off, Holiday]
+
+    User:
+      type: object
+      required: [id, name, email, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        createdAt: { type: string }
+
+    LoginInput:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: integer }
+
+    Contract:
+      type: object
+      required: [id, companyName, createdAt]
+      properties:
+        id: { type: integer }
+        companyName: { type: string }
+        clientContactName: { type: ["string", "null"] }
+        clientContactEmail: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    ContractInput:
+      type: object
+      required: [companyName]
+      properties:
+        companyName: { type: string, minLength: 1 }
+        clientContactName: { type: string }
+        clientContactEmail: { type: string }
+        location: { type: string }
+
+    Driver:
+      type: object
+      required: [id, fullName, active, syncedAt]
+      properties:
+        id: { type: integer }
+        vincereId: { type: ["string", "null"] }
+        fullName: { type: string }
+        phone: { type: ["string", "null"] }
+        jobRole: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        active: { type: boolean }
+        syncedAt: { type: string }
+
+    DriverInput:
+      type: object
+      required: [fullName]
+      properties:
+        fullName: { type: string, minLength: 1 }
+        phone: { type: string }
+        jobRole: { type: string }
+        notes: { type: string }
+        vincereId: { type: string }
+
+    DriverContractInput:
+      type: object
+      required: [driverId]
+      properties:
+        driverId: { type: integer }
+
+    Booking:
+      type: object
+      required: [id, driverId, contractId, shiftDate, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        driverId: { type: integer }
+        contractId: { type: integer }
+        shiftDate: { type: string }
+        status: { $ref: "#/components/schemas/Status" }
+        startTime: { type: ["string", "null"] }
+        createdBy: { type: ["integer", "null"] }
+        updatedBy: { type: ["integer", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    BookingInput:
+      type: object
+      required: [driverId, contractId, shiftDate, status]
+      properties:
+        driverId: { type: integer }
+        contractId: { type: integer }
+        shiftDate: { type: string }
+        status: { $ref: "#/components/schemas/Status" }
+        startTime: { type: ["string", "null"] }
+
+    GridResponse:
+      type: object
+      required: [drivers, bookings]
+      properties:
+        drivers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Driver"
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+
+    AuditEntry:
+      type: object
+      required: [id, action, changedAt]
+      properties:
+        id: { type: integer }
+        bookingId: { type: ["integer", "null"] }
+        userId: { type: ["integer", "null"] }
+        userName: { type: ["string", "null"] }
+        driverName: { type: ["string", "null"] }
+        shiftDate: { type: ["string", "null"] }
+        action: { type: string }
+        oldValue: { type: ["string", "null"] }
+        newValue: { type: ["string", "null"] }
+        changedAt: { type: string }
+
+    StatusCount:
+      type: object
+      required: [status, count]
+      properties:
+        status: { type: string }
+        count: { type: integer }
+
+    DashboardSummary:
+      type: object
+      required: [totalDrivers, totalActiveDrivers, totalContracts, shiftsToday, shiftsThisWeek, statusBreakdown]
+      properties:
+        totalDrivers: { type: integer }
+        totalActiveDrivers: { type: integer }
+        totalContracts: { type: integer }
+        shiftsToday: { type: integer }
+        shiftsThisWeek: { type: integer }
+        statusBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatusCount"
+
+    ClientEmailPreviewInput:
+      type: object
+      required: [contractId, start, end]
+      properties:
+        contractId: { type: integer }
+        start: { type: string }
+        end: { type: string }
+
+    ClientEmailRow:
+      type: object
+      required: [driverName, shiftDate, status]
+      properties:
+        driverName: { type: string }
+        jobRole: { type: ["string", "null"] }
+        shiftDate: { type: string }
+        status: { type: string }
+        startTime: { type: ["string", "null"] }
+
+    ClientEmailPreview:
+      type: object
+      required: [subject, body, companyName, rows]
+      properties:
+        subject: { type: string }
+        body: { type: string }
+        companyName: { type: string }
+        location: { type: ["string", "null"] }
+        recipientName: { type: ["string", "null"] }
+        recipientEmail: { type: ["string", "null"] }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientEmailRow"
+
+    ConfirmationPreviewInput:
+      type: object
+      required: [start, end]
+      properties:
+        driverId: { type: ["integer", "null"] }
+        contractId: { type: ["integer", "null"] }
+        start: { type: string }
+        end: { type: string }
+
+    ConfirmationShift:
+      type: object
+      required: [shiftDate, status]
+      properties:
+        shiftDate: { type: string }
+        status: { type: string }
+        startTime: { type: ["string", "null"] }
+        companyName: { type: ["string", "null"] }
+        location: { type: ["string", "null"] }
+
+    ConfirmationPreview:
+      type: object
+      required: [driverId, driverName, messageText, shifts]
+      properties:
+        driverId: { type: integer }
+        driverName: { type: string }
+        phone: { type: ["string", "null"] }
+        messageText: { type: string }
+        shifts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfirmationShift"
+
+    ImportInput:
+      type: object
+      required: [contractId, csvText]
+      properties:
+        contractId: { type: integer }
+        csvText: { type: string }
+
+    ImportResult:
+      type: object
+      required: [driversCreated, driversMatched, bookingsUpserted, errors]
+      properties:
+        driversCreated: { type: integer }
+        driversMatched: { type: integer }
+        bookingsUpserted: { type: integer }
+        errors:
+          type: array
+          items:
+            type: string

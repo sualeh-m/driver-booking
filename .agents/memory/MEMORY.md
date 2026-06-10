@@ -1,0 +1,1 @@
+- [connect-pg-simple session table](connect-pg-simple-bundling.md) — createTableIfMissing throws ENOENT under esbuild bundle; provision the session table via Drizzle schema instead.

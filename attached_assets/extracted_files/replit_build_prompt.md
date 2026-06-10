@@ -1,0 +1,87 @@
+# Replit build prompt — internal driver booking system
+
+Copy everything below the line into Replit Agent. Upload `schema.sql` to the project
+first, or paste its contents when the Agent asks for the database structure.
+
+---
+
+Build an internal web application for a recruitment agency to manage HGV driver shift
+bookings. It replaces a Google Sheets workflow. It is for internal staff only — a small
+team of account managers. There is no public access, no customer sign-up, no payments.
+
+## Tech stack
+- Backend: Python with Flask (keep it simple and readable).
+- Database: Replit's built-in PostgreSQL.
+- Frontend: a fast, editable spreadsheet-style grid. Plain HTML/JS with a light table
+  library is fine — it must FEEL like editing a spreadsheet, not filling in forms.
+- Use the database structure in `schema.sql` exactly as provided. Do not redesign the
+  tables. Build the app around that schema.
+
+## The core concept (read this carefully)
+The central object is a **booking**: one row per driver per day. Every booking has a
+status and an optional start time. The main screen is a grid — drivers down the left
+side, dates across the top, one editable cell where each driver row meets each date
+column. A driver can only have ONE booking per day (the database enforces this).
+
+## PHASE 1 — build all of this now
+
+### Main grid view
+- Rows = drivers. Show full name, phone number, and job role on the left of each row.
+- Columns = dates.
+- A Day / Week / Month toggle at the top:
+  - Week view runs Sunday to Saturday.
+  - Month view starts on the 1st.
+- A contract dropdown that filters the grid to show one contract at a time.
+- Each cell is editable inline: the user picks a status and, when relevant, types a
+  start time in 24-hour format (e.g. 04:00). Saving a cell creates or updates that
+  driver's booking for that date.
+- Colour-code cells by status, with a colour key shown on the right:
+  - Available = orange
+  - Pre-Booked = yellow
+  - Confirmed = green
+  - Rest = grey
+  - Off = white / no fill
+  - Holiday = black cell with a white X
+- Show the total number of working shifts per day (a count column or footer per date).
+
+### Top action buttons
+- **Add driver**: opens a search box to find a driver, then asks which contract to link
+  them to before adding them to the grid. (In Phase 1 the search just queries the local
+  `drivers` table. Phase 2 wires this to Vincere.)
+- **New contract**: opens a box to enter company name, client contact name, client
+  contact email, and location. Creates a new contract.
+- **Import CSV**: lets the user paste or upload a CSV of drivers/bookings. Always ask
+  for confirmation before importing, and ask whether to add to the current contract or
+  a new one.
+- **Export**: lets the user choose Day, Week, or Month view, then downloads that view
+  as a CSV.
+- **Email to client** (Phase 1: build the PREVIEW only): generates a clean table of the
+  selected view plus a pre-written message to the contract's client contact, and shows
+  it on screen for review. Actual sending is Phase 2.
+- **Send candidate confirmations** (Phase 1: build the PREVIEW only): lets the user
+  choose all drivers or one driver from a dropdown, and Day/Week/Month, then shows a
+  preview of each driver's own shifts. Actual sending is Phase 2.
+
+### Users and audit trail
+- A simple users table is already in the schema. Add a basic login (pick-your-name or
+  simple email login is fine — this is internal).
+- Every time a booking is created or amended, write a row to `audit_log` recording who
+  did it, what changed (old value to new value), and when.
+- Add an "Activity / history" view so staff can see recent changes and who made them.
+
+## PHASE 2 — DO NOT BUILD YET. Just leave clean, clearly-marked hooks in the code.
+These need external API credentials and admin setup. Stub them out with TODO comments
+so they're easy to wire up later:
+- **Vincere CRM**: pull a candidate (name, phone, job role) into the local `drivers`
+  table by `vincere_id`. Only pull drivers who are explicitly added — never bulk-import
+  the whole Vincere database.
+- **Microsoft Graph (Outlook)**: send the "Email to client" preview from the logged-in
+  user's own mailbox.
+- **Twilio**: send the "Send candidate confirmations" text messages from a single
+  central company number, and log replies back into the `messages` table so staff can
+  see who responded.
+
+## Build order
+Start with the database connection and the grid (read, then edit). Get a driver onto
+the grid and a booking saving and colour-coding correctly before anything else. Then
+add the buttons, then the audit trail. Leave the Phase 2 integrations as stubs.
