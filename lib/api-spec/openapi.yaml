@@ -435,6 +435,35 @@ paths:
                 items:
                   $ref: "#/components/schemas/Requirement"
 
+  /requirements/daily:
+    put:
+      operationId: upsertDailyRequirement
+      tags: [submissions]
+      summary: Set the total number of workers required for a sheet on a date
+      description: >-
+        Sets the per-day requirement total for a sheet+date (used by the grid's
+        editable "Required" row). Maintains a single canonical requirement row
+        per sheet+date so the grid total matches the entered value.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyRequirementInput"
+      responses:
+        "200":
+          description: Saved per-day requirement total
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DayRequirement"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /submissions:
     get:
       operationId: listSubmissions
@@ -1161,6 +1190,18 @@ components:
       properties:
         shiftDate: { type: string }
         required: { type: integer }
+
+    DailyRequirementInput:
+      type: object
+      required: [sheetId, shiftDate, required]
+      description: Set the total workers required for a sheet on a date.
+      properties:
+        sheetId: { type: integer }
+        shiftDate: { type: string }
+        required:
+          type: integer
+          minimum: 0
+          description: Total workers needed that day (0 clears the requirement).
 
     GridResponse:
       type: object

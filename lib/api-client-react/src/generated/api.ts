@@ -28,7 +28,9 @@ import type {
   ClientEmailPreviewInput,
   ConfirmationPreview,
   ConfirmationPreviewInput,
+  DailyRequirementInput,
   DashboardSummary,
+  DayRequirement,
   DoNotBookWorker,
   Error,
   Event,
@@ -1494,6 +1496,78 @@ export function useListRequirements<TData = Awaited<ReturnType<typeof listRequir
 
 
 
+
+export const getUpsertDailyRequirementUrl = () => {
+
+
+
+
+  return `/api/requirements/daily`
+}
+
+/**
+ * Sets the per-day requirement total for a sheet+date (used by the grid's editable "Required" row). Maintains a single canonical requirement row per sheet+date so the grid total matches the entered value.
+ * @summary Set the total number of workers required for a sheet on a date
+ */
+export const upsertDailyRequirement = async (dailyRequirementInput: DailyRequirementInput, options?: RequestInit): Promise<DayRequirement> => {
+
+  return customFetch<DayRequirement>(getUpsertDailyRequirementUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      dailyRequirementInput,)
+  }
+);}
+
+
+
+
+export const getUpsertDailyRequirementMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertDailyRequirement>>, TError,{data: BodyType<DailyRequirementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertDailyRequirement>>, TError,{data: BodyType<DailyRequirementInput>}, TContext> => {
+
+const mutationKey = ['upsertDailyRequirement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertDailyRequirement>>, {data: BodyType<DailyRequirementInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  upsertDailyRequirement(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertDailyRequirementMutationResult = NonNullable<Awaited<ReturnType<typeof upsertDailyRequirement>>>
+    export type UpsertDailyRequirementMutationBody = BodyType<DailyRequirementInput>
+    export type UpsertDailyRequirementMutationError = ErrorType<Error>
+
+    /**
+ * @summary Set the total number of workers required for a sheet on a date
+ */
+export const useUpsertDailyRequirement = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertDailyRequirement>>, TError,{data: BodyType<DailyRequirementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertDailyRequirement>>,
+        TError,
+        {data: BodyType<DailyRequirementInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertDailyRequirementMutationOptions(options));
+    }
 
 export const getListSubmissionsUrl = (params?: ListSubmissionsParams,) => {
   const normalizedParams = new URLSearchParams();

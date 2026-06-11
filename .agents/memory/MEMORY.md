@@ -1,3 +1,4 @@
 - [connect-pg-simple session table](connect-pg-simple-bundling.md) — createTableIfMissing throws ENOENT under esbuild bundle; provision the session table via Drizzle schema instead.
+- [Canonical-row upsert without a unique constraint](canonical-row-advisory-lock.md) — frozen schema forbids unique indexes; keep one canonical row in app code + pg_advisory_xact_lock to avoid doubled SUM aggregates.
 - [Orval query-options require queryKey](orval-query-options.md) — setting `enabled` on a generated query hook also needs `queryKey: get<Op>QueryKey(...)` or typecheck fails (TS2741).
 - [Preview/send dialogs (POST mutations)](preview-mutation-dialogs.md) — effect-driven reset+refetch on open/scope-change, never render-time conditions, or stale cross-sheet data leaks.

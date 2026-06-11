@@ -336,6 +336,19 @@ export interface DayRequirement {
   required: number;
 }
 
+/**
+ * Set the total workers required for a sheet on a date.
+ */
+export interface DailyRequirementInput {
+  sheetId: number;
+  shiftDate: string;
+  /**
+     * Total workers needed that day (0 clears the requirement).
+     * @minimum 0
+     */
+  required: number;
+}
+
 export interface GridResponse {
   workers: GridWorker[];
   bookings: Booking[];

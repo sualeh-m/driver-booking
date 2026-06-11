@@ -309,6 +309,26 @@ export const ListRequirementsResponse = zod.array(ListRequirementsResponseItem)
 
 
 /**
+ * Sets the per-day requirement total for a sheet+date (used by the grid's editable "Required" row). Maintains a single canonical requirement row per sheet+date so the grid total matches the entered value.
+ * @summary Set the total number of workers required for a sheet on a date
+ */
+export const upsertDailyRequirementBodyRequiredMin = 0;
+
+
+
+export const UpsertDailyRequirementBody = zod.object({
+  "sheetId": zod.number(),
+  "shiftDate": zod.string(),
+  "required": zod.number().min(upsertDailyRequirementBodyRequiredMin).describe('Total workers needed that day (0 clears the requirement).')
+}).describe('Set the total workers required for a sheet on a date.')
+
+export const UpsertDailyRequirementResponse = zod.object({
+  "shiftDate": zod.string(),
+  "required": zod.number()
+}).describe('Total quantity needed for a sheet on a date (all roles summed).')
+
+
+/**
  * @summary List submissions, optionally filtered by sheet and date range
  */
 export const ListSubmissionsQueryParams = zod.object({

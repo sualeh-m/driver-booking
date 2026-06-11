@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useUpsertBooking, useDeleteBooking, useCreateEvent, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import { useUpsertBooking, useDeleteBooking, useCreateEvent, useUpsertDailyRequirement, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
 import type { WorkerType } from "@workspace/api-client-react";
 import { EventsDialog } from "./dialogs/EventsDialog";
 import { MarkLeaverDialog } from "./dialogs/MarkLeaverDialog";
@@ -37,6 +37,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const upsertBooking = useUpsertBooking();
   const deleteBooking = useDeleteBooking();
   const createEvent = useCreateEvent();
+  const upsertRequirement = useUpsertDailyRequirement();
   const { toast } = useToast();
   const days = eachDayOfInterval({ start, end });
   const [restWarning, setRestWarning] = useState<{ input: BookingInput; message: string } | null>(null);
@@ -117,6 +118,27 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     );
   };
 
+  const handleRequirementSave = (dateStr: string, raw: string, current: number) => {
+    const trimmed = raw.trim();
+    const parsed = trimmed === "" ? 0 : Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast({ title: "Enter a whole number of 0 or more", variant: "destructive" });
+      return;
+    }
+    const required = Math.floor(parsed);
+    if (required === current) return;
+    upsertRequirement.mutate(
+      { data: { sheetId, shiftDate: dateStr, required } },
+      {
+        onSuccess: () => invalidate(),
+        onError: (err: unknown) => {
+          const body = (err as { data?: { error?: string } } | undefined)?.data;
+          toast({ title: "Could not save requirement", description: body?.error ?? "Please try again.", variant: "destructive" });
+        },
+      }
+    );
+  };
+
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading grid...</div>;
   }
@@ -147,8 +169,23 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         (b.status === "Confirmed" || b.status === "Pre-Booked"),
     ).length;
     const stillNeeded = Math.max(0, required - filled);
-    return { required, filled, stillNeeded };
+    // Fill status drives the traffic-light colour. Neutral when nothing is
+    // required; red when nothing booked; green when fully covered; amber when
+    // partially filled.
+    let fill: "none" | "empty" | "partial" | "full";
+    if (required === 0) fill = "none";
+    else if (filled === 0) fill = "empty";
+    else if (filled >= required) fill = "full";
+    else fill = "partial";
+    return { dateStr, required, filled, stillNeeded, fill };
   });
+
+  const fillCellClass: Record<"none" | "empty" | "partial" | "full", string> = {
+    none: "text-muted-foreground",
+    empty: "bg-red-100 text-red-700",
+    partial: "bg-amber-100 text-amber-800",
+    full: "bg-green-100 text-green-700",
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -221,9 +258,26 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
               <TableHead colSpan={3} className="border-r text-right font-medium sticky left-0 bg-muted">
                 Required
               </TableHead>
-              {coveragePerDay.map((c, i) => (
-                <TableHead key={i} className="border-r text-center text-foreground">
-                  {c.required > 0 ? c.required : "-"}
+              {coveragePerDay.map((c) => (
+                <TableHead key={c.dateStr} className="border-r p-1 text-center">
+                  <Input
+                    key={`${c.dateStr}-${c.required}`}
+                    type="number"
+                    min={0}
+                    step={1}
+                    defaultValue={c.required > 0 ? String(c.required) : ""}
+                    placeholder="-"
+                    aria-label={`Required on ${c.dateStr}`}
+                    className="mx-auto h-7 w-12 px-1 text-center text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    onBlur={(e) => handleRequirementSave(c.dateStr, e.currentTarget.value, c.required)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      else if (e.key === "Escape") {
+                        e.currentTarget.value = c.required > 0 ? String(c.required) : "";
+                        e.currentTarget.blur();
+                      }
+                    }}
+                  />
                 </TableHead>
               ))}
             </TableRow>
@@ -231,8 +285,8 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
               <TableHead colSpan={3} className="border-r text-right font-medium sticky left-0 bg-muted">
                 Filled
               </TableHead>
-              {coveragePerDay.map((c, i) => (
-                <TableHead key={i} className="border-r text-center text-foreground">
+              {coveragePerDay.map((c) => (
+                <TableHead key={c.dateStr} className="border-r text-center text-foreground">
                   {c.required > 0 || c.filled > 0 ? c.filled : "-"}
                 </TableHead>
               ))}
@@ -241,14 +295,10 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
               <TableHead colSpan={3} className="border-r text-right font-semibold sticky left-0 bg-muted">
                 Still Needed
               </TableHead>
-              {coveragePerDay.map((c, i) => (
+              {coveragePerDay.map((c) => (
                 <TableHead
-                  key={i}
-                  className={`border-r text-center font-bold ${
-                    c.stillNeeded > 0
-                      ? "bg-red-100 text-red-700"
-                      : "text-muted-foreground"
-                  }`}
+                  key={c.dateStr}
+                  className={`border-r text-center font-bold ${fillCellClass[c.fill]}`}
                 >
                   {c.required > 0 ? c.stillNeeded : "-"}
                 </TableHead>
@@ -267,6 +317,9 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday flex items-center justify-center text-[8px] text-white leading-none">✕</div> Holiday</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-red-600" /> No Show</div>
         <div className="flex items-center gap-1"><span className="flex h-4 min-w-4 items-center justify-center rounded-full border border-slate-300 bg-white px-1 text-[9px] font-bold text-slate-900 leading-none">3</span> HGV consecutive working days</div>
+        <div className="ml-2 flex items-center gap-1 border-l pl-3"><div className="h-3 w-3 rounded-sm bg-red-100 border border-red-300" /> None filled</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-amber-100 border border-amber-300" /> Part filled</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-green-100 border border-green-300" /> Fully filled</div>
       </div>
 
       <AlertDialog open={!!restWarning} onOpenChange={(o) => { if (!o) setRestWarning(null); }}>

@@ -16,6 +16,7 @@ export * from './clientEmailRow';
 export * from './confirmationPreview';
 export * from './confirmationPreviewInput';
 export * from './confirmationShift';
+export * from './dailyRequirementInput';
 export * from './dashboardSummary';
 export * from './dayRequirement';
 export * from './doNotBookWorker';
