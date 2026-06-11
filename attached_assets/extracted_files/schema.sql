@@ -51,6 +51,7 @@ CREATE TABLE workers (
     start_date   DATE,                 -- joined company — feeds retention buckets
     status       TEXT NOT NULL DEFAULT 'active'
                  CHECK (status IN ('active','left')),
+    do_not_book  BOOLEAN NOT NULL DEFAULT false, -- flagged unbookable (manual or auto after 5 no-shows)
     synced_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

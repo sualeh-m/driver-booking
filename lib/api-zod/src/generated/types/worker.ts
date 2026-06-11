@@ -20,5 +20,6 @@ export interface Worker {
   /** @nullable */
   startDate?: string | null;
   status: string;
+  doNotBook: boolean;
   syncedAt: string;
 }

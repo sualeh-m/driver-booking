@@ -57,6 +57,8 @@ export interface Event {
   /** @nullable */
   createdBy?: number | null;
   createdAt: string;
+  /** Only set on create. True when logging this no-show pushed the worker to the no-show threshold and auto-set their Do Not Book flag. */
+  autoFlagged?: boolean;
 }
 
 export interface EventInput {
@@ -132,6 +134,7 @@ export interface Worker {
   /** @nullable */
   startDate?: string | null;
   status: string;
+  doNotBook: boolean;
   syncedAt: string;
 }
 
@@ -163,9 +166,26 @@ export interface GridWorker {
   /** @nullable */
   startDate?: string | null;
   status: string;
+  doNotBook: boolean;
   syncedAt: string;
   /** @nullable */
   note?: string | null;
+}
+
+export interface DoNotBookWorker {
+  id: number;
+  fullName: string;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  jobRole?: string | null;
+  workerType: WorkerType;
+  doNotBook: boolean;
+  noShowCount: number;
+}
+
+export interface SetDoNotBookInput {
+  doNotBook: boolean;
 }
 
 export interface Booking {

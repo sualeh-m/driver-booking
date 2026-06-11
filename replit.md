@@ -43,11 +43,13 @@ Spreadsheet-style grid (workers down, dates across) scoped to the selected **she
 
 **Worker event logging (built):** from the grid, each worker row has an event trigger (icon in the worker name cell — two clicks, no separate page) opening an Events dialog to log an event (type + date defaulting to today + optional notes), view that worker's events (most-recent-first list), and delete one. Event types: No Show (`no_show`), CPC Failure (`cpc_failure`), Test Failure (`test_failure`). Hard rule enforced server-side in `routes/events.ts`: CPC/Test failures may ONLY be logged for HGV workers; Warehouse workers get only No Show. The frontend filters the type options by worker type as UX, but the server is the source of truth (returns 400 if violated). The logged event's `sheetId` is the currently selected sheet; the list shows all of a worker's events regardless of sheet.
 
+**Do Not Book flag + No Show (built):** workers carry a `doNotBook` boolean (column added to the workers table — see preferences note on the schema deviation). Flagged workers are filtered out of the bookable grid (`grid.ts` adds `doNotBook = false` to the WHERE) and surface only in a dedicated **Do Not Book** view (`pages/DoNotBook.tsx`, nav link in Shell) listing each flagged worker with their total no-show count and an "Allow booking again" button (reversible un-flag via `PATCH /workers/{id}/do-not-book`). The booking cell's status dropdown has a red **No Show** option (sentinel value, not a booking status) that logs a `no_show` event for that date via `POST /events` — a single no-show does NOT remove the worker. Backstop in `routes/events.ts`: once a worker accumulates 5 total `no_show` events, `doNotBook` is auto-set to true (only crosses the line once, still manually reversible); the create response carries `autoFlagged` so the UI can explain the removal. CPC/Test failure logging is unchanged (HGV only). The worker-name cell (no warning icon) is itself the click target to open the Events dialog.
+
 Deliberately NOT built (tables exist but stay empty): KPI/reporting dashboard, shift-requirements roster, submissions, leavers.
 
 ## User preferences
 
-- The user-provided `schema.sql` must be used exactly — do not alter table/column definitions.
+- The user-provided `schema.sql` must be used exactly — EXCEPT the deliberate, user-requested `workers.do_not_book BOOLEAN NOT NULL DEFAULT false` column (kept in sync in `attached_assets/extracted_files/schema.sql`). Do not make further schema deviations without an explicit request.
 - Phase 2 integrations (Vincere, MS Graph, Twilio) are stubs only for now.
 
 ## Gotchas

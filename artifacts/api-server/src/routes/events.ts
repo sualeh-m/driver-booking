@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db, eventsTable, workersTable } from "@workspace/db";
 import {
   CreateEventBody,
@@ -12,6 +12,10 @@ import { getUserId } from "../lib/auth";
 // CPC and driving-test failures only make sense for HGV drivers, so they may
 // not be logged against Warehouse workers. No-shows apply to anyone.
 const HGV_ONLY_EVENT_TYPES = new Set(["cpc_failure", "test_failure"]);
+
+// Backstop: when a worker accumulates this many logged no-shows, auto-set their
+// Do Not Book flag (still manually reversible from the Do Not Book view).
+const NO_SHOW_AUTO_FLAG_THRESHOLD = 5;
 
 const router: IRouter = Router();
 
@@ -60,7 +64,37 @@ router.post("/events", async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(serializeEvent(created));
+  // No-show backstop: once a worker hits the threshold of total logged
+  // no-shows, auto-set Do Not Book. Only fires the first time it crosses the
+  // line (when not already flagged); managers can still un-flag manually.
+  let autoFlagged = false;
+  if (eventType === "no_show") {
+    const [{ value: noShowCount }] = await db
+      .select({ value: count() })
+      .from(eventsTable)
+      .where(
+        and(
+          eq(eventsTable.workerId, workerId),
+          eq(eventsTable.eventType, "no_show"),
+        ),
+      );
+
+    if (noShowCount >= NO_SHOW_AUTO_FLAG_THRESHOLD) {
+      const updated = await db
+        .update(workersTable)
+        .set({ doNotBook: true })
+        .where(
+          and(
+            eq(workersTable.id, workerId),
+            eq(workersTable.doNotBook, false),
+          ),
+        )
+        .returning({ id: workersTable.id });
+      autoFlagged = updated.length > 0;
+    }
+  }
+
+  res.status(201).json({ ...serializeEvent(created), autoFlagged });
 });
 
 router.get("/workers/:workerId/events", async (req, res): Promise<void> => {

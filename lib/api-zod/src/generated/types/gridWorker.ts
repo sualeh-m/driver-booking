@@ -20,6 +20,7 @@ export interface GridWorker {
   /** @nullable */
   startDate?: string | null;
   status: string;
+  doNotBook: boolean;
   syncedAt: string;
   /** @nullable */
   note?: string | null;

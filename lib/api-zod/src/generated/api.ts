@@ -164,6 +164,7 @@ export const ListWorkersResponseItem = zod.object({
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
+  "doNotBook": zod.boolean(),
   "syncedAt": zod.string()
 })
 export const ListWorkersResponse = zod.array(ListWorkersResponseItem)
@@ -182,6 +183,46 @@ export const CreateWorkerBody = zod.object({
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().optional(),
   "vincereId": zod.string().optional()
+})
+
+
+/**
+ * @summary List workers currently flagged Do Not Book
+ */
+export const ListDoNotBookWorkersResponseItem = zod.object({
+  "id": zod.number(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "doNotBook": zod.boolean(),
+  "noShowCount": zod.number()
+})
+export const ListDoNotBookWorkersResponse = zod.array(ListDoNotBookWorkersResponseItem)
+
+
+/**
+ * @summary Set or clear a worker's Do Not Book flag
+ */
+export const SetWorkerDoNotBookParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetWorkerDoNotBookBody = zod.object({
+  "doNotBook": zod.boolean()
+})
+
+export const SetWorkerDoNotBookResponse = zod.object({
+  "id": zod.number(),
+  "vincereId": zod.string().nullish(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "startDate": zod.string().nullish(),
+  "status": zod.string(),
+  "doNotBook": zod.boolean(),
+  "syncedAt": zod.string()
 })
 
 
@@ -226,6 +267,7 @@ export const GetGridResponse = zod.object({
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
+  "doNotBook": zod.boolean(),
   "syncedAt": zod.string(),
   "note": zod.string().nullish()
 })),
@@ -420,7 +462,8 @@ export const ListWorkerEventsResponseItem = zod.object({
   "eventType": zod.enum(['no_show', 'cpc_failure', 'test_failure']).describe('Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.'),
   "notes": zod.string().nullish(),
   "createdBy": zod.number().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "autoFlagged": zod.boolean().optional().describe('Only set on create. True when logging this no-show pushed the worker to the no-show threshold and auto-set their Do Not Book flag.')
 })
 export const ListWorkerEventsResponse = zod.array(ListWorkerEventsResponseItem)
 

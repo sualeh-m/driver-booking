@@ -29,6 +29,7 @@ import type {
   ConfirmationPreview,
   ConfirmationPreviewInput,
   DashboardSummary,
+  DoNotBookWorker,
   Error,
   Event,
   EventInput,
@@ -40,6 +41,7 @@ import type {
   ListAuditParams,
   ListWorkersParams,
   LoginInput,
+  SetDoNotBookInput,
   Sheet,
   SheetContact,
   SheetContactInput,
@@ -1031,6 +1033,155 @@ export const useCreateWorker = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getCreateWorkerMutationOptions(options));
+    }
+
+export const getListDoNotBookWorkersUrl = () => {
+
+
+
+
+  return `/api/workers/do-not-book`
+}
+
+/**
+ * @summary List workers currently flagged Do Not Book
+ */
+export const listDoNotBookWorkers = async ( options?: RequestInit): Promise<DoNotBookWorker[]> => {
+
+  return customFetch<DoNotBookWorker[]>(getListDoNotBookWorkersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDoNotBookWorkersQueryKey = () => {
+    return [
+    `/api/workers/do-not-book`
+    ] as const;
+    }
+
+
+export const getListDoNotBookWorkersQueryOptions = <TData = Awaited<ReturnType<typeof listDoNotBookWorkers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDoNotBookWorkers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDoNotBookWorkersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDoNotBookWorkers>>> = ({ signal }) => listDoNotBookWorkers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDoNotBookWorkers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDoNotBookWorkersQueryResult = NonNullable<Awaited<ReturnType<typeof listDoNotBookWorkers>>>
+export type ListDoNotBookWorkersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List workers currently flagged Do Not Book
+ */
+
+export function useListDoNotBookWorkers<TData = Awaited<ReturnType<typeof listDoNotBookWorkers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDoNotBookWorkers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDoNotBookWorkersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetWorkerDoNotBookUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}/do-not-book`
+}
+
+/**
+ * @summary Set or clear a worker's Do Not Book flag
+ */
+export const setWorkerDoNotBook = async (id: number,
+    setDoNotBookInput: SetDoNotBookInput, options?: RequestInit): Promise<Worker> => {
+
+  return customFetch<Worker>(getSetWorkerDoNotBookUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setDoNotBookInput,)
+  }
+);}
+
+
+
+
+export const getSetWorkerDoNotBookMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkerDoNotBook>>, TError,{id: number;data: BodyType<SetDoNotBookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setWorkerDoNotBook>>, TError,{id: number;data: BodyType<SetDoNotBookInput>}, TContext> => {
+
+const mutationKey = ['setWorkerDoNotBook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setWorkerDoNotBook>>, {id: number;data: BodyType<SetDoNotBookInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setWorkerDoNotBook(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetWorkerDoNotBookMutationResult = NonNullable<Awaited<ReturnType<typeof setWorkerDoNotBook>>>
+    export type SetWorkerDoNotBookMutationBody = BodyType<SetDoNotBookInput>
+    export type SetWorkerDoNotBookMutationError = ErrorType<Error>
+
+    /**
+ * @summary Set or clear a worker's Do Not Book flag
+ */
+export const useSetWorkerDoNotBook = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkerDoNotBook>>, TError,{id: number;data: BodyType<SetDoNotBookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setWorkerDoNotBook>>,
+        TError,
+        {id: number;data: BodyType<SetDoNotBookInput>},
+        TContext
+      > => {
+      return useMutation(getSetWorkerDoNotBookMutationOptions(options));
     }
 
 export const getAddWorkerToSheetUrl = (sheetId: number,) => {

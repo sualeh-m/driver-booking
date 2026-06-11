@@ -7,9 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useUpsertBooking, useDeleteBooking, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import { useUpsertBooking, useDeleteBooking, useCreateEvent, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
 import type { WorkerType } from "@workspace/api-client-react";
-import { AlertTriangle } from "lucide-react";
 import { EventsDialog } from "./dialogs/EventsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +35,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const queryClient = useQueryClient();
   const upsertBooking = useUpsertBooking();
   const deleteBooking = useDeleteBooking();
+  const createEvent = useCreateEvent();
   const { toast } = useToast();
   const days = eachDayOfInterval({ start, end });
   const [restWarning, setRestWarning] = useState<{ input: BookingInput; message: string } | null>(null);
@@ -85,6 +85,29 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     deleteBooking.mutate({ id }, { onSuccess: invalidate });
   };
 
+  const handleLogNoShow = (workerId: number, workerName: string, dateStr: string) => {
+    createEvent.mutate(
+      { data: { workerId, sheetId, eventType: "no_show", eventDate: dateStr } },
+      {
+        onSuccess: (event) => {
+          invalidate();
+          if (event.autoFlagged) {
+            toast({
+              title: `${workerName} flagged Do Not Book`,
+              description: "Reached 5 no-shows — removed from the grid. You can allow booking again from the Do Not Book view.",
+            });
+          } else {
+            toast({ title: `No-show logged for ${workerName}` });
+          }
+        },
+        onError: (err: unknown) => {
+          const body = (err as { data?: { error?: string } } | undefined)?.data;
+          toast({ title: "Could not log no-show", description: body?.error ?? "Please try again.", variant: "destructive" });
+        },
+      }
+    );
+  };
+
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading grid...</div>;
   }
@@ -120,22 +143,15 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
             {data.workers.map((worker) => (
               <TableRow key={worker.id}>
                 <TableCell className="border-r font-medium sticky left-0 bg-background">
-                  <div className="flex items-start justify-between gap-1">
-                    <div>
-                      <div>{worker.fullName}</div>
-                      {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-                      onClick={() => setEventsFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType })}
-                      aria-label={`Log or view events for ${worker.fullName}`}
-                      title="Events"
-                    >
-                      <AlertTriangle className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <button
+                    type="button"
+                    className="-mx-1 block w-full rounded px-1 py-0.5 text-left hover:bg-muted"
+                    onClick={() => setEventsFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType })}
+                    title="Log or view events"
+                  >
+                    <div>{worker.fullName}</div>
+                    {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
+                  </button>
                 </TableCell>
                 <TableCell className="border-r text-xs text-muted-foreground">{worker.phone || "-"}</TableCell>
                 <TableCell className="border-r text-xs text-muted-foreground">{worker.note || "-"}</TableCell>
@@ -154,6 +170,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                       restDays={restCounters.get(`${worker.id}|${dateStr}`)}
                       onSave={handleCellSave}
                       onDelete={handleCellDelete}
+                      onLogNoShow={handleLogNoShow}
                     />
                   );
                 })}
@@ -214,14 +231,20 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   );
 }
 
-function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave, onDelete }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void }) {
+const NO_SHOW_OPTION = "__no_show__";
+
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave, onDelete, onLogNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [status, setStatus] = useState<Status>(booking?.status || "Off");
+  const [status, setStatus] = useState<Status | typeof NO_SHOW_OPTION>(booking?.status || "Off");
   const [time, setTime] = useState(booking?.startTime || "");
 
   const handleSave = () => {
-    onSave(workerId, dateStr, status, time);
+    if (status === NO_SHOW_OPTION) {
+      onLogNoShow(workerId, workerName, dateStr);
+    } else {
+      onSave(workerId, dateStr, status, time);
+    }
     setOpen(false);
   };
 
@@ -274,7 +297,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave,
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
+              <Select value={status} onValueChange={(v) => setStatus(v as Status | typeof NO_SHOW_OPTION)}>
                 <SelectTrigger className="h-8">
                   <SelectValue />
                 </SelectTrigger>
@@ -285,6 +308,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave,
                   <SelectItem value="Confirmed">Confirmed</SelectItem>
                   <SelectItem value="Rest">Rest</SelectItem>
                   <SelectItem value="Holiday">Holiday</SelectItem>
+                  <SelectItem value={NO_SHOW_OPTION} className="font-medium text-red-600 focus:text-red-600">No Show</SelectItem>
                 </SelectContent>
               </Select>
             </div>

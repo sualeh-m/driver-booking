@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import { Login } from "@/pages/Login";
 import { Grid } from "@/pages/Grid";
 import { Activity } from "@/pages/Activity";
+import { DoNotBook } from "@/pages/DoNotBook";
 import { Shell } from "@/components/layout/Shell";
 
 const queryClient = new QueryClient({
@@ -29,6 +30,11 @@ function Router() {
       <Route path="/activity">
         <Shell>
           <Activity />
+        </Shell>
+      </Route>
+      <Route path="/do-not-book">
+        <Shell>
+          <DoNotBook />
         </Shell>
       </Route>
       <Route component={NotFound} />

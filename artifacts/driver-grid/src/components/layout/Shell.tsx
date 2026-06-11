@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ActivityIcon, CalendarDaysIcon, LogOutIcon } from "lucide-react";
+import { ActivityIcon, CalendarDaysIcon, LogOutIcon, UserXIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -55,6 +55,16 @@ export function Shell({ children }: { children: ReactNode }) {
               >
                 <CalendarDaysIcon className="h-4 w-4" />
                 Grid
+              </Button>
+            </Link>
+            <Link href="/do-not-book">
+              <Button
+                variant={location === "/do-not-book" ? "secondary" : "ghost"}
+                size="sm"
+                className="gap-2"
+              >
+                <UserXIcon className="h-4 w-4" />
+                Do Not Book
               </Button>
             </Link>
             <Link href="/activity">

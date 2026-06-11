@@ -296,6 +296,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /workers/do-not-book:
+    get:
+      operationId: listDoNotBookWorkers
+      tags: [workers]
+      summary: List workers currently flagged Do Not Book
+      responses:
+        "200":
+          description: Flagged workers with their total no-show counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DoNotBookWorker"
+
+  /workers/{id}/do-not-book:
+    patch:
+      operationId: setWorkerDoNotBook
+      tags: [workers]
+      summary: Set or clear a worker's Do Not Book flag
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetDoNotBookInput"
+      responses:
+        "200":
+          description: Updated worker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /sheets/{sheetId}/workers:
     post:
       operationId: addWorkerToSheet
@@ -650,6 +696,11 @@ components:
         notes: { type: ["string", "null"] }
         createdBy: { type: ["integer", "null"] }
         createdAt: { type: string }
+        autoFlagged:
+          type: boolean
+          description: >-
+            Only set on create. True when logging this no-show pushed the worker
+            to the no-show threshold and auto-set their Do Not Book flag.
 
     EventInput:
       type: object
@@ -722,7 +773,7 @@ components:
 
     Worker:
       type: object
-      required: [id, fullName, workerType, status, syncedAt]
+      required: [id, fullName, workerType, status, doNotBook, syncedAt]
       properties:
         id: { type: integer }
         vincereId: { type: ["string", "null"] }
@@ -732,6 +783,7 @@ components:
         workerType: { $ref: "#/components/schemas/WorkerType" }
         startDate: { type: ["string", "null"] }
         status: { type: string }
+        doNotBook: { type: boolean }
         syncedAt: { type: string }
 
     WorkerInput:
@@ -754,7 +806,7 @@ components:
 
     GridWorker:
       type: object
-      required: [id, fullName, workerType, status, syncedAt]
+      required: [id, fullName, workerType, status, doNotBook, syncedAt]
       properties:
         id: { type: integer }
         vincereId: { type: ["string", "null"] }
@@ -764,8 +816,27 @@ components:
         workerType: { $ref: "#/components/schemas/WorkerType" }
         startDate: { type: ["string", "null"] }
         status: { type: string }
+        doNotBook: { type: boolean }
         syncedAt: { type: string }
         note: { type: ["string", "null"] }
+
+    DoNotBookWorker:
+      type: object
+      required: [id, fullName, workerType, doNotBook, noShowCount]
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        phone: { type: ["string", "null"] }
+        jobRole: { type: ["string", "null"] }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
+        doNotBook: { type: boolean }
+        noShowCount: { type: integer }
+
+    SetDoNotBookInput:
+      type: object
+      required: [doNotBook]
+      properties:
+        doNotBook: { type: boolean }
 
     Booking:
       type: object

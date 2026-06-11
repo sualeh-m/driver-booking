@@ -62,6 +62,11 @@ export function EventsDialog({
   const refetchEvents = () =>
     queryClient.invalidateQueries({ queryKey: getListWorkerEventsQueryKey(workerId) });
 
+  // No-shows can auto-flag a worker as Do Not Book (5th no-show), which removes
+  // them from the grid — refresh it. Prefix match covers every sheet/range key.
+  const refetchGrid = () =>
+    queryClient.invalidateQueries({ queryKey: ["/api/grid"] });
+
   const handleLog = () => {
     if (!eventDate) {
       toast({ title: "Pick a date for the event", variant: "destructive" });
@@ -78,10 +83,18 @@ export function EventsDialog({
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (event) => {
           refetchEvents();
+          refetchGrid();
           setNotes("");
-          toast({ title: `${EVENT_LABELS[eventType]} logged for ${workerName}` });
+          if (event.autoFlagged) {
+            toast({
+              title: `${workerName} flagged Do Not Book`,
+              description: "Reached 5 no-shows — removed from the grid. You can allow booking again from the Do Not Book view.",
+            });
+          } else {
+            toast({ title: `${EVENT_LABELS[eventType]} logged for ${workerName}` });
+          }
         },
         onError: (err: unknown) => {
           const body = (err as { data?: { error?: string } } | undefined)?.data;

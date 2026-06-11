@@ -62,12 +62,18 @@ router.get("/grid", async (req, res): Promise<void> => {
       workerType: workersTable.workerType,
       startDate: workersTable.startDate,
       status: workersTable.status,
+      doNotBook: workersTable.doNotBook,
       syncedAt: workersTable.syncedAt,
       note: workerSheetsTable.notes,
     })
     .from(workerSheetsTable)
     .innerJoin(workersTable, eq(workersTable.id, workerSheetsTable.workerId))
-    .where(eq(workerSheetsTable.sheetId, sheetId))
+    .where(
+      and(
+        eq(workerSheetsTable.sheetId, sheetId),
+        eq(workersTable.doNotBook, false),
+      ),
+    )
     .orderBy(workersTable.fullName);
 
   const bookings = await db
@@ -134,6 +140,7 @@ router.get("/grid", async (req, res): Promise<void> => {
       workerType: w.workerType,
       startDate: w.startDate,
       status: w.status,
+      doNotBook: w.doNotBook,
       syncedAt:
         w.syncedAt instanceof Date ? w.syncedAt.toISOString() : w.syncedAt,
       note: w.note,

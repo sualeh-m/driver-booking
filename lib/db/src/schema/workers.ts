@@ -1,4 +1,4 @@
-import { pgTable, serial, text, date, timestamp, check } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, date, timestamp, boolean, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -16,6 +16,7 @@ export const workersTable = pgTable(
     workerType: text("worker_type").notNull(),
     startDate: date("start_date", { mode: "string" }),
     status: text("status").notNull().default("active"),
+    doNotBook: boolean("do_not_book").notNull().default(false),
     syncedAt: timestamp("synced_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

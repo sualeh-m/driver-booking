@@ -51,6 +51,7 @@ export function serializeWorker(w: Worker) {
     workerType: w.workerType,
     startDate: w.startDate,
     status: w.status,
+    doNotBook: w.doNotBook,
     syncedAt: iso(w.syncedAt),
   };
 }

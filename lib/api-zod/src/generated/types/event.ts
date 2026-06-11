@@ -19,4 +19,6 @@ export interface Event {
   /** @nullable */
   createdBy?: number | null;
   createdAt: string;
+  /** Only set on create. True when logging this no-show pushed the worker to the no-show threshold and auto-set their Do Not Book flag. */
+  autoFlagged?: boolean;
 }
