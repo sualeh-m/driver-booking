@@ -7,6 +7,7 @@ import {
   bookingsTable,
   auditLogTable,
   sheetsTable,
+  eventsTable,
   BOOKING_STATUSES,
 } from "@workspace/db";
 import { GetGridQueryParams, ImportBookingsBody } from "@workspace/api-zod";
@@ -87,6 +88,27 @@ router.get("/grid", async (req, res): Promise<void> => {
       ),
     );
 
+  // No-show events in the visible window so the grid can paint those cells red.
+  // Display-only: read straight from the events table so it persists on refresh.
+  const visibleWorkerIds = workers.map((w) => w.id);
+  const noShows =
+    visibleWorkerIds.length > 0
+      ? await db
+          .select({
+            workerId: eventsTable.workerId,
+            shiftDate: eventsTable.eventDate,
+          })
+          .from(eventsTable)
+          .where(
+            and(
+              eq(eventsTable.eventType, "no_show"),
+              inArray(eventsTable.workerId, visibleWorkerIds),
+              gte(eventsTable.eventDate, start),
+              lte(eventsTable.eventDate, end),
+            ),
+          )
+      : [];
+
   // Consecutive-working-day counters (HGV workers only). Pull extra history
   // before the window so counts at the start of the range are accurate, then
   // compute the "days worked since last rest" value for each visible day.
@@ -147,6 +169,7 @@ router.get("/grid", async (req, res): Promise<void> => {
     })),
     bookings: bookings.map(serializeBooking),
     restCounters,
+    noShows,
   });
 });
 

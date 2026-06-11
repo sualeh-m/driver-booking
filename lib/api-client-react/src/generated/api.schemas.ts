@@ -224,11 +224,21 @@ export interface RestCounter {
   days: number;
 }
 
+/**
+ * A logged no-show event for a worker on a date (display only).
+ */
+export interface NoShowCell {
+  workerId: number;
+  shiftDate: string;
+}
+
 export interface GridResponse {
   workers: GridWorker[];
   bookings: Booking[];
   /** Consecutive-working-day counters for HGV workers' worked days. */
   restCounters: RestCounter[];
+  /** No-show events in the window so cells can render red (display only). */
+  noShows: NoShowCell[];
 }
 
 export interface AuditEntry {

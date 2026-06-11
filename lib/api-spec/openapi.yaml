@@ -877,9 +877,17 @@ components:
         shiftDate: { type: string }
         days: { type: integer }
 
+    NoShowCell:
+      type: object
+      required: [workerId, shiftDate]
+      description: A logged no-show event for a worker on a date (display only).
+      properties:
+        workerId: { type: integer }
+        shiftDate: { type: string }
+
     GridResponse:
       type: object
-      required: [workers, bookings, restCounters]
+      required: [workers, bookings, restCounters, noShows]
       properties:
         workers:
           type: array
@@ -894,6 +902,11 @@ components:
           description: Consecutive-working-day counters for HGV workers' worked days.
           items:
             $ref: "#/components/schemas/RestCounter"
+        noShows:
+          type: array
+          description: No-show events in the window so cells can render red (display only).
+          items:
+            $ref: "#/components/schemas/NoShowCell"
 
     AuditEntry:
       type: object

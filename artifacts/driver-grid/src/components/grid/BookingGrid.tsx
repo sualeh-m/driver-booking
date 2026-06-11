@@ -53,6 +53,13 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     restCounters.set(`${c.workerId}|${c.shiftDate}`, c.days);
   }
 
+  // Set of "workerId|date" cells that have a logged no-show (display-only;
+  // read from events data so it persists across refreshes).
+  const noShowCells = new Set<string>();
+  for (const n of data?.noShows ?? []) {
+    noShowCells.add(`${n.workerId}|${n.shiftDate}`);
+  }
+
   const saveBooking = (input: BookingInput) => {
     upsertBooking.mutate(
       { data: input },
@@ -168,6 +175,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                       workerId={worker.id}
                       workerName={worker.fullName}
                       restDays={restCounters.get(`${worker.id}|${dateStr}`)}
+                      isNoShow={noShowCells.has(`${worker.id}|${dateStr}`)}
                       onSave={handleCellSave}
                       onDelete={handleCellDelete}
                       onLogNoShow={handleLogNoShow}
@@ -199,6 +207,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-rest" /> Rest</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-off" /> Off</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday flex items-center justify-center text-[8px] text-white leading-none">✕</div> Holiday</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-red-600" /> No Show</div>
         <div className="flex items-center gap-1"><span className="flex h-4 min-w-4 items-center justify-center rounded-full border border-slate-300 bg-white px-1 text-[9px] font-bold text-slate-900 leading-none">3</span> HGV consecutive working days</div>
       </div>
 
@@ -233,7 +242,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
 
 const NO_SHOW_OPTION = "__no_show__";
 
-function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave, onDelete, onLogNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, onSave, onDelete, onLogNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status | typeof NO_SHOW_OPTION>(booking?.status || "Off");
@@ -269,18 +278,24 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave,
   const isWorkingStatus = ["Available", "Pre-Booked", "Confirmed"].includes(status);
 
   const renderContent = () => {
+    if (isNoShow) return "No Show";
     if (!booking) return "";
     if (booking.status === "Holiday") return "✕";
     if (booking.startTime) return booking.startTime;
     return booking.status;
   };
 
+  // A logged no-show overrides any booking appearance: red cell, white text.
+  const cellClass = isNoShow
+    ? "bg-red-600 text-white"
+    : getStatusClass(booking?.status);
+
   return (
     <TableCell className="border-r p-0 align-top">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div
-            className={`relative h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${getStatusClass(booking?.status)}`}
+            className={`relative h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${cellClass}`}
           >
             {restDays != null && restDays > 0 && (
               <span

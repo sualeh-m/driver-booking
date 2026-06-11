@@ -31,6 +31,7 @@ export * from './importResult';
 export * from './listAuditParams';
 export * from './listWorkersParams';
 export * from './loginInput';
+export * from './noShowCell';
 export * from './restCounter';
 export * from './setDoNotBookInput';
 export * from './sheet';

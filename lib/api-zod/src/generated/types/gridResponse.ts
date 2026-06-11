@@ -7,6 +7,7 @@
  */
 import type { Booking } from './booking';
 import type { GridWorker } from './gridWorker';
+import type { NoShowCell } from './noShowCell';
 import type { RestCounter } from './restCounter';
 
 export interface GridResponse {
@@ -14,4 +15,6 @@ export interface GridResponse {
   bookings: Booking[];
   /** Consecutive-working-day counters for HGV workers' worked days. */
   restCounters: RestCounter[];
+  /** No-show events in the window so cells can render red (display only). */
+  noShows: NoShowCell[];
 }

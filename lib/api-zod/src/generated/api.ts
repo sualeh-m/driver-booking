@@ -287,7 +287,11 @@ export const GetGridResponse = zod.object({
   "workerId": zod.number(),
   "shiftDate": zod.string(),
   "days": zod.number()
-}).describe('Consecutive working days ending on a date (HGV workers only).')).describe('Consecutive-working-day counters for HGV workers\' worked days.')
+}).describe('Consecutive working days ending on a date (HGV workers only).')).describe('Consecutive-working-day counters for HGV workers\' worked days.'),
+  "noShows": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string()
+}).describe('A logged no-show event for a worker on a date (display only).')).describe('No-show events in the window so cells can render red (display only).')
 })
 
 
