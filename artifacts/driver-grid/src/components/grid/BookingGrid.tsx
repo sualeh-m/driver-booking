@@ -111,7 +111,7 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-pre-booked" /> Pre-Booked</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-confirmed" /> Confirmed</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-rest" /> Rest</div>
-        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-off" /> Off</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-off" /> Off</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday" /> Holiday</div>
       </div>
     </div>
@@ -149,7 +149,7 @@ function BookingCell({ booking, dateStr, driverId, onSave }: { booking?: Booking
           <div 
             className={`h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${getStatusClass(booking?.status)}`}
           >
-            {booking?.startTime ? booking.startTime : (booking?.status === "Off" || !booking ? "" : booking?.status)}
+            {booking?.startTime ? booking.startTime : (!booking ? "" : booking?.status)}
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" side="bottom" align="start">

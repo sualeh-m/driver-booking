@@ -128,5 +128,5 @@
 .status-pre-booked { background-color: #eab308; color: black; }
 .status-confirmed { background-color: #22c55e; color: white; }
 .status-rest { background-color: #9ca3af; color: white; }
-.status-off { background-color: transparent; color: inherit; }
-.status-holiday { background-color: #000000; color: white; background-image: linear-gradient(45deg, transparent 45%, white 45%, white 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, white 45%, white 55%, transparent 55%); background-size: 100% 100%; background-position: center; background-repeat: no-repeat; }
+.status-off { background-color: #bfdbfe; color: #1e3a5f; }
+.status-holiday { background-color: #000000; color: white; }
