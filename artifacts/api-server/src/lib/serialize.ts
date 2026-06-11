@@ -4,6 +4,7 @@ import type {
   SheetContact,
   Worker,
   Booking,
+  Event,
 } from "@workspace/db";
 
 function iso(value: Date | string): string {
@@ -72,5 +73,18 @@ export function serializeBooking(b: Booking) {
     updatedBy: b.updatedBy,
     createdAt: iso(b.createdAt),
     updatedAt: iso(b.updatedAt),
+  };
+}
+
+export function serializeEvent(e: Event) {
+  return {
+    id: e.id,
+    workerId: e.workerId,
+    sheetId: e.sheetId,
+    eventDate: e.eventDate,
+    eventType: e.eventType,
+    notes: e.notes,
+    createdBy: e.createdBy,
+    createdAt: iso(e.createdAt),
   };
 }

@@ -30,6 +30,8 @@ import type {
   ConfirmationPreviewInput,
   DashboardSummary,
   Error,
+  Event,
+  EventInput,
   GetGridParams,
   GridResponse,
   HealthStatus,
@@ -1772,5 +1774,223 @@ export const useImportBookings = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getImportBookingsMutationOptions(options));
+    }
+
+export const getCreateEventUrl = () => {
+
+
+
+
+  return `/api/events`
+}
+
+/**
+ * @summary Log a worker event (no-show, CPC failure, test failure)
+ */
+export const createEvent = async (eventInput: EventInput, options?: RequestInit): Promise<Event> => {
+
+  return customFetch<Event>(getCreateEventUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      eventInput,)
+  }
+);}
+
+
+
+
+export const getCreateEventMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,{data: BodyType<EventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,{data: BodyType<EventInput>}, TContext> => {
+
+const mutationKey = ['createEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEvent>>, {data: BodyType<EventInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEvent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEventMutationResult = NonNullable<Awaited<ReturnType<typeof createEvent>>>
+    export type CreateEventMutationBody = BodyType<EventInput>
+    export type CreateEventMutationError = ErrorType<Error>
+
+    /**
+ * @summary Log a worker event (no-show, CPC failure, test failure)
+ */
+export const useCreateEvent = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,{data: BodyType<EventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEvent>>,
+        TError,
+        {data: BodyType<EventInput>},
+        TContext
+      > => {
+      return useMutation(getCreateEventMutationOptions(options));
+    }
+
+export const getListWorkerEventsUrl = (workerId: number,) => {
+
+
+
+
+  return `/api/workers/${workerId}/events`
+}
+
+/**
+ * @summary List events logged against a worker, most recent first
+ */
+export const listWorkerEvents = async (workerId: number, options?: RequestInit): Promise<Event[]> => {
+
+  return customFetch<Event[]>(getListWorkerEventsUrl(workerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkerEventsQueryKey = (workerId: number,) => {
+    return [
+    `/api/workers/${workerId}/events`
+    ] as const;
+    }
+
+
+export const getListWorkerEventsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkerEvents>>, TError = ErrorType<unknown>>(workerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkerEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkerEventsQueryKey(workerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkerEvents>>> = ({ signal }) => listWorkerEvents(workerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(workerId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkerEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkerEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkerEvents>>>
+export type ListWorkerEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List events logged against a worker, most recent first
+ */
+
+export function useListWorkerEvents<TData = Awaited<ReturnType<typeof listWorkerEvents>>, TError = ErrorType<unknown>>(
+ workerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkerEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkerEventsQueryOptions(workerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteEventUrl = (id: number,) => {
+
+
+
+
+  return `/api/events/${id}`
+}
+
+/**
+ * @summary Delete a logged event
+ */
+export const deleteEvent = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteEventUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteEventMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEvent>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEvent>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEvent>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteEvent(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEventMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEvent>>>
+
+    export type DeleteEventMutationError = ErrorType<Error>
+
+    /**
+ * @summary Delete a logged event
+ */
+export const useDeleteEvent = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEvent>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEvent>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteEventMutationOptions(options));
     }
 

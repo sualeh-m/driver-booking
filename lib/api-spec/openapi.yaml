@@ -538,6 +538,73 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /events:
+    post:
+      operationId: createEvent
+      tags: [events]
+      summary: Log a worker event (no-show, CPC failure, test failure)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "400":
+          description: Invalid request (e.g. CPC/Test failure on a non-HGV worker)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /workers/{workerId}/events:
+    get:
+      operationId: listWorkerEvents
+      tags: [events]
+      summary: List events logged against a worker, most recent first
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Events for the worker
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+
+  /events/{id}:
+    delete:
+      operationId: deleteEvent
+      tags: [events]
+      summary: Delete a logged event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     HealthStatus:
@@ -563,6 +630,36 @@ components:
     WorkerType:
       type: string
       enum: [HGV, Warehouse]
+
+    EventType:
+      type: string
+      description: >-
+        Worker event type. cpc_failure and test_failure may only be logged
+        against HGV workers; no_show applies to any worker.
+      enum: [no_show, cpc_failure, test_failure]
+
+    Event:
+      type: object
+      required: [id, workerId, eventDate, eventType, createdAt]
+      properties:
+        id: { type: integer }
+        workerId: { type: integer }
+        sheetId: { type: ["integer", "null"] }
+        eventDate: { type: string }
+        eventType: { $ref: "#/components/schemas/EventType" }
+        notes: { type: ["string", "null"] }
+        createdBy: { type: ["integer", "null"] }
+        createdAt: { type: string }
+
+    EventInput:
+      type: object
+      required: [workerId, eventDate, eventType]
+      properties:
+        workerId: { type: integer }
+        sheetId: { type: ["integer", "null"] }
+        eventDate: { type: string, minLength: 1 }
+        eventType: { $ref: "#/components/schemas/EventType" }
+        notes: { type: string }
 
     User:
       type: object

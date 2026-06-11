@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUpsertBooking, useDeleteBooking, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import type { WorkerType } from "@workspace/api-client-react";
+import { AlertTriangle } from "lucide-react";
+import { EventsDialog } from "./dialogs/EventsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -36,6 +39,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const { toast } = useToast();
   const days = eachDayOfInterval({ start, end });
   const [restWarning, setRestWarning] = useState<{ input: BookingInput; message: string } | null>(null);
+  const [eventsFor, setEventsFor] = useState<{ id: number; fullName: string; workerType: WorkerType } | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ sheetId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
@@ -116,8 +120,22 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
             {data.workers.map((worker) => (
               <TableRow key={worker.id}>
                 <TableCell className="border-r font-medium sticky left-0 bg-background">
-                  <div>{worker.fullName}</div>
-                  {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
+                  <div className="flex items-start justify-between gap-1">
+                    <div>
+                      <div>{worker.fullName}</div>
+                      {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => setEventsFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType })}
+                      aria-label={`Log or view events for ${worker.fullName}`}
+                      title="Events"
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
                 <TableCell className="border-r text-xs text-muted-foreground">{worker.phone || "-"}</TableCell>
                 <TableCell className="border-r text-xs text-muted-foreground">{worker.note || "-"}</TableCell>
@@ -181,6 +199,17 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {eventsFor && (
+        <EventsDialog
+          open={!!eventsFor}
+          onOpenChange={(o) => { if (!o) setEventsFor(null); }}
+          workerId={eventsFor.id}
+          workerName={eventsFor.fullName}
+          workerType={eventsFor.workerType}
+          sheetId={sheetId}
+        />
+      )}
     </div>
   );
 }

@@ -390,3 +390,46 @@ export const ImportBookingsResponse = zod.object({
 })
 
 
+/**
+ * @summary Log a worker event (no-show, CPC failure, test failure)
+ */
+
+
+
+export const CreateEventBody = zod.object({
+  "workerId": zod.number(),
+  "sheetId": zod.number().nullish(),
+  "eventDate": zod.string().min(1),
+  "eventType": zod.enum(['no_show', 'cpc_failure', 'test_failure']).describe('Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.'),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary List events logged against a worker, most recent first
+ */
+export const ListWorkerEventsParams = zod.object({
+  "workerId": zod.coerce.number()
+})
+
+export const ListWorkerEventsResponseItem = zod.object({
+  "id": zod.number(),
+  "workerId": zod.number(),
+  "sheetId": zod.number().nullish(),
+  "eventDate": zod.string(),
+  "eventType": zod.enum(['no_show', 'cpc_failure', 'test_failure']).describe('Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.'),
+  "notes": zod.string().nullish(),
+  "createdBy": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListWorkerEventsResponse = zod.array(ListWorkerEventsResponseItem)
+
+
+/**
+ * @summary Delete a logged event
+ */
+export const DeleteEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+

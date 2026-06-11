@@ -8,6 +8,7 @@ import bookingsRouter from "./bookings";
 import auditRouter from "./audit";
 import dashboardRouter from "./dashboard";
 import previewsRouter from "./previews";
+import eventsRouter from "./events";
 import { requireAuth } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -26,5 +27,6 @@ router.use(bookingsRouter);
 router.use(auditRouter);
 router.use(dashboardRouter);
 router.use(previewsRouter);
+router.use(eventsRouter);
 
 export default router;

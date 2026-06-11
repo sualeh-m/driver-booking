@@ -33,6 +33,42 @@ export const WorkerType = {
   Warehouse: 'Warehouse',
 } as const;
 
+/**
+ * Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.
+ */
+export type EventType = typeof EventType[keyof typeof EventType];
+
+
+export const EventType = {
+  no_show: 'no_show',
+  cpc_failure: 'cpc_failure',
+  test_failure: 'test_failure',
+} as const;
+
+export interface Event {
+  id: number;
+  workerId: number;
+  /** @nullable */
+  sheetId?: number | null;
+  eventDate: string;
+  eventType: EventType;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  createdBy?: number | null;
+  createdAt: string;
+}
+
+export interface EventInput {
+  workerId: number;
+  /** @nullable */
+  sheetId?: number | null;
+  /** @minLength 1 */
+  eventDate: string;
+  eventType: EventType;
+  notes?: string;
+}
+
 export interface User {
   id: number;
   name: string;

@@ -22,7 +22,7 @@ Internal HGV/Warehouse shift-booking app for a recruitment agency — a spreadsh
 
 ## Where things live
 
-- DB schema (source of truth): `lib/db/src/schema/*.ts` — mirrors the user-provided v2 `attached_assets/extracted_files/schema.sql` exactly. Active tables: users, sheets, sheetContacts, workers, workerSheets, bookings, auditLog, messages. Empty-by-design tables exist but are NOT wired up: shiftRequirements, submissions, leavers, events. `session` is infra (provisioned via Drizzle, see Gotchas).
+- DB schema (source of truth): `lib/db/src/schema/*.ts` — mirrors the user-provided v2 `attached_assets/extracted_files/schema.sql` exactly. Active tables: users, sheets, sheetContacts, workers, workerSheets, bookings, auditLog, messages, events. Empty-by-design tables exist but are NOT wired up: shiftRequirements, submissions, leavers. `session` is infra (provisioned via Drizzle, see Gotchas).
 - API contract (source of truth): `lib/api-spec/openapi.yaml` — drives codegen (React Query hooks + Zod schemas in `@workspace/api-client-react`).
 - Backend routes: `artifacts/api-server/src/routes/*.ts`; helpers in `artifacts/api-server/src/lib/` (serialize, auth, session, csv, dates); wiring in `src/app.ts`.
 - Frontend: `artifacts/driver-grid/src/` — grid in `components/grid/BookingGrid.tsx`, layout in `components/layout/Shell.tsx`.
@@ -41,7 +41,9 @@ Spreadsheet-style grid (workers down, dates across) scoped to the selected **she
 
 **HGV rest-day safety check (built):** for HGV workers only, the grid shows a per-day counter (white pill, top-right of each cell) of consecutive working days (Confirmed/Pre-Booked count; Rest/Off/Holiday reset). When booking an HGV worker into a working status: at the warn threshold (6) it warns but allows with a confirmation dialog ("Book anyway"); at the block threshold (7) it is blocked server-side (cannot save). Warehouse workers have no limit and no counter. Thresholds live in ONE place: `REST_DAY_RULES` in `@workspace/rest-rules` (default warn=6, block=7).
 
-Deliberately NOT built (tables exist but stay empty): KPI/reporting dashboard, shift-requirements roster, submissions, leavers, events.
+**Worker event logging (built):** from the grid, each worker row has an event trigger (icon in the worker name cell — two clicks, no separate page) opening an Events dialog to log an event (type + date defaulting to today + optional notes), view that worker's events (most-recent-first list), and delete one. Event types: No Show (`no_show`), CPC Failure (`cpc_failure`), Test Failure (`test_failure`). Hard rule enforced server-side in `routes/events.ts`: CPC/Test failures may ONLY be logged for HGV workers; Warehouse workers get only No Show. The frontend filters the type options by worker type as UX, but the server is the source of truth (returns 400 if violated). The logged event's `sheetId` is the currently selected sheet; the list shows all of a worker's events regardless of sheet.
+
+Deliberately NOT built (tables exist but stay empty): KPI/reporting dashboard, shift-requirements roster, submissions, leavers.
 
 ## User preferences
 
