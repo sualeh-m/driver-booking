@@ -337,7 +337,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-confirmed" /> Confirmed</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-rest" /> Rest</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-off" /> Off</div>
-        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday flex items-center justify-center text-[8px] text-white leading-none">✕</div> Holiday</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday"></div> Holiday</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-red-600" /> No Show</div>
         <div className="flex items-center gap-1"><span className="flex h-4 min-w-4 items-center justify-center rounded-full border border-slate-300 bg-white px-1 text-[9px] font-bold text-slate-900 leading-none">3</span> HGV consecutive working days</div>
         <div className="ml-2 flex items-center gap-1 border-l pl-3"><div className="h-3 w-3 rounded-sm bg-red-100 border border-red-300" /> None filled</div>
@@ -431,7 +431,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
   const renderContent = () => {
     if (isNoShow) return "No Show";
     if (!booking) return "";
-    if (booking.status === "Holiday") return "✕";
+    if (booking.status === "Holiday") return "Holiday";
     if (booking.startTime) return booking.startTime;
     return booking.status;
   };
