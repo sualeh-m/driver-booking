@@ -47,6 +47,7 @@ import type {
   ListWorkersParams,
   LoginInput,
   MarkLeaverInput,
+  NoShowClearResult,
   Requirement,
   SetDoNotBookInput,
   Sheet,
@@ -2755,5 +2756,78 @@ export const useDeleteEvent = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getDeleteEventMutationOptions(options));
+    }
+
+export const getClearNoShowUrl = (workerId: number,
+    shiftDate: string,) => {
+
+
+
+
+  return `/api/workers/${workerId}/no-shows/${shiftDate}`
+}
+
+/**
+ * Deletes any no_show events for the worker on the given date. Used when a booking cell that shows a no-show is cleared, so the no-show never outlives its cell. If this drops the worker below the no-show auto-flag threshold and they had been auto-flagged Do Not Book, that flag is reversed (manual flags are left untouched).
+ * @summary Remove the logged no-show(s) for a worker on a date
+ */
+export const clearNoShow = async (workerId: number,
+    shiftDate: string, options?: RequestInit): Promise<NoShowClearResult> => {
+
+  return customFetch<NoShowClearResult>(getClearNoShowUrl(workerId,shiftDate),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getClearNoShowMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearNoShow>>, TError,{workerId: number;shiftDate: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearNoShow>>, TError,{workerId: number;shiftDate: string}, TContext> => {
+
+const mutationKey = ['clearNoShow'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearNoShow>>, {workerId: number;shiftDate: string}> = (props) => {
+          const {workerId,shiftDate} = props ?? {};
+
+          return  clearNoShow(workerId,shiftDate,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearNoShowMutationResult = NonNullable<Awaited<ReturnType<typeof clearNoShow>>>
+
+    export type ClearNoShowMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove the logged no-show(s) for a worker on a date
+ */
+export const useClearNoShow = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearNoShow>>, TError,{workerId: number;shiftDate: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearNoShow>>,
+        TError,
+        {workerId: number;shiftDate: string},
+        TContext
+      > => {
+      return useMutation(getClearNoShowMutationOptions(options));
     }
 

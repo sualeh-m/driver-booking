@@ -6,6 +6,7 @@ import { maxAllowedConsecutiveDays } from "@workspace/rest-rules";
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
 import { evaluateRestRule } from "../lib/restCheck";
+import { clearNoShowsForDate } from "../lib/noShow";
 
 function describe(status: string, startTime: string | null): string {
   return startTime ? `${status} @ ${startTime.slice(0, 5)}` : status;
@@ -105,6 +106,10 @@ router.put("/bookings", async (req, res): Promise<void> => {
         }
       }
 
+      // A no-show must not outlive its cell: setting any status on this
+      // worker+date clears a previously logged no-show (keeps the flag honest).
+      await clearNoShowsForDate(tx, workerId, shiftDate);
+
       return created;
     }
 
@@ -141,6 +146,10 @@ router.put("/bookings", async (req, res): Promise<void> => {
         newValue: newTime,
       });
     }
+
+    // A no-show must not outlive its cell: changing this worker+date to any
+    // status clears a previously logged no-show (keeps the flag honest).
+    await clearNoShowsForDate(tx, workerId, shiftDate);
 
     return updated;
   });
@@ -188,6 +197,11 @@ router.delete("/bookings/:id", async (req, res): Promise<void> => {
     });
 
     await tx.delete(bookingsTable).where(eq(bookingsTable.id, existing.id));
+
+    // Clearing the cell also clears any no-show logged on it, so the red
+    // "No Show" never persists after the booking is gone.
+    await clearNoShowsForDate(tx, existing.workerId, existing.shiftDate);
+
     return existing;
   });
 

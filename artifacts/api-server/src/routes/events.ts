@@ -5,17 +5,19 @@ import {
   CreateEventBody,
   DeleteEventParams,
   ListWorkerEventsParams,
+  ClearNoShowParams,
 } from "@workspace/api-zod";
 import { serializeEvent } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
+import {
+  NO_SHOW_AUTO_FLAG_THRESHOLD,
+  clearNoShowsForDate,
+  reconcileAutoFlagAfterRemoval,
+} from "../lib/noShow";
 
 // CPC and driving-test failures only make sense for HGV drivers, so they may
 // not be logged against Warehouse workers. No-shows apply to anyone.
 const HGV_ONLY_EVENT_TYPES = new Set(["cpc_failure", "test_failure"]);
-
-// Backstop: when a worker accumulates this many logged no-shows, auto-set their
-// Do Not Book flag (still manually reversible from the Do Not Book view).
-const NO_SHOW_AUTO_FLAG_THRESHOLD = 5;
 
 const router: IRouter = Router();
 
@@ -120,10 +122,20 @@ router.delete("/events/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [deleted] = await db
-    .delete(eventsTable)
-    .where(eq(eventsTable.id, params.data.id))
-    .returning();
+  const deleted = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .delete(eventsTable)
+      .where(eq(eventsTable.id, params.data.id))
+      .returning();
+
+    // Deleting a no-show directly (from the worker's Events dialog) must keep
+    // the auto-flag accurate, just like clearing it from the grid does.
+    if (row && row.eventType === "no_show") {
+      await reconcileAutoFlagAfterRemoval(tx, row.workerId, 1);
+    }
+
+    return row;
+  });
 
   if (!deleted) {
     res.status(404).json({ error: "Event not found" });
@@ -132,5 +144,22 @@ router.delete("/events/:id", async (req, res): Promise<void> => {
 
   res.sendStatus(204);
 });
+
+router.delete(
+  "/workers/:workerId/no-shows/:shiftDate",
+  async (req, res): Promise<void> => {
+    const params = ClearNoShowParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const result = await db.transaction((tx) =>
+      clearNoShowsForDate(tx, params.data.workerId, params.data.shiftDate),
+    );
+
+    res.json(result);
+  },
+);
 
 export default router;

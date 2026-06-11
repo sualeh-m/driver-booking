@@ -666,3 +666,18 @@ export const DeleteEventParams = zod.object({
 })
 
 
+/**
+ * Deletes any no_show events for the worker on the given date. Used when a booking cell that shows a no-show is cleared, so the no-show never outlives its cell. If this drops the worker below the no-show auto-flag threshold and they had been auto-flagged Do Not Book, that flag is reversed (manual flags are left untouched).
+ * @summary Remove the logged no-show(s) for a worker on a date
+ */
+export const ClearNoShowParams = zod.object({
+  "workerId": zod.coerce.number(),
+  "shiftDate": zod.coerce.string()
+})
+
+export const ClearNoShowResponse = zod.object({
+  "removed": zod.number().describe('Number of no_show events deleted.'),
+  "autoUnflagged": zod.boolean().describe('True when removing the no-show dropped the worker below the auto-flag threshold and reversed an automatic Do Not Book flag.')
+}).describe('Outcome of clearing a worker\'s no-show(s) on a date.')
+
+

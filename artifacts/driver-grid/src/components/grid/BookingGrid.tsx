@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useUpsertBooking, useDeleteBooking, useCreateEvent, useUpsertDailyRequirement, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import { useUpsertBooking, useDeleteBooking, useCreateEvent, useClearNoShow, useUpsertDailyRequirement, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
 import type { WorkerType } from "@workspace/api-client-react";
 import { EventsDialog } from "./dialogs/EventsDialog";
 import { MarkLeaverDialog } from "./dialogs/MarkLeaverDialog";
@@ -37,6 +37,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const upsertBooking = useUpsertBooking();
   const deleteBooking = useDeleteBooking();
   const createEvent = useCreateEvent();
+  const clearNoShow = useClearNoShow();
   const upsertRequirement = useUpsertDailyRequirement();
   const { toast } = useToast();
   const days = eachDayOfInterval({ start, end });
@@ -113,6 +114,27 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         onError: (err: unknown) => {
           const body = (err as { data?: { error?: string } } | undefined)?.data;
           toast({ title: "Could not log no-show", description: body?.error ?? "Please try again.", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleClearNoShow = (workerId: number, workerName: string, dateStr: string) => {
+    clearNoShow.mutate(
+      { workerId, shiftDate: dateStr },
+      {
+        onSuccess: (result) => {
+          invalidate();
+          if (result.autoUnflagged) {
+            toast({
+              title: `${workerName} no longer Do Not Book`,
+              description: "Dropped back below 5 no-shows, so the automatic flag was removed.",
+            });
+          }
+        },
+        onError: (err: unknown) => {
+          const body = (err as { data?: { error?: string } } | undefined)?.data;
+          toast({ title: "Could not clear no-show", description: body?.error ?? "Please try again.", variant: "destructive" });
         },
       }
     );
@@ -237,6 +259,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                       onSave={handleCellSave}
                       onDelete={handleCellDelete}
                       onLogNoShow={handleLogNoShow}
+                      onClearNoShow={handleClearNoShow}
                     />
                   );
                 })}
@@ -366,7 +389,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
 
 const NO_SHOW_OPTION = "__no_show__";
 
-function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, onSave, onDelete, onLogNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status | typeof NO_SHOW_OPTION>(booking?.status || "Off");
@@ -382,7 +405,11 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
   };
 
   const handleDelete = () => {
+    // A cell may have a booking, a logged no-show, or both. Deleting the
+    // booking also clears any no-show server-side; a no-show-only cell has no
+    // booking row, so clear the no-show directly.
     if (booking) onDelete(booking.id);
+    else if (isNoShow) onClearNoShow(workerId, workerName, dateStr);
     setConfirmDelete(false);
     setOpen(false);
   };
@@ -471,7 +498,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
               Save
             </Button>
 
-            {booking && (
+            {(booking || isNoShow) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -490,7 +517,9 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
           <AlertDialogHeader>
             <AlertDialogTitle>Clear this cell?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {workerName}'s {booking ? booking.status : ""} entry for {dateStr} and leave the cell empty. This action is recorded in the activity log and cannot be undone.
+              {booking
+                ? `This will permanently delete ${workerName}'s ${booking.status} entry for ${dateStr}${isNoShow ? " and remove the logged no-show" : ""}, leaving the cell empty. This action is recorded in the activity log and cannot be undone.`
+                : `This will remove the logged no-show for ${workerName} on ${dateStr}, leaving the cell empty.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

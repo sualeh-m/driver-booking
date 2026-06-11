@@ -860,6 +860,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /workers/{workerId}/no-shows/{shiftDate}:
+    delete:
+      operationId: clearNoShow
+      tags: [events]
+      summary: Remove the logged no-show(s) for a worker on a date
+      description: >-
+        Deletes any no_show events for the worker on the given date. Used when a
+        booking cell that shows a no-show is cleared, so the no-show never
+        outlives its cell. If this drops the worker below the no-show auto-flag
+        threshold and they had been auto-flagged Do Not Book, that flag is
+        reversed (manual flags are left untouched).
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: shiftDate
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Result of clearing the no-show
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoShowClearResult"
+
 components:
   schemas:
     HealthStatus:
@@ -1182,6 +1212,20 @@ components:
       properties:
         workerId: { type: integer }
         shiftDate: { type: string }
+
+    NoShowClearResult:
+      type: object
+      required: [removed, autoUnflagged]
+      description: Outcome of clearing a worker's no-show(s) on a date.
+      properties:
+        removed:
+          type: integer
+          description: Number of no_show events deleted.
+        autoUnflagged:
+          type: boolean
+          description: >-
+            True when removing the no-show dropped the worker below the auto-flag
+            threshold and reversed an automatic Do Not Book flag.
 
     DayRequirement:
       type: object

@@ -39,6 +39,7 @@ export * from './listWorkersParams';
 export * from './loginInput';
 export * from './markLeaverInput';
 export * from './noShowCell';
+export * from './noShowClearResult';
 export * from './requirement';
 export * from './restCounter';
 export * from './setDoNotBookInput';

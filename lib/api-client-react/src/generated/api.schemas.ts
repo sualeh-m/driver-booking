@@ -329,6 +329,16 @@ export interface NoShowCell {
 }
 
 /**
+ * Outcome of clearing a worker's no-show(s) on a date.
+ */
+export interface NoShowClearResult {
+  /** Number of no_show events deleted. */
+  removed: number;
+  /** True when removing the no-show dropped the worker below the auto-flag threshold and reversed an automatic Do Not Book flag. */
+  autoUnflagged: boolean;
+}
+
+/**
  * Total quantity needed for a sheet on a date (all roles summed).
  */
 export interface DayRequirement {
