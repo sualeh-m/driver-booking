@@ -9,6 +9,7 @@ import { Activity } from "@/pages/Activity";
 import { DoNotBook } from "@/pages/DoNotBook";
 import { Leavers } from "@/pages/Leavers";
 import { Submissions } from "@/pages/Submissions";
+import { Reports } from "@/pages/Reports";
 import { Shell } from "@/components/layout/Shell";
 
 const queryClient = new QueryClient({
@@ -47,6 +48,11 @@ function Router() {
       <Route path="/submissions">
         <Shell>
           <Submissions />
+        </Shell>
+      </Route>
+      <Route path="/reports">
+        <Shell>
+          <Reports />
         </Shell>
       </Route>
       <Route component={NotFound} />

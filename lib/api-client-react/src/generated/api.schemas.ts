@@ -404,6 +404,20 @@ export interface DashboardSummary {
   statusBreakdown: StatusCount[];
 }
 
+export interface OperationalMetrics {
+  start: string;
+  end: string;
+  activeWorkers: number;
+  requirementsReceived: number;
+  filled: number;
+  /**
+     * filled / requirementsReceived as a percentage (0-100+). Null when no requirements in range.
+     * @nullable
+     */
+  fillRate: number | null;
+  noShows: number;
+}
+
 export interface ClientEmailPreviewInput {
   sheetId: number;
   start: string;
@@ -520,4 +534,31 @@ export type ListAuditParams = {
  */
 limit?: number;
 };
+
+export type GetOperationalMetricsParams = {
+/**
+ * Inclusive range start (YYYY-MM-DD)
+ */
+start: string;
+/**
+ * Inclusive range end (YYYY-MM-DD)
+ */
+end: string;
+/**
+ * Restrict to a single worker type. Omit for both (All).
+ */
+workerType?: GetOperationalMetricsWorkerType;
+/**
+ * Comma-separated sheet IDs to include (the ticked depot/client sheets). Omit for all sheets.
+ */
+sheetIds?: string;
+};
+
+export type GetOperationalMetricsWorkerType = typeof GetOperationalMetricsWorkerType[keyof typeof GetOperationalMetricsWorkerType];
+
+
+export const GetOperationalMetricsWorkerType = {
+  HGV: 'HGV',
+  Warehouse: 'Warehouse',
+} as const;
 

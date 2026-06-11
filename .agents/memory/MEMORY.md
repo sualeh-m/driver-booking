@@ -3,3 +3,4 @@
 - [Orval query-options require queryKey](orval-query-options.md) — setting `enabled` on a generated query hook also needs `queryKey: get<Op>QueryKey(...)` or typecheck fails (TS2741).
 - [Preview/send dialogs (POST mutations)](preview-mutation-dialogs.md) — effect-driven reset+refetch on open/scope-change, never render-time conditions, or stale cross-sheet data leaks.
 - [No-show auto-flag reversal](no-show-autoflag-reversal.md) — no flag-origin column; reverse Do Not Book only when removal crosses no-show count from ≥5 down to <5, else it's a manual flag.
+- [KPI report two-set scoping](kpi-report-scoping.md) — /reports filters by depot/client + worker type via TWO sheet-id sets: worker-centric metrics use the link set, sheet-centric use the type-scoped set.

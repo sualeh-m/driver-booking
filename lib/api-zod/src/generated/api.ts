@@ -554,6 +554,27 @@ export const GetDashboardSummaryResponse = zod.object({
 
 
 /**
+ * @summary Operational KPI metrics for a date range, filtered by depot/client and worker type
+ */
+export const GetOperationalMetricsQueryParams = zod.object({
+  "start": zod.coerce.string().describe('Inclusive range start (YYYY-MM-DD)'),
+  "end": zod.coerce.string().describe('Inclusive range end (YYYY-MM-DD)'),
+  "workerType": zod.enum(['HGV', 'Warehouse']).optional().describe('Restrict to a single worker type. Omit for both (All).'),
+  "sheetIds": zod.coerce.string().optional().describe('Comma-separated sheet IDs to include (the ticked depot\/client sheets). Omit for all sheets.')
+})
+
+export const GetOperationalMetricsResponse = zod.object({
+  "start": zod.string(),
+  "end": zod.string(),
+  "activeWorkers": zod.number(),
+  "requirementsReceived": zod.number(),
+  "filled": zod.number(),
+  "fillRate": zod.number().nullable().describe('filled \/ requirementsReceived as a percentage (0-100+). Null when no requirements in range.'),
+  "noShows": zod.number()
+})
+
+
+/**
  * @summary Build the client email preview for a sheet and date range
  */
 export const PreviewClientEmailBody = zod.object({

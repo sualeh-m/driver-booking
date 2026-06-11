@@ -24,6 +24,8 @@ tags:
     description: Activity / change history
   - name: dashboard
     description: Summary metrics
+  - name: reports
+    description: KPI reporting metrics
   - name: previews
     description: Phase 1 email / confirmation previews
 paths:
@@ -716,6 +718,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /reports/operational:
+    get:
+      operationId: getOperationalMetrics
+      tags: [reports]
+      summary: Operational KPI metrics for a date range, filtered by depot/client and worker type
+      parameters:
+        - name: start
+          in: query
+          required: true
+          description: Inclusive range start (YYYY-MM-DD)
+          schema: { type: string }
+        - name: end
+          in: query
+          required: true
+          description: Inclusive range end (YYYY-MM-DD)
+          schema: { type: string }
+        - name: workerType
+          in: query
+          required: false
+          description: Restrict to a single worker type. Omit for both (All).
+          schema:
+            type: string
+            enum: [HGV, Warehouse]
+        - name: sheetIds
+          in: query
+          required: false
+          description: Comma-separated sheet IDs to include (the ticked depot/client sheets). Omit for all sheets.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Operational metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalMetrics"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /previews/client-email:
     post:
       operationId: previewClientEmail
@@ -1310,6 +1354,20 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StatusCount"
+
+    OperationalMetrics:
+      type: object
+      required: [start, end, activeWorkers, requirementsReceived, filled, fillRate, noShows]
+      properties:
+        start: { type: string }
+        end: { type: string }
+        activeWorkers: { type: integer }
+        requirementsReceived: { type: integer }
+        filled: { type: integer }
+        fillRate:
+          type: ["number", "null"]
+          description: filled / requirementsReceived as a percentage (0-100+). Null when no requirements in range.
+        noShows: { type: integer }
 
     ClientEmailPreviewInput:
       type: object

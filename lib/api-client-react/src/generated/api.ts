@@ -36,6 +36,7 @@ import type {
   Event,
   EventInput,
   GetGridParams,
+  GetOperationalMetricsParams,
   GridResponse,
   HealthStatus,
   ImportInput,
@@ -48,6 +49,7 @@ import type {
   LoginInput,
   MarkLeaverInput,
   NoShowClearResult,
+  OperationalMetrics,
   Requirement,
   SetDoNotBookInput,
   Sheet,
@@ -2315,6 +2317,90 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDashboardSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetOperationalMetricsUrl = (params: GetOperationalMetricsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/operational?${stringifiedParams}` : `/api/reports/operational`
+}
+
+/**
+ * @summary Operational KPI metrics for a date range, filtered by depot/client and worker type
+ */
+export const getOperationalMetrics = async (params: GetOperationalMetricsParams, options?: RequestInit): Promise<OperationalMetrics> => {
+
+  return customFetch<OperationalMetrics>(getGetOperationalMetricsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationalMetricsQueryKey = (params?: GetOperationalMetricsParams,) => {
+    return [
+    `/api/reports/operational`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetOperationalMetricsQueryOptions = <TData = Awaited<ReturnType<typeof getOperationalMetrics>>, TError = ErrorType<Error>>(params: GetOperationalMetricsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationalMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationalMetricsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationalMetrics>>> = ({ signal }) => getOperationalMetrics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationalMetrics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOperationalMetricsQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationalMetrics>>>
+export type GetOperationalMetricsQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Operational KPI metrics for a date range, filtered by depot/client and worker type
+ */
+
+export function useGetOperationalMetrics<TData = Awaited<ReturnType<typeof getOperationalMetrics>>, TError = ErrorType<Error>>(
+ params: GetOperationalMetricsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationalMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOperationalMetricsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
