@@ -37,6 +37,7 @@ import type {
   EventInput,
   GetGridParams,
   GetOperationalMetricsParams,
+  GetPeopleMetricsParams,
   GridResponse,
   HealthStatus,
   ImportInput,
@@ -50,6 +51,7 @@ import type {
   MarkLeaverInput,
   NoShowClearResult,
   OperationalMetrics,
+  PeopleMetrics,
   Requirement,
   SetDoNotBookInput,
   Sheet,
@@ -2401,6 +2403,90 @@ export function useGetOperationalMetrics<TData = Awaited<ReturnType<typeof getOp
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetOperationalMetricsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPeopleMetricsUrl = (params: GetPeopleMetricsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/people?${stringifiedParams}` : `/api/reports/people`
+}
+
+/**
+ * @summary People KPI metrics for a date range, filtered by depot/client and worker type
+ */
+export const getPeopleMetrics = async (params: GetPeopleMetricsParams, options?: RequestInit): Promise<PeopleMetrics> => {
+
+  return customFetch<PeopleMetrics>(getGetPeopleMetricsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPeopleMetricsQueryKey = (params?: GetPeopleMetricsParams,) => {
+    return [
+    `/api/reports/people`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPeopleMetricsQueryOptions = <TData = Awaited<ReturnType<typeof getPeopleMetrics>>, TError = ErrorType<Error>>(params: GetPeopleMetricsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPeopleMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPeopleMetricsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPeopleMetrics>>> = ({ signal }) => getPeopleMetrics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPeopleMetrics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPeopleMetricsQueryResult = NonNullable<Awaited<ReturnType<typeof getPeopleMetrics>>>
+export type GetPeopleMetricsQueryError = ErrorType<Error>
+
+
+/**
+ * @summary People KPI metrics for a date range, filtered by depot/client and worker type
+ */
+
+export function useGetPeopleMetrics<TData = Awaited<ReturnType<typeof getPeopleMetrics>>, TError = ErrorType<Error>>(
+ params: GetPeopleMetricsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPeopleMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPeopleMetricsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -760,6 +760,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /reports/people:
+    get:
+      operationId: getPeopleMetrics
+      tags: [reports]
+      summary: People KPI metrics for a date range, filtered by depot/client and worker type
+      parameters:
+        - name: start
+          in: query
+          required: true
+          description: Inclusive range start (YYYY-MM-DD)
+          schema: { type: string }
+        - name: end
+          in: query
+          required: true
+          description: Inclusive range end (YYYY-MM-DD)
+          schema: { type: string }
+        - name: workerType
+          in: query
+          required: false
+          description: Restrict to a single worker type. Omit for both (All).
+          schema:
+            type: string
+            enum: [HGV, Warehouse]
+        - name: sheetIds
+          in: query
+          required: false
+          description: Comma-separated sheet IDs to include (the ticked depot/client sheets). Omit for all sheets.
+          schema: { type: string }
+      responses:
+        "200":
+          description: People metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeopleMetrics"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /previews/client-email:
     post:
       operationId: previewClientEmail
@@ -1368,6 +1410,66 @@ components:
           type: ["number", "null"]
           description: filled / requirementsReceived as a percentage (0-100+). Null when no requirements in range.
         noShows: { type: integer }
+
+    LeaverReasonCount:
+      type: object
+      required: [reason, count]
+      properties:
+        reason: { $ref: "#/components/schemas/LeaverReason" }
+        count: { type: integer }
+
+    RetentionBucket:
+      type: object
+      required: [bucket, count]
+      properties:
+        bucket:
+          type: string
+          enum: [under_1_week, 1_4_weeks, 1_3_months, 3_6_months, 6_months_plus]
+        count: { type: integer }
+
+    PeopleMetrics:
+      type: object
+      required:
+        [
+          start,
+          end,
+          submitted,
+          passed,
+          passRate,
+          leavers,
+          leaverReasons,
+          retention,
+          notStarted,
+          cpcFailures,
+          testFailures,
+        ]
+      properties:
+        start: { type: string }
+        end: { type: string }
+        submitted: { type: integer }
+        passed: { type: integer }
+        passRate:
+          type: ["number", "null"]
+          description: passed / submitted as a percentage (0-100). Null when no submissions in range.
+        leavers: { type: integer }
+        leaverReasons:
+          type: array
+          description: Count of leavers in range grouped by reason (all reasons present, including zeros).
+          items:
+            $ref: "#/components/schemas/LeaverReasonCount"
+        retention:
+          type: array
+          description: >-
+            Count of workers (with a start date, matching depot/client + worker type)
+            by length of service, as a current snapshot (not date-range bound). Service
+            runs start_date→leave_date for leavers, start_date→today for active workers.
+          items:
+            $ref: "#/components/schemas/RetentionBucket"
+        notStarted:
+          type: integer
+          description: Workers matching the filters that have no start_date (never booked); excluded from retention buckets.
+        cpcFailures: { type: integer }
+        testFailures: { type: integer }
 
     ClientEmailPreviewInput:
       type: object

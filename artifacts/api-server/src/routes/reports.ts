@@ -8,13 +8,46 @@ import {
   bookingsTable,
   shiftRequirementsTable,
   eventsTable,
+  submissionsTable,
+  leaversTable,
 } from "@workspace/db";
-import { GetOperationalMetricsQueryParams } from "@workspace/api-zod";
+import {
+  GetOperationalMetricsQueryParams,
+  GetPeopleMetricsQueryParams,
+} from "@workspace/api-zod";
+import { todayString } from "../lib/dates";
 
 const router: IRouter = Router();
 
 // Bookings that count as a filled shift on a requirement.
 const FILLED_STATUSES = ["Confirmed", "Pre-Booked"] as const;
+
+// Leaver reasons, in the canonical order from the OpenAPI LeaverReason enum.
+const LEAVER_REASONS = [
+  "low_rates",
+  "travel_distance",
+  "permanent_employment",
+  "shift_pattern",
+  "performance_issues",
+  "attendance_issues",
+  "other",
+] as const;
+
+// Length-of-service buckets, evaluated low→high (first match wins). Day
+// thresholds are contiguous so every worker with a start date lands in exactly
+// one bucket: <7 / <28 (4 weeks) / <90 / <180 / 180+.
+const RETENTION_BUCKETS = [
+  { bucket: "under_1_week", maxDays: 7 },
+  { bucket: "1_4_weeks", maxDays: 28 },
+  { bucket: "1_3_months", maxDays: 90 },
+  { bucket: "3_6_months", maxDays: 180 },
+  { bucket: "6_months_plus", maxDays: Infinity },
+] as const;
+
+function serviceDays(startDate: string, endDate: string): number {
+  const ms = Date.parse(endDate) - Date.parse(startDate);
+  return Math.max(0, Math.floor(ms / 86_400_000));
+}
 
 router.get("/reports/operational", async (req, res): Promise<void> => {
   const parsed = GetOperationalMetricsQueryParams.safeParse(req.query);
@@ -149,6 +182,209 @@ router.get("/reports/operational", async (req, res): Promise<void> => {
     filled,
     fillRate,
     noShows,
+  });
+});
+
+router.get("/reports/people", async (req, res): Promise<void> => {
+  const parsed = GetPeopleMetricsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { start, end, workerType } = parsed.data;
+
+  // Parse the comma-separated depot/client sheet selection (omit = all sheets).
+  const selectedIds =
+    parsed.data.sheetIds
+      ?.split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n)) ?? [];
+  const restrictToSheets = selectedIds.length > 0;
+
+  // People metrics are worker-centric: a worker matches when its own
+  // worker_type matches the filter AND (when a depot/client subset is selected)
+  // it is linked via workerSheets to one of those sheets. We resolve the set of
+  // eligible worker IDs once and scope every metric to it.
+  const workerConds = [];
+  if (workerType) workerConds.push(eq(workersTable.workerType, workerType));
+  if (restrictToSheets) {
+    workerConds.push(
+      inArray(
+        workersTable.id,
+        db
+          .select({ id: workerSheetsTable.workerId })
+          .from(workerSheetsTable)
+          .where(inArray(workerSheetsTable.sheetId, selectedIds)),
+      ),
+    );
+  }
+
+  const eligibleWorkers = await db
+    .select({
+      id: workersTable.id,
+      startDate: workersTable.startDate,
+      status: workersTable.status,
+    })
+    .from(workersTable)
+    .where(workerConds.length > 0 ? and(...workerConds) : undefined);
+
+  const eligibleWorkerIds = eligibleWorkers.map((w) => w.id);
+
+  const emptyLeaverReasons = LEAVER_REASONS.map((reason) => ({
+    reason,
+    count: 0,
+  }));
+  const emptyRetention = RETENTION_BUCKETS.map((b) => ({
+    bucket: b.bucket,
+    count: 0,
+  }));
+
+  // No eligible workers → every people metric is zero.
+  if (eligibleWorkerIds.length === 0) {
+    res.json({
+      start,
+      end,
+      submitted: 0,
+      passed: 0,
+      passRate: null,
+      leavers: 0,
+      leaverReasons: emptyLeaverReasons,
+      retention: emptyRetention,
+      notStarted: 0,
+      cpcFailures: 0,
+      testFailures: 0,
+    });
+    return;
+  }
+
+  // Submissions in range (and how many passed).
+  const submissionsPromise = (async (): Promise<{
+    submitted: number;
+    passed: number;
+  }> => {
+    const [row] = await db
+      .select({
+        submitted: count(),
+        passed: sql<number>`coalesce(sum(case when ${submissionsTable.outcome} = 'passed' then 1 else 0 end), 0)::int`,
+      })
+      .from(submissionsTable)
+      .where(
+        and(
+          inArray(submissionsTable.workerId, eligibleWorkerIds),
+          gte(submissionsTable.submittedDate, start),
+          lte(submissionsTable.submittedDate, end),
+        ),
+      );
+    return { submitted: row?.submitted ?? 0, passed: row?.passed ?? 0 };
+  })();
+
+  // Leavers in range, grouped by reason.
+  const leaversPromise = (async (): Promise<Map<string, number>> => {
+    const rows = await db
+      .select({ reason: leaversTable.reason, value: count() })
+      .from(leaversTable)
+      .where(
+        and(
+          inArray(leaversTable.workerId, eligibleWorkerIds),
+          gte(leaversTable.leaveDate, start),
+          lte(leaversTable.leaveDate, end),
+        ),
+      )
+      .groupBy(leaversTable.reason);
+    return new Map(rows.map((r) => [r.reason, r.value]));
+  })();
+
+  // Latest leave date per eligible worker (for retention service length of
+  // workers who have left). Snapshot — not bound by the date range.
+  const leaveDatesPromise = (async (): Promise<Map<number, string>> => {
+    const rows = await db
+      .select({
+        workerId: leaversTable.workerId,
+        leaveDate: sql<string>`max(${leaversTable.leaveDate})`,
+      })
+      .from(leaversTable)
+      .where(inArray(leaversTable.workerId, eligibleWorkerIds))
+      .groupBy(leaversTable.workerId);
+    return new Map(rows.map((r) => [r.workerId, r.leaveDate]));
+  })();
+
+  // CPC and test failures in range (events are HGV-only at creation, so a
+  // Warehouse worker-type filter naturally yields zero here).
+  const failuresPromise = (async (): Promise<{
+    cpc: number;
+    test: number;
+  }> => {
+    const [row] = await db
+      .select({
+        cpc: sql<number>`coalesce(sum(case when ${eventsTable.eventType} = 'cpc_failure' then 1 else 0 end), 0)::int`,
+        test: sql<number>`coalesce(sum(case when ${eventsTable.eventType} = 'test_failure' then 1 else 0 end), 0)::int`,
+      })
+      .from(eventsTable)
+      .where(
+        and(
+          inArray(eventsTable.workerId, eligibleWorkerIds),
+          inArray(eventsTable.eventType, ["cpc_failure", "test_failure"]),
+          gte(eventsTable.eventDate, start),
+          lte(eventsTable.eventDate, end),
+        ),
+      );
+    return { cpc: row?.cpc ?? 0, test: row?.test ?? 0 };
+  })();
+
+  const [submissions, leaverCounts, leaveDates, failures] = await Promise.all([
+    submissionsPromise,
+    leaversPromise,
+    leaveDatesPromise,
+    failuresPromise,
+  ]);
+
+  const leaverReasons = LEAVER_REASONS.map((reason) => ({
+    reason,
+    count: leaverCounts.get(reason) ?? 0,
+  }));
+  const leavers = leaverReasons.reduce((sum, r) => sum + r.count, 0);
+
+  // Retention snapshot: bucket every eligible worker that has a start date by
+  // length of service (start→leaveDate for leavers, start→today for active).
+  const today = todayString();
+  const bucketCounts = new Map<string, number>(
+    RETENTION_BUCKETS.map((b) => [b.bucket, 0]),
+  );
+  let notStarted = 0;
+  for (const w of eligibleWorkers) {
+    if (!w.startDate) {
+      notStarted++;
+      continue;
+    }
+    const endDate =
+      w.status === "left" ? (leaveDates.get(w.id) ?? today) : today;
+    const days = serviceDays(w.startDate, endDate);
+    const bucket =
+      RETENTION_BUCKETS.find((b) => days < b.maxDays) ?? RETENTION_BUCKETS[4];
+    bucketCounts.set(bucket.bucket, (bucketCounts.get(bucket.bucket) ?? 0) + 1);
+  }
+  const retention = RETENTION_BUCKETS.map((b) => ({
+    bucket: b.bucket,
+    count: bucketCounts.get(b.bucket) ?? 0,
+  }));
+
+  const passRate =
+    submissions.submitted > 0
+      ? Math.round((submissions.passed / submissions.submitted) * 1000) / 10
+      : null;
+
+  res.json({
+    start,
+    end,
+    submitted: submissions.submitted,
+    passed: submissions.passed,
+    passRate,
+    leavers,
+    leaverReasons,
+    retention,
+    notStarted,
+    cpcFailures: failures.cpc,
+    testFailures: failures.test,
   });
 });
 

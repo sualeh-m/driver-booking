@@ -418,6 +418,48 @@ export interface OperationalMetrics {
   noShows: number;
 }
 
+export interface LeaverReasonCount {
+  reason: LeaverReason;
+  count: number;
+}
+
+export type RetentionBucketBucket = typeof RetentionBucketBucket[keyof typeof RetentionBucketBucket];
+
+
+export const RetentionBucketBucket = {
+  under_1_week: 'under_1_week',
+  '1_4_weeks': '1_4_weeks',
+  '1_3_months': '1_3_months',
+  '3_6_months': '3_6_months',
+  '6_months_plus': '6_months_plus',
+} as const;
+
+export interface RetentionBucket {
+  bucket: RetentionBucketBucket;
+  count: number;
+}
+
+export interface PeopleMetrics {
+  start: string;
+  end: string;
+  submitted: number;
+  passed: number;
+  /**
+     * passed / submitted as a percentage (0-100). Null when no submissions in range.
+     * @nullable
+     */
+  passRate: number | null;
+  leavers: number;
+  /** Count of leavers in range grouped by reason (all reasons present, including zeros). */
+  leaverReasons: LeaverReasonCount[];
+  /** Count of workers (with a start date, matching depot/client + worker type) by length of service, as a current snapshot (not date-range bound). Service runs start_date→leave_date for leavers, start_date→today for active workers. */
+  retention: RetentionBucket[];
+  /** Workers matching the filters that have no start_date (never booked); excluded from retention buckets. */
+  notStarted: number;
+  cpcFailures: number;
+  testFailures: number;
+}
+
 export interface ClientEmailPreviewInput {
   sheetId: number;
   start: string;
@@ -558,6 +600,33 @@ export type GetOperationalMetricsWorkerType = typeof GetOperationalMetricsWorker
 
 
 export const GetOperationalMetricsWorkerType = {
+  HGV: 'HGV',
+  Warehouse: 'Warehouse',
+} as const;
+
+export type GetPeopleMetricsParams = {
+/**
+ * Inclusive range start (YYYY-MM-DD)
+ */
+start: string;
+/**
+ * Inclusive range end (YYYY-MM-DD)
+ */
+end: string;
+/**
+ * Restrict to a single worker type. Omit for both (All).
+ */
+workerType?: GetPeopleMetricsWorkerType;
+/**
+ * Comma-separated sheet IDs to include (the ticked depot/client sheets). Omit for all sheets.
+ */
+sheetIds?: string;
+};
+
+export type GetPeopleMetricsWorkerType = typeof GetPeopleMetricsWorkerType[keyof typeof GetPeopleMetricsWorkerType];
+
+
+export const GetPeopleMetricsWorkerType = {
   HGV: 'HGV',
   Warehouse: 'Warehouse',
 } as const;

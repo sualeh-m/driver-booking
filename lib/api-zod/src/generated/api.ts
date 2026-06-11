@@ -575,6 +575,37 @@ export const GetOperationalMetricsResponse = zod.object({
 
 
 /**
+ * @summary People KPI metrics for a date range, filtered by depot/client and worker type
+ */
+export const GetPeopleMetricsQueryParams = zod.object({
+  "start": zod.coerce.string().describe('Inclusive range start (YYYY-MM-DD)'),
+  "end": zod.coerce.string().describe('Inclusive range end (YYYY-MM-DD)'),
+  "workerType": zod.enum(['HGV', 'Warehouse']).optional().describe('Restrict to a single worker type. Omit for both (All).'),
+  "sheetIds": zod.coerce.string().optional().describe('Comma-separated sheet IDs to include (the ticked depot\/client sheets). Omit for all sheets.')
+})
+
+export const GetPeopleMetricsResponse = zod.object({
+  "start": zod.string(),
+  "end": zod.string(),
+  "submitted": zod.number(),
+  "passed": zod.number(),
+  "passRate": zod.number().nullable().describe('passed \/ submitted as a percentage (0-100). Null when no submissions in range.'),
+  "leavers": zod.number(),
+  "leaverReasons": zod.array(zod.object({
+  "reason": zod.enum(['low_rates', 'travel_distance', 'permanent_employment', 'shift_pattern', 'performance_issues', 'attendance_issues', 'other']),
+  "count": zod.number()
+})).describe('Count of leavers in range grouped by reason (all reasons present, including zeros).'),
+  "retention": zod.array(zod.object({
+  "bucket": zod.enum(['under_1_week', '1_4_weeks', '1_3_months', '3_6_months', '6_months_plus']),
+  "count": zod.number()
+})).describe('Count of workers (with a start date, matching depot\/client + worker type) by length of service, as a current snapshot (not date-range bound). Service runs start_date→leave_date for leavers, start_date→today for active workers.'),
+  "notStarted": zod.number().describe('Workers matching the filters that have no start_date (never booked); excluded from retention buckets.'),
+  "cpcFailures": zod.number(),
+  "testFailures": zod.number()
+})
+
+
+/**
  * @summary Build the client email preview for a sheet and date range
  */
 export const PreviewClientEmailBody = zod.object({

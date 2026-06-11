@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
 import {
   useGetOperationalMetrics,
+  useGetPeopleMetrics,
   useListSheets,
   getGetOperationalMetricsQueryKey,
+  getGetPeopleMetricsQueryKey,
   type GetOperationalMetricsParams,
+  type GetPeopleMetricsParams,
 } from "@workspace/api-client-react";
 import {
   startOfWeek,
@@ -35,6 +38,24 @@ type RangeMode = "weekly" | "monthly" | "custom";
 type WorkerTypeFilter = "All" | "HGV" | "Warehouse";
 
 const fmt = (d: Date) => format(d, "yyyy-MM-dd");
+
+const LEAVER_REASON_LABELS: Record<string, string> = {
+  low_rates: "Low Rates",
+  travel_distance: "Travel Distance",
+  permanent_employment: "Permanent Employment",
+  shift_pattern: "Shift Pattern",
+  performance_issues: "Performance Issues",
+  attendance_issues: "Attendance Issues",
+  other: "Other",
+};
+
+const RETENTION_BUCKET_LABELS: Record<string, string> = {
+  under_1_week: "Under 1 week",
+  "1_4_weeks": "1–4 weeks",
+  "1_3_months": "1–3 months",
+  "3_6_months": "3–6 months",
+  "6_months_plus": "6 months+",
+};
 
 export function Reports() {
   const { data: sheets } = useListSheets();
@@ -143,11 +164,68 @@ export function Reports() {
     },
   });
 
+  // People metrics share the exact same filters as the operational metrics.
+  const peopleParams: GetPeopleMetricsParams = useMemo(() => {
+    const p: GetPeopleMetricsParams = { start, end };
+    if (workerType !== "All") p.workerType = workerType;
+    if (sheetIdsParam !== undefined) p.sheetIds = sheetIdsParam;
+    return p;
+  }, [start, end, workerType, sheetIdsParam]);
+
+  const {
+    data: people,
+    isLoading: peopleLoading,
+    isFetching: peopleFetching,
+  } = useGetPeopleMetrics(peopleParams, {
+    query: {
+      enabled: rangeReady,
+      queryKey: getGetPeopleMetricsQueryKey(peopleParams),
+    },
+  });
+
   const depotClientLabel = isAllSelected
     ? "All depots / clients"
     : effectiveSelected.length === 0
       ? "None selected"
       : `${effectiveSelected.length} selected`;
+
+  const peopleMetrics = [
+    {
+      label: "Submitted",
+      value: people?.submitted,
+      hint: "Submissions in range",
+    },
+    {
+      label: "Passed",
+      value: people?.passed,
+      hint: "Submissions with outcome Passed",
+    },
+    {
+      label: "Pass rate",
+      value:
+        people == null
+          ? undefined
+          : people.passRate == null
+            ? "—"
+            : `${people.passRate}%`,
+      hint: "Passed ÷ submitted",
+    },
+    {
+      label: "Leavers",
+      value: people?.leavers,
+      hint: "Workers who left in range",
+    },
+    {
+      label: "CPC failures",
+      value: people?.cpcFailures,
+      hint: "HGV only",
+    },
+    {
+      label: "Test failures",
+      value: people?.testFailures,
+      hint: "HGV only",
+    },
+  ];
 
   const metrics = [
     {
@@ -187,7 +265,7 @@ export function Reports() {
       <div className="mb-4">
         <h1 className="text-2xl font-semibold">KPI Reports</h1>
         <p className="text-sm text-muted-foreground">
-          Operational metrics. Filters apply to every metric below.
+          Operational and people metrics. Filters apply to every metric below.
         </p>
       </div>
 
@@ -399,29 +477,147 @@ export function Reports() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {metrics.map((m) => (
-            <Card key={m.label}>
-              <CardHeader className="pb-2">
-                <CardDescription>{m.label}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold tabular-nums">
-                  {isLoading || m.value === undefined ? (
-                    <span className="text-muted-foreground">…</span>
-                  ) : (
-                    m.value
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{m.hint}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+        <div className="space-y-8">
+          {/* Operational metrics */}
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Operational
+              </h2>
+              {isFetching && !isLoading && (
+                <span className="text-xs text-muted-foreground">Updating…</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {metrics.map((m) => (
+                <Card key={m.label}>
+                  <CardHeader className="pb-2">
+                    <CardDescription>{m.label}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {isLoading || m.value === undefined ? (
+                        <span className="text-muted-foreground">…</span>
+                      ) : (
+                        m.value
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {m.hint}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
 
-      {rangeReady && isFetching && !isLoading && (
-        <p className="mt-3 text-xs text-muted-foreground">Updating…</p>
+          {/* People metrics */}
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                People
+              </h2>
+              {peopleFetching && !peopleLoading && (
+                <span className="text-xs text-muted-foreground">Updating…</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+              {peopleMetrics.map((m) => (
+                <Card key={m.label}>
+                  <CardHeader className="pb-2">
+                    <CardDescription>{m.label}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {peopleLoading || m.value === undefined ? (
+                        <span className="text-muted-foreground">…</span>
+                      ) : (
+                        m.value
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {m.hint}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* Leaver reasons breakdown */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Leaver reasons</CardTitle>
+                  <CardDescription>
+                    Leavers in range by reason · total{" "}
+                    {people?.leavers ?? "…"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y text-sm">
+                    {(people?.leaverReasons ?? []).map((r) => (
+                      <li
+                        key={r.reason}
+                        className="flex items-center justify-between py-1.5"
+                      >
+                        <span
+                          className={
+                            r.count === 0 ? "text-muted-foreground" : ""
+                          }
+                        >
+                          {LEAVER_REASON_LABELS[r.reason] ?? r.reason}
+                        </span>
+                        <span className="font-medium tabular-nums">
+                          {r.count}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Retention by length of service */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">
+                    Retention by length of service
+                  </CardTitle>
+                  <CardDescription>
+                    Current snapshot of all workers with a start date
+                    {people != null ? ` · ${people.notStarted} not started` : ""}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y text-sm">
+                    {(people?.retention ?? []).map((b) => (
+                      <li
+                        key={b.bucket}
+                        className="flex items-center justify-between py-1.5"
+                      >
+                        <span
+                          className={b.count === 0 ? "text-muted-foreground" : ""}
+                        >
+                          {RETENTION_BUCKET_LABELS[b.bucket] ?? b.bucket}
+                        </span>
+                        <span className="font-medium tabular-nums">
+                          {b.count}
+                        </span>
+                      </li>
+                    ))}
+                    {people != null && (
+                      <li className="flex items-center justify-between py-1.5 text-muted-foreground">
+                        <span>Not started (never booked)</span>
+                        <span className="font-medium tabular-nums">
+                          {people.notStarted}
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
