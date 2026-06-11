@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ActivityIcon, CalendarDaysIcon, LogOutIcon, UserMinusIcon, UserXIcon } from "lucide-react";
+import { ActivityIcon, CalendarDaysIcon, LogOutIcon, SendIcon, UserMinusIcon, UserXIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -75,6 +75,16 @@ export function Shell({ children }: { children: ReactNode }) {
               >
                 <UserMinusIcon className="h-4 w-4" />
                 Leavers
+              </Button>
+            </Link>
+            <Link href="/submissions">
+              <Button
+                variant={location === "/submissions" ? "secondary" : "ghost"}
+                size="sm"
+                className="gap-2"
+              >
+                <SendIcon className="h-4 w-4" />
+                Submissions
               </Button>
             </Link>
             <Link href="/activity">

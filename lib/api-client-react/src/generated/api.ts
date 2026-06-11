@@ -40,15 +40,21 @@ import type {
   ImportResult,
   Leaver,
   ListAuditParams,
+  ListRequirementsParams,
+  ListSubmissionsParams,
   ListWorkersParams,
   LoginInput,
   MarkLeaverInput,
+  Requirement,
   SetDoNotBookInput,
   Sheet,
   SheetContact,
   SheetContactInput,
   SheetContactUpdate,
   SheetInput,
+  Submission,
+  SubmissionInput,
+  UpdateSubmissionOutcomeInput,
   User,
   Worker,
   WorkerInput
@@ -1403,6 +1409,317 @@ export const useRestoreWorker = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getRestoreWorkerMutationOptions(options));
+    }
+
+export const getListRequirementsUrl = (params?: ListRequirementsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/requirements?${stringifiedParams}` : `/api/requirements`
+}
+
+/**
+ * @summary List shift requirements (read-only, for linking submissions)
+ */
+export const listRequirements = async (params?: ListRequirementsParams, options?: RequestInit): Promise<Requirement[]> => {
+
+  return customFetch<Requirement[]>(getListRequirementsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRequirementsQueryKey = (params?: ListRequirementsParams,) => {
+    return [
+    `/api/requirements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRequirementsQueryOptions = <TData = Awaited<ReturnType<typeof listRequirements>>, TError = ErrorType<unknown>>(params?: ListRequirementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRequirements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRequirementsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRequirements>>> = ({ signal }) => listRequirements(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRequirements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRequirementsQueryResult = NonNullable<Awaited<ReturnType<typeof listRequirements>>>
+export type ListRequirementsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List shift requirements (read-only, for linking submissions)
+ */
+
+export function useListRequirements<TData = Awaited<ReturnType<typeof listRequirements>>, TError = ErrorType<unknown>>(
+ params?: ListRequirementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRequirements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRequirementsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListSubmissionsUrl = (params?: ListSubmissionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/submissions?${stringifiedParams}` : `/api/submissions`
+}
+
+/**
+ * @summary List submissions, optionally filtered by sheet and date range
+ */
+export const listSubmissions = async (params?: ListSubmissionsParams, options?: RequestInit): Promise<Submission[]> => {
+
+  return customFetch<Submission[]>(getListSubmissionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubmissionsQueryKey = (params?: ListSubmissionsParams,) => {
+    return [
+    `/api/submissions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listSubmissions>>, TError = ErrorType<unknown>>(params?: ListSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubmissionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubmissions>>> = ({ signal }) => listSubmissions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listSubmissions>>>
+export type ListSubmissionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List submissions, optionally filtered by sheet and date range
+ */
+
+export function useListSubmissions<TData = Awaited<ReturnType<typeof listSubmissions>>, TError = ErrorType<unknown>>(
+ params?: ListSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubmissionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSubmissionUrl = () => {
+
+
+
+
+  return `/api/submissions`
+}
+
+/**
+ * @summary Record a worker submission (put forward to a client)
+ */
+export const createSubmission = async (submissionInput: SubmissionInput, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getCreateSubmissionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      submissionInput,)
+  }
+);}
+
+
+
+
+export const getCreateSubmissionMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmission>>, TError,{data: BodyType<SubmissionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubmission>>, TError,{data: BodyType<SubmissionInput>}, TContext> => {
+
+const mutationKey = ['createSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmission>>, {data: BodyType<SubmissionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSubmission(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmission>>>
+    export type CreateSubmissionMutationBody = BodyType<SubmissionInput>
+    export type CreateSubmissionMutationError = ErrorType<Error>
+
+    /**
+ * @summary Record a worker submission (put forward to a client)
+ */
+export const useCreateSubmission = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmission>>, TError,{data: BodyType<SubmissionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubmission>>,
+        TError,
+        {data: BodyType<SubmissionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubmissionMutationOptions(options));
+    }
+
+export const getUpdateSubmissionOutcomeUrl = (id: number,) => {
+
+
+
+
+  return `/api/submissions/${id}`
+}
+
+/**
+ * @summary Change the outcome of an existing submission
+ */
+export const updateSubmissionOutcome = async (id: number,
+    updateSubmissionOutcomeInput: UpdateSubmissionOutcomeInput, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getUpdateSubmissionOutcomeUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateSubmissionOutcomeInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSubmissionOutcomeMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmissionOutcome>>, TError,{id: number;data: BodyType<UpdateSubmissionOutcomeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSubmissionOutcome>>, TError,{id: number;data: BodyType<UpdateSubmissionOutcomeInput>}, TContext> => {
+
+const mutationKey = ['updateSubmissionOutcome'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSubmissionOutcome>>, {id: number;data: BodyType<UpdateSubmissionOutcomeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSubmissionOutcome(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSubmissionOutcomeMutationResult = NonNullable<Awaited<ReturnType<typeof updateSubmissionOutcome>>>
+    export type UpdateSubmissionOutcomeMutationBody = BodyType<UpdateSubmissionOutcomeInput>
+    export type UpdateSubmissionOutcomeMutationError = ErrorType<Error>
+
+    /**
+ * @summary Change the outcome of an existing submission
+ */
+export const useUpdateSubmissionOutcome = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmissionOutcome>>, TError,{id: number;data: BodyType<UpdateSubmissionOutcomeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSubmissionOutcome>>,
+        TError,
+        {id: number;data: BodyType<UpdateSubmissionOutcomeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSubmissionOutcomeMutationOptions(options));
     }
 
 export const getAddWorkerToSheetUrl = (sheetId: number,) => {

@@ -413,6 +413,115 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /requirements:
+    get:
+      operationId: listRequirements
+      tags: [submissions]
+      summary: List shift requirements (read-only, for linking submissions)
+      parameters:
+        - name: sheetId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Optionally restrict to a single sheet
+      responses:
+        "200":
+          description: Shift requirements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Requirement"
+
+  /submissions:
+    get:
+      operationId: listSubmissions
+      tags: [submissions]
+      summary: List submissions, optionally filtered by sheet and date range
+      parameters:
+        - name: sheetId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Earliest submitted date YYYY-MM-DD (inclusive)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Latest submitted date YYYY-MM-DD (inclusive)
+      responses:
+        "200":
+          description: Submissions with worker, requirement and outcome
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+    post:
+      operationId: createSubmission
+      tags: [submissions]
+      summary: Record a worker submission (put forward to a client)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionInput"
+      responses:
+        "200":
+          description: Created submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /submissions/{id}:
+    patch:
+      operationId: updateSubmissionOutcome
+      tags: [submissions]
+      summary: Change the outcome of an existing submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSubmissionOutcomeInput"
+      responses:
+        "200":
+          description: Updated submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /sheets/{sheetId}/workers:
     post:
       operationId: addWorkerToSheet
@@ -943,6 +1052,60 @@ components:
         leaveDate: { type: string }
         reason: { $ref: "#/components/schemas/LeaverReason" }
         notes: { type: string }
+
+    SubmissionOutcome:
+      type: string
+      enum:
+        - submitted
+        - passed
+        - rejected
+
+    Requirement:
+      type: object
+      required: [id, sheetId, reqDate, quantityNeeded]
+      properties:
+        id: { type: integer }
+        sheetId: { type: integer }
+        reqDate: { type: string }
+        jobRole: { type: ["string", "null"] }
+        quantityNeeded: { type: integer }
+
+    Submission:
+      type: object
+      required: [id, workerId, workerName, submittedDate, outcome]
+      properties:
+        id: { type: integer }
+        workerId: { type: integer }
+        workerName: { type: string }
+        submittedDate: { type: string }
+        outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
+        sheetId: { type: ["integer", "null"] }
+        sheetName: { type: ["string", "null"] }
+        requirementId: { type: ["integer", "null"] }
+        requirementReqDate: { type: ["string", "null"] }
+        requirementJobRole: { type: ["string", "null"] }
+        requirementQuantityNeeded:
+          type: ["integer", "null"]
+          description: How many workers this requirement needed (null when not linked to a requirement).
+        requirementSubmittedCount:
+          type: ["integer", "null"]
+          description: Total submissions recorded against this requirement (null when not linked).
+
+    SubmissionInput:
+      type: object
+      required: [workerId, submittedDate, outcome]
+      properties:
+        workerId: { type: integer }
+        submittedDate: { type: string }
+        outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
+        requirementId: { type: integer }
+        sheetId: { type: integer }
+
+    UpdateSubmissionOutcomeInput:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
 
     Booking:
       type: object

@@ -292,6 +292,103 @@ export const RestoreWorkerResponse = zod.object({
 
 
 /**
+ * @summary List shift requirements (read-only, for linking submissions)
+ */
+export const ListRequirementsQueryParams = zod.object({
+  "sheetId": zod.coerce.number().optional().describe('Optionally restrict to a single sheet')
+})
+
+export const ListRequirementsResponseItem = zod.object({
+  "id": zod.number(),
+  "sheetId": zod.number(),
+  "reqDate": zod.string(),
+  "jobRole": zod.string().nullish(),
+  "quantityNeeded": zod.number()
+})
+export const ListRequirementsResponse = zod.array(ListRequirementsResponseItem)
+
+
+/**
+ * @summary List submissions, optionally filtered by sheet and date range
+ */
+export const ListSubmissionsQueryParams = zod.object({
+  "sheetId": zod.coerce.number().optional(),
+  "from": zod.coerce.string().optional().describe('Earliest submitted date YYYY-MM-DD (inclusive)'),
+  "to": zod.coerce.string().optional().describe('Latest submitted date YYYY-MM-DD (inclusive)')
+})
+
+export const ListSubmissionsResponseItem = zod.object({
+  "id": zod.number(),
+  "workerId": zod.number(),
+  "workerName": zod.string(),
+  "submittedDate": zod.string(),
+  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "sheetId": zod.number().nullish(),
+  "sheetName": zod.string().nullish(),
+  "requirementId": zod.number().nullish(),
+  "requirementReqDate": zod.string().nullish(),
+  "requirementJobRole": zod.string().nullish(),
+  "requirementQuantityNeeded": zod.number().nullish().describe('How many workers this requirement needed (null when not linked to a requirement).'),
+  "requirementSubmittedCount": zod.number().nullish().describe('Total submissions recorded against this requirement (null when not linked).')
+})
+export const ListSubmissionsResponse = zod.array(ListSubmissionsResponseItem)
+
+
+/**
+ * @summary Record a worker submission (put forward to a client)
+ */
+export const CreateSubmissionBody = zod.object({
+  "workerId": zod.number(),
+  "submittedDate": zod.string(),
+  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "requirementId": zod.number().optional(),
+  "sheetId": zod.number().optional()
+})
+
+export const CreateSubmissionResponse = zod.object({
+  "id": zod.number(),
+  "workerId": zod.number(),
+  "workerName": zod.string(),
+  "submittedDate": zod.string(),
+  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "sheetId": zod.number().nullish(),
+  "sheetName": zod.string().nullish(),
+  "requirementId": zod.number().nullish(),
+  "requirementReqDate": zod.string().nullish(),
+  "requirementJobRole": zod.string().nullish(),
+  "requirementQuantityNeeded": zod.number().nullish().describe('How many workers this requirement needed (null when not linked to a requirement).'),
+  "requirementSubmittedCount": zod.number().nullish().describe('Total submissions recorded against this requirement (null when not linked).')
+})
+
+
+/**
+ * @summary Change the outcome of an existing submission
+ */
+export const UpdateSubmissionOutcomeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSubmissionOutcomeBody = zod.object({
+  "outcome": zod.enum(['submitted', 'passed', 'rejected'])
+})
+
+export const UpdateSubmissionOutcomeResponse = zod.object({
+  "id": zod.number(),
+  "workerId": zod.number(),
+  "workerName": zod.string(),
+  "submittedDate": zod.string(),
+  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "sheetId": zod.number().nullish(),
+  "sheetName": zod.string().nullish(),
+  "requirementId": zod.number().nullish(),
+  "requirementReqDate": zod.string().nullish(),
+  "requirementJobRole": zod.string().nullish(),
+  "requirementQuantityNeeded": zod.number().nullish().describe('How many workers this requirement needed (null when not linked to a requirement).'),
+  "requirementSubmittedCount": zod.number().nullish().describe('Total submissions recorded against this requirement (null when not linked).')
+})
+
+
+/**
  * @summary Link a worker to a sheet (add them to the grid)
  */
 export const AddWorkerToSheetParams = zod.object({

@@ -226,6 +226,64 @@ export interface MarkLeaverInput {
   notes?: string;
 }
 
+export type SubmissionOutcome = typeof SubmissionOutcome[keyof typeof SubmissionOutcome];
+
+
+export const SubmissionOutcome = {
+  submitted: 'submitted',
+  passed: 'passed',
+  rejected: 'rejected',
+} as const;
+
+export interface Requirement {
+  id: number;
+  sheetId: number;
+  reqDate: string;
+  /** @nullable */
+  jobRole?: string | null;
+  quantityNeeded: number;
+}
+
+export interface Submission {
+  id: number;
+  workerId: number;
+  workerName: string;
+  submittedDate: string;
+  outcome: SubmissionOutcome;
+  /** @nullable */
+  sheetId?: number | null;
+  /** @nullable */
+  sheetName?: string | null;
+  /** @nullable */
+  requirementId?: number | null;
+  /** @nullable */
+  requirementReqDate?: string | null;
+  /** @nullable */
+  requirementJobRole?: string | null;
+  /**
+     * How many workers this requirement needed (null when not linked to a requirement).
+     * @nullable
+     */
+  requirementQuantityNeeded?: number | null;
+  /**
+     * Total submissions recorded against this requirement (null when not linked).
+     * @nullable
+     */
+  requirementSubmittedCount?: number | null;
+}
+
+export interface SubmissionInput {
+  workerId: number;
+  submittedDate: string;
+  outcome: SubmissionOutcome;
+  requirementId?: number;
+  sheetId?: number;
+}
+
+export interface UpdateSubmissionOutcomeInput {
+  outcome: SubmissionOutcome;
+}
+
 export interface Booking {
   id: number;
   workerId: number;
@@ -390,6 +448,25 @@ export type ListWorkersParams = {
  * Filter by name, phone, or job role
  */
 search?: string;
+};
+
+export type ListRequirementsParams = {
+/**
+ * Optionally restrict to a single sheet
+ */
+sheetId?: number;
+};
+
+export type ListSubmissionsParams = {
+sheetId?: number;
+/**
+ * Earliest submitted date YYYY-MM-DD (inclusive)
+ */
+from?: string;
+/**
+ * Latest submitted date YYYY-MM-DD (inclusive)
+ */
+to?: string;
 };
 
 export type GetGridParams = {
