@@ -188,6 +188,44 @@ export interface SetDoNotBookInput {
   doNotBook: boolean;
 }
 
+export type LeaverReason = typeof LeaverReason[keyof typeof LeaverReason];
+
+
+export const LeaverReason = {
+  low_rates: 'low_rates',
+  travel_distance: 'travel_distance',
+  permanent_employment: 'permanent_employment',
+  shift_pattern: 'shift_pattern',
+  performance_issues: 'performance_issues',
+  attendance_issues: 'attendance_issues',
+  other: 'other',
+} as const;
+
+export interface Leaver {
+  workerId: number;
+  fullName: string;
+  /** @nullable */
+  jobRole?: string | null;
+  workerType: WorkerType;
+  /** @nullable */
+  startDate?: string | null;
+  leaveDate: string;
+  reason: LeaverReason;
+  /** @nullable */
+  notes?: string | null;
+  /**
+     * Days from start_date (first booking) to leave_date; null when the worker never had a booking ("not started").
+     * @nullable
+     */
+  serviceDays: number | null;
+}
+
+export interface MarkLeaverInput {
+  leaveDate: string;
+  reason: LeaverReason;
+  notes?: string;
+}
+
 export interface Booking {
   id: number;
   workerId: number;

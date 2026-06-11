@@ -73,6 +73,7 @@ router.get("/grid", async (req, res): Promise<void> => {
       and(
         eq(workerSheetsTable.sheetId, sheetId),
         eq(workersTable.doNotBook, false),
+        eq(workersTable.status, "active"),
       ),
     )
     .orderBy(workersTable.fullName);
@@ -350,6 +351,20 @@ router.post("/import", async (req, res): Promise<void> => {
           });
         }
         bookingsUpserted++;
+
+        // A worker's start_date is the date of their first ever booking. It only
+        // ever moves earlier (a genuinely earlier booking corrects it), never
+        // later — so out-of-order import rows still record the true first booking.
+        const [{ first }] = await tx
+          .select({ first: sql<string | null>`min(${bookingsTable.shiftDate})` })
+          .from(bookingsTable)
+          .where(eq(bookingsTable.workerId, worker.id));
+        if (first && (worker.startDate == null || first < worker.startDate)) {
+          await tx
+            .update(workersTable)
+            .set({ startDate: first })
+            .where(eq(workersTable.id, worker.id));
+        }
       });
     } catch (err) {
       errors.push(

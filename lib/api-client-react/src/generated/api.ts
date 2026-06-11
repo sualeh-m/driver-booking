@@ -38,9 +38,11 @@ import type {
   HealthStatus,
   ImportInput,
   ImportResult,
+  Leaver,
   ListAuditParams,
   ListWorkersParams,
   LoginInput,
+  MarkLeaverInput,
   SetDoNotBookInput,
   Sheet,
   SheetContact,
@@ -1182,6 +1184,225 @@ export const useSetWorkerDoNotBook = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getSetWorkerDoNotBookMutationOptions(options));
+    }
+
+export const getListLeaversUrl = () => {
+
+
+
+
+  return `/api/leavers`
+}
+
+/**
+ * @summary List workers who have left, with reason and length of service
+ */
+export const listLeavers = async ( options?: RequestInit): Promise<Leaver[]> => {
+
+  return customFetch<Leaver[]>(getListLeaversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLeaversQueryKey = () => {
+    return [
+    `/api/leavers`
+    ] as const;
+    }
+
+
+export const getListLeaversQueryOptions = <TData = Awaited<ReturnType<typeof listLeavers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLeavers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLeaversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLeavers>>> = ({ signal }) => listLeavers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLeavers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLeaversQueryResult = NonNullable<Awaited<ReturnType<typeof listLeavers>>>
+export type ListLeaversQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List workers who have left, with reason and length of service
+ */
+
+export function useListLeavers<TData = Awaited<ReturnType<typeof listLeavers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLeavers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLeaversQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getMarkWorkerAsLeaverUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}/leave`
+}
+
+/**
+ * @summary Mark a worker as having left (records a leaver row, sets status to left)
+ */
+export const markWorkerAsLeaver = async (id: number,
+    markLeaverInput: MarkLeaverInput, options?: RequestInit): Promise<Worker> => {
+
+  return customFetch<Worker>(getMarkWorkerAsLeaverUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      markLeaverInput,)
+  }
+);}
+
+
+
+
+export const getMarkWorkerAsLeaverMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markWorkerAsLeaver>>, TError,{id: number;data: BodyType<MarkLeaverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markWorkerAsLeaver>>, TError,{id: number;data: BodyType<MarkLeaverInput>}, TContext> => {
+
+const mutationKey = ['markWorkerAsLeaver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markWorkerAsLeaver>>, {id: number;data: BodyType<MarkLeaverInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  markWorkerAsLeaver(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkWorkerAsLeaverMutationResult = NonNullable<Awaited<ReturnType<typeof markWorkerAsLeaver>>>
+    export type MarkWorkerAsLeaverMutationBody = BodyType<MarkLeaverInput>
+    export type MarkWorkerAsLeaverMutationError = ErrorType<Error>
+
+    /**
+ * @summary Mark a worker as having left (records a leaver row, sets status to left)
+ */
+export const useMarkWorkerAsLeaver = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markWorkerAsLeaver>>, TError,{id: number;data: BodyType<MarkLeaverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markWorkerAsLeaver>>,
+        TError,
+        {id: number;data: BodyType<MarkLeaverInput>},
+        TContext
+      > => {
+      return useMutation(getMarkWorkerAsLeaverMutationOptions(options));
+    }
+
+export const getRestoreWorkerUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}/restore`
+}
+
+/**
+ * @summary Restore a leaver to active/bookable (reverses a mistaken leave)
+ */
+export const restoreWorker = async (id: number, options?: RequestInit): Promise<Worker> => {
+
+  return customFetch<Worker>(getRestoreWorkerUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRestoreWorkerMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreWorker>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreWorker>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['restoreWorker'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreWorker>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreWorker(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreWorkerMutationResult = NonNullable<Awaited<ReturnType<typeof restoreWorker>>>
+
+    export type RestoreWorkerMutationError = ErrorType<Error>
+
+    /**
+ * @summary Restore a leaver to active/bookable (reverses a mistaken leave)
+ */
+export const useRestoreWorker = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreWorker>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreWorker>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRestoreWorkerMutationOptions(options));
     }
 
 export const getAddWorkerToSheetUrl = (sheetId: number,) => {

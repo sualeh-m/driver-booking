@@ -9,6 +9,7 @@ import auditRouter from "./audit";
 import dashboardRouter from "./dashboard";
 import previewsRouter from "./previews";
 import eventsRouter from "./events";
+import leaversRouter from "./leavers";
 import { requireAuth } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -28,5 +29,6 @@ router.use(auditRouter);
 router.use(dashboardRouter);
 router.use(previewsRouter);
 router.use(eventsRouter);
+router.use(leaversRouter);
 
 export default router;

@@ -7,6 +7,7 @@ import { Login } from "@/pages/Login";
 import { Grid } from "@/pages/Grid";
 import { Activity } from "@/pages/Activity";
 import { DoNotBook } from "@/pages/DoNotBook";
+import { Leavers } from "@/pages/Leavers";
 import { Shell } from "@/components/layout/Shell";
 
 const queryClient = new QueryClient({
@@ -35,6 +36,11 @@ function Router() {
       <Route path="/do-not-book">
         <Shell>
           <DoNotBook />
+        </Shell>
+      </Route>
+      <Route path="/leavers">
+        <Shell>
+          <Leavers />
         </Shell>
       </Route>
       <Route component={NotFound} />

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, bookingsTable, auditLogTable, workersTable } from "@workspace/db";
 import { UpsertBookingBody, DeleteBookingParams } from "@workspace/api-zod";
 import { maxAllowedConsecutiveDays } from "@workspace/rest-rules";
@@ -84,6 +84,26 @@ router.put("/bookings", async (req, res): Promise<void> => {
         oldValue: null,
         newValue: describe(status, startTime),
       });
+
+      // A worker's start_date is the date of their first ever booking. It only
+      // ever moves earlier (a genuinely earlier booking corrects it), never
+      // later — so out-of-order entry still records the true first booking.
+      const [worker] = await tx
+        .select({ startDate: workersTable.startDate })
+        .from(workersTable)
+        .where(eq(workersTable.id, workerId));
+      if (worker) {
+        const [{ first }] = await tx
+          .select({ first: sql<string | null>`min(${bookingsTable.shiftDate})` })
+          .from(bookingsTable)
+          .where(eq(bookingsTable.workerId, workerId));
+        if (first && (worker.startDate == null || first < worker.startDate)) {
+          await tx
+            .update(workersTable)
+            .set({ startDate: first })
+            .where(eq(workersTable.id, workerId));
+        }
+      }
 
       return created;
     }

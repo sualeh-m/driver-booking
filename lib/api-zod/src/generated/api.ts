@@ -227,6 +227,71 @@ export const SetWorkerDoNotBookResponse = zod.object({
 
 
 /**
+ * @summary List workers who have left, with reason and length of service
+ */
+export const ListLeaversResponseItem = zod.object({
+  "workerId": zod.number(),
+  "fullName": zod.string(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "startDate": zod.string().nullish(),
+  "leaveDate": zod.string(),
+  "reason": zod.enum(['low_rates', 'travel_distance', 'permanent_employment', 'shift_pattern', 'performance_issues', 'attendance_issues', 'other']),
+  "notes": zod.string().nullish(),
+  "serviceDays": zod.number().nullable().describe('Days from start_date (first booking) to leave_date; null when the worker never had a booking (\"not started\").')
+})
+export const ListLeaversResponse = zod.array(ListLeaversResponseItem)
+
+
+/**
+ * @summary Mark a worker as having left (records a leaver row, sets status to left)
+ */
+export const MarkWorkerAsLeaverParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkWorkerAsLeaverBody = zod.object({
+  "leaveDate": zod.string(),
+  "reason": zod.enum(['low_rates', 'travel_distance', 'permanent_employment', 'shift_pattern', 'performance_issues', 'attendance_issues', 'other']),
+  "notes": zod.string().optional()
+})
+
+export const MarkWorkerAsLeaverResponse = zod.object({
+  "id": zod.number(),
+  "vincereId": zod.string().nullish(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "startDate": zod.string().nullish(),
+  "status": zod.string(),
+  "doNotBook": zod.boolean(),
+  "syncedAt": zod.string()
+})
+
+
+/**
+ * @summary Restore a leaver to active/bookable (reverses a mistaken leave)
+ */
+export const RestoreWorkerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RestoreWorkerResponse = zod.object({
+  "id": zod.number(),
+  "vincereId": zod.string().nullish(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "startDate": zod.string().nullish(),
+  "status": zod.string(),
+  "doNotBook": zod.boolean(),
+  "syncedAt": zod.string()
+})
+
+
+/**
  * @summary Link a worker to a sheet (add them to the grid)
  */
 export const AddWorkerToSheetParams = zod.object({

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useUpsertBooking, useDeleteBooking, useCreateEvent, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
 import type { WorkerType } from "@workspace/api-client-react";
 import { EventsDialog } from "./dialogs/EventsDialog";
+import { MarkLeaverDialog } from "./dialogs/MarkLeaverDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -40,6 +41,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const days = eachDayOfInterval({ start, end });
   const [restWarning, setRestWarning] = useState<{ input: BookingInput; message: string } | null>(null);
   const [eventsFor, setEventsFor] = useState<{ id: number; fullName: string; workerType: WorkerType } | null>(null);
+  const [leaverFor, setLeaverFor] = useState<{ id: number; fullName: string } | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ sheetId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
@@ -234,6 +236,19 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           workerName={eventsFor.fullName}
           workerType={eventsFor.workerType}
           sheetId={sheetId}
+          onMarkLeaver={(id, fullName) => {
+            setEventsFor(null);
+            setLeaverFor({ id, fullName });
+          }}
+        />
+      )}
+
+      {leaverFor && (
+        <MarkLeaverDialog
+          open={!!leaverFor}
+          onOpenChange={(o) => { if (!o) setLeaverFor(null); }}
+          workerId={leaverFor.id}
+          workerName={leaverFor.fullName}
         />
       )}
     </div>

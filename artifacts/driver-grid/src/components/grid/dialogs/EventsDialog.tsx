@@ -37,6 +37,7 @@ export function EventsDialog({
   workerName,
   workerType,
   sheetId,
+  onMarkLeaver,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -44,6 +45,7 @@ export function EventsDialog({
   workerName: string;
   workerType: WorkerType;
   sheetId: number;
+  onMarkLeaver: (workerId: number, workerName: string) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -163,7 +165,14 @@ export function EventsDialog({
             onChange={(e) => setNotes(e.target.value)}
           />
         </div>
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            onClick={() => onMarkLeaver(workerId, workerName)}
+          >
+            Mark as leaver
+          </Button>
           <Button onClick={handleLog} disabled={createEvent.isPending}>
             {createEvent.isPending ? "Logging..." : "Log Event"}
           </Button>
