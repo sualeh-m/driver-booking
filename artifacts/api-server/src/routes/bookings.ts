@@ -2,8 +2,10 @@ import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { db, bookingsTable, auditLogTable, workersTable } from "@workspace/db";
 import { UpsertBookingBody, DeleteBookingParams } from "@workspace/api-zod";
+import { maxAllowedConsecutiveDays } from "@workspace/rest-rules";
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
+import { evaluateRestRule } from "../lib/restCheck";
 
 function describe(status: string, startTime: string | null): string {
   return startTime ? `${status} @ ${startTime.slice(0, 5)}` : status;
@@ -26,6 +28,29 @@ router.put("/bookings", async (req, res): Promise<void> => {
 
   const { workerId, sheetId, shiftDate, status } = parsed.data;
   const startTime = parsed.data.startTime ?? null;
+  const acknowledgeRestWarning = parsed.data.acknowledgeRestWarning === true;
+
+  // HGV rest-day safety check — Warehouse workers are never limited.
+  const rest = await evaluateRestRule(db, workerId, shiftDate, status);
+  if (rest.applies) {
+    if (rest.decision === "block") {
+      res.status(422).json({
+        code: "REST_BLOCK",
+        consecutiveDays: rest.consecutiveDays,
+        error: `Cannot book ${rest.workerName}: this would be ${rest.consecutiveDays} consecutive working days for an HGV worker. The maximum is ${maxAllowedConsecutiveDays()}. Add a Rest, Off or Holiday day to break the run first.`,
+      });
+      return;
+    }
+
+    if (rest.decision === "warn" && !acknowledgeRestWarning) {
+      res.status(409).json({
+        code: "REST_WARNING",
+        consecutiveDays: rest.consecutiveDays,
+        error: `This will be ${rest.consecutiveDays} consecutive working days for ${rest.workerName} (HGV), with no rest day. Are you sure you want to book this shift?`,
+      });
+      return;
+    }
+  }
 
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx

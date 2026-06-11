@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format, eachDayOfInterval } from "date-fns";
-import { GridResponse, Booking, Status } from "@workspace/api-client-react";
+import { GridResponse, Booking, Status, BookingInput } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUpsertBooking, useDeleteBooking, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
@@ -32,7 +33,9 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const queryClient = useQueryClient();
   const upsertBooking = useUpsertBooking();
   const deleteBooking = useDeleteBooking();
+  const { toast } = useToast();
   const days = eachDayOfInterval({ start, end });
+  const [restWarning, setRestWarning] = useState<{ input: BookingInput; message: string } | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ sheetId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
@@ -40,11 +43,38 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     queryClient.invalidateQueries({ queryKey: getListAuditQueryKey({}) });
   };
 
-  const handleCellSave = (workerId: number, dateStr: string, status: Status, startTime: string) => {
+  // Lookup of consecutive-working-day counters keyed "workerId|date" (HGV only).
+  const restCounters = new Map<string, number>();
+  for (const c of data?.restCounters ?? []) {
+    restCounters.set(`${c.workerId}|${c.shiftDate}`, c.days);
+  }
+
+  const saveBooking = (input: BookingInput) => {
     upsertBooking.mutate(
-      { data: { sheetId, workerId, shiftDate: dateStr, status, startTime: startTime || null } },
-      { onSuccess: invalidate }
+      { data: input },
+      {
+        onSuccess: () => {
+          invalidate();
+          setRestWarning(null);
+        },
+        onError: (err: unknown) => {
+          const body = (err as { data?: { code?: string; error?: string } } | undefined)?.data;
+          const message = body?.error ?? (err instanceof Error ? err.message : "Failed to save booking");
+          if (body?.code === "REST_WARNING") {
+            setRestWarning({ input, message });
+          } else if (body?.code === "REST_BLOCK") {
+            setRestWarning(null);
+            toast({ title: "Booking blocked", description: message, variant: "destructive" });
+          } else {
+            toast({ title: "Failed to save booking", description: message, variant: "destructive" });
+          }
+        },
+      }
     );
+  };
+
+  const handleCellSave = (workerId: number, dateStr: string, status: Status, startTime: string) => {
+    saveBooking({ sheetId, workerId, shiftDate: dateStr, status, startTime: startTime || null });
   };
 
   const handleCellDelete = (id: number) => {
@@ -103,6 +133,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                       dateStr={dateStr}
                       workerId={worker.id}
                       workerName={worker.fullName}
+                      restDays={restCounters.get(`${worker.id}|${dateStr}`)}
                       onSave={handleCellSave}
                       onDelete={handleCellDelete}
                     />
@@ -133,12 +164,28 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-rest" /> Rest</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-off" /> Off</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday flex items-center justify-center text-[8px] text-white leading-none">✕</div> Holiday</div>
+        <div className="flex items-center gap-1"><span className="flex h-4 min-w-4 items-center justify-center rounded-full border border-slate-300 bg-white px-1 text-[9px] font-bold text-slate-900 leading-none">3</span> HGV consecutive working days</div>
       </div>
+
+      <AlertDialog open={!!restWarning} onOpenChange={(o) => { if (!o) setRestWarning(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rest-day warning</AlertDialogTitle>
+            <AlertDialogDescription>{restWarning?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (restWarning) saveBooking({ ...restWarning.input, acknowledgeRestWarning: true }); }}>
+              Book anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function BookingCell({ booking, dateStr, workerId, workerName, onSave, onDelete }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void }) {
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, onSave, onDelete }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void }) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status>(booking?.status || "Off");
@@ -181,8 +228,16 @@ function BookingCell({ booking, dateStr, workerId, workerName, onSave, onDelete 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div
-            className={`h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${getStatusClass(booking?.status)}`}
+            className={`relative h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${getStatusClass(booking?.status)}`}
           >
+            {restDays != null && restDays > 0 && (
+              <span
+                title={`${restDays} consecutive working day${restDays === 1 ? "" : "s"} since last rest`}
+                className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-slate-300 bg-white px-1 text-[9px] font-bold leading-none text-slate-900"
+              >
+                {restDays}
+              </span>
+            )}
             {renderContent()}
           </div>
         </PopoverTrigger>

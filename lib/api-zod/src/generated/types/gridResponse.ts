@@ -7,8 +7,11 @@
  */
 import type { Booking } from './booking';
 import type { GridWorker } from './gridWorker';
+import type { RestCounter } from './restCounter';
 
 export interface GridResponse {
   workers: GridWorker[];
   bookings: Booking[];
+  /** Consecutive-working-day counters for HGV workers' worked days. */
+  restCounters: RestCounter[];
 }

@@ -26,6 +26,7 @@ Internal HGV/Warehouse shift-booking app for a recruitment agency — a spreadsh
 - API contract (source of truth): `lib/api-spec/openapi.yaml` — drives codegen (React Query hooks + Zod schemas in `@workspace/api-client-react`).
 - Backend routes: `artifacts/api-server/src/routes/*.ts`; helpers in `artifacts/api-server/src/lib/` (serialize, auth, session, csv, dates); wiring in `src/app.ts`.
 - Frontend: `artifacts/driver-grid/src/` — grid in `components/grid/BookingGrid.tsx`, layout in `components/layout/Shell.tsx`.
+- Rest-day rule (shared): `lib/rest-rules/src/index.ts` — single source of truth for thresholds (`REST_DAY_RULES`) and the consecutive-working-day logic used by both the server (enforcement in `bookings.ts`, counters in `grid.ts`) and the frontend.
 
 ## Architecture decisions
 
@@ -38,7 +39,9 @@ Internal HGV/Warehouse shift-booking app for a recruitment agency — a spreadsh
 
 Spreadsheet-style grid (workers down, dates across) scoped to the selected **sheet**, with Day/Week/Month toggle (Week = Sun–Sat, Month from 1st), inline status + 24h start-time editing, colour-coded status cells, per-worker standing note column (from `workerSheets.notes`), and per-day working-shift totals. Statuses + colours: Available=orange, Pre-Booked=yellow, Confirmed=green, Rest=grey, Off=white, Holiday=black with a white ✕. Top actions: Add Worker (creates worker with sheet's worker type + links with a standing note), New Sheet (name, client company, depot, worker type HGV/Warehouse), Sheet Settings (manage multiple client contacts, one primary), Import CSV, Export CSV (client-side), Email-to-client preview (uses the sheet's primary contact), Send-confirmations preview. Pick-your-name login, full audit trail, Activity view.
 
-Deliberately NOT built (tables exist but stay empty): KPI/reporting dashboard, rest-day rule enforcement, shift-requirements roster, submissions, leavers, events.
+**HGV rest-day safety check (built):** for HGV workers only, the grid shows a per-day counter (white pill, top-right of each cell) of consecutive working days (Confirmed/Pre-Booked count; Rest/Off/Holiday reset). When booking an HGV worker into a working status: at the warn threshold (6) it warns but allows with a confirmation dialog ("Book anyway"); at the block threshold (7) it is blocked server-side (cannot save). Warehouse workers have no limit and no counter. Thresholds live in ONE place: `REST_DAY_RULES` in `@workspace/rest-rules` (default warn=6, block=7).
+
+Deliberately NOT built (tables exist but stay empty): KPI/reporting dashboard, shift-requirements roster, submissions, leavers, events.
 
 ## User preferences
 

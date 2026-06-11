@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql, inArray } from "drizzle-orm";
 import {
   db,
   workersTable,
@@ -10,11 +10,23 @@ import {
   BOOKING_STATUSES,
 } from "@workspace/db";
 import { GetGridQueryParams, ImportBookingsBody } from "@workspace/api-zod";
+import {
+  addDays,
+  consecutiveWorkingDaysEndingOn,
+  isRestRuleWorkerType,
+  maxAllowedConsecutiveDays,
+  type StatusByDate,
+} from "@workspace/rest-rules";
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
+import { evaluateRestRule } from "../lib/restCheck";
 import { parseCsv } from "../lib/csv";
 
 const router: IRouter = Router();
+
+// History fetched before the visible window so consecutive-day counters at the
+// start of the range reflect prior bookings, not just what's on screen.
+const REST_LOOKBACK_DAYS = 60;
 
 const STATUS_SET = new Set<string>(BOOKING_STATUSES);
 
@@ -69,6 +81,49 @@ router.get("/grid", async (req, res): Promise<void> => {
       ),
     );
 
+  // Consecutive-working-day counters (HGV workers only). Pull extra history
+  // before the window so counts at the start of the range are accurate, then
+  // compute the "days worked since last rest" value for each visible day.
+  const hgvWorkerIds = workers
+    .filter((w) => isRestRuleWorkerType(w.workerType))
+    .map((w) => w.id);
+
+  const restCounters: { workerId: number; shiftDate: string; days: number }[] =
+    [];
+
+  if (hgvWorkerIds.length > 0) {
+    const lookbackStart = addDays(start, -REST_LOOKBACK_DAYS);
+    const history = await db
+      .select({
+        workerId: bookingsTable.workerId,
+        shiftDate: bookingsTable.shiftDate,
+        status: bookingsTable.status,
+      })
+      .from(bookingsTable)
+      .where(
+        and(
+          inArray(bookingsTable.workerId, hgvWorkerIds),
+          gte(bookingsTable.shiftDate, lookbackStart),
+          lte(bookingsTable.shiftDate, end),
+        ),
+      );
+
+    const byWorker = new Map<number, StatusByDate>();
+    for (const id of hgvWorkerIds) byWorker.set(id, {});
+    for (const h of history) {
+      const map = byWorker.get(h.workerId);
+      if (map) map[h.shiftDate] = h.status;
+    }
+
+    for (const id of hgvWorkerIds) {
+      const map = byWorker.get(id)!;
+      for (let date = start; date <= end; date = addDays(date, 1)) {
+        const days = consecutiveWorkingDaysEndingOn(map, date);
+        if (days > 0) restCounters.push({ workerId: id, shiftDate: date, days });
+      }
+    }
+  }
+
   res.json({
     workers: workers.map((w) => ({
       id: w.id,
@@ -84,6 +139,7 @@ router.get("/grid", async (req, res): Promise<void> => {
       note: w.note,
     })),
     bookings: bookings.map(serializeBooking),
+    restCounters,
   });
 });
 
@@ -174,6 +230,25 @@ router.post("/import", async (req, res): Promise<void> => {
             sql`lower(${workersTable.fullName}) = ${fullName.toLowerCase()}`,
           )
           .limit(1);
+
+        // HGV rest-day safety check — the hard block must hold on every write
+        // path, so import cannot create 7+ consecutive HGV days either. Only
+        // existing workers can accumulate a run here; a brand-new worker's
+        // first row is created below and is then seen as existing on later
+        // rows. The warn threshold is allowed silently for bulk import.
+        if (worker) {
+          const rest = await evaluateRestRule(
+            db,
+            worker.id,
+            shiftDate,
+            status,
+          );
+          if (rest.applies && rest.decision === "block") {
+            throw new Error(
+              `would be ${rest.consecutiveDays} consecutive working days for ${rest.workerName} (HGV); max is ${maxAllowedConsecutiveDays()} — add a Rest, Off or Holiday day to break the run first`,
+            );
+          }
+        }
 
         if (!worker) {
           [worker] = await tx

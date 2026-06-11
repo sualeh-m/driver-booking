@@ -155,11 +155,24 @@ export interface BookingInput {
   status: Status;
   /** @nullable */
   startTime?: string | null;
+  /** Set true to confirm an HGV rest-day warning and save anyway. Ignored for Warehouse workers and for bookings below the warn threshold. */
+  acknowledgeRestWarning?: boolean;
+}
+
+/**
+ * Consecutive working days ending on a date (HGV workers only).
+ */
+export interface RestCounter {
+  workerId: number;
+  shiftDate: string;
+  days: number;
 }
 
 export interface GridResponse {
   workers: GridWorker[];
   bookings: Booking[];
+  /** Consecutive-working-day counters for HGV workers' worked days. */
+  restCounters: RestCounter[];
 }
 
 export interface AuditEntry {

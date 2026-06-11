@@ -694,10 +694,24 @@ components:
         shiftDate: { type: string }
         status: { $ref: "#/components/schemas/Status" }
         startTime: { type: ["string", "null"] }
+        acknowledgeRestWarning:
+          type: boolean
+          description: >-
+            Set true to confirm an HGV rest-day warning and save anyway. Ignored
+            for Warehouse workers and for bookings below the warn threshold.
+
+    RestCounter:
+      type: object
+      required: [workerId, shiftDate, days]
+      description: Consecutive working days ending on a date (HGV workers only).
+      properties:
+        workerId: { type: integer }
+        shiftDate: { type: string }
+        days: { type: integer }
 
     GridResponse:
       type: object
-      required: [workers, bookings]
+      required: [workers, bookings, restCounters]
       properties:
         workers:
           type: array
@@ -707,6 +721,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Booking"
+        restCounters:
+          type: array
+          description: Consecutive-working-day counters for HGV workers' worked days.
+          items:
+            $ref: "#/components/schemas/RestCounter"
 
     AuditEntry:
       type: object

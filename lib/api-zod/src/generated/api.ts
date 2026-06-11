@@ -240,7 +240,12 @@ export const GetGridResponse = zod.object({
   "updatedBy": zod.number().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
-}))
+})),
+  "restCounters": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string(),
+  "days": zod.number()
+}).describe('Consecutive working days ending on a date (HGV workers only).')).describe('Consecutive-working-day counters for HGV workers\' worked days.')
 })
 
 
@@ -252,7 +257,8 @@ export const UpsertBookingBody = zod.object({
   "sheetId": zod.number(),
   "shiftDate": zod.string(),
   "status": zod.enum(['Available', 'Pre-Booked', 'Rest', 'Off', 'Holiday', 'Confirmed']),
-  "startTime": zod.string().nullish()
+  "startTime": zod.string().nullish(),
+  "acknowledgeRestWarning": zod.boolean().optional().describe('Set true to confirm an HGV rest-day warning and save anyway. Ignored for Warehouse workers and for bookings below the warn threshold.')
 })
 
 export const UpsertBookingResponse = zod.object({

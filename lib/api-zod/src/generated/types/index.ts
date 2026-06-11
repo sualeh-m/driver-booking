@@ -27,6 +27,7 @@ export * from './importResult';
 export * from './listAuditParams';
 export * from './listWorkersParams';
 export * from './loginInput';
+export * from './restCounter';
 export * from './sheet';
 export * from './sheetContact';
 export * from './sheetContactInput';
