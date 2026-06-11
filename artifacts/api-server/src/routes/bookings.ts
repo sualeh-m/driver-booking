@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
-import { db, bookingsTable, auditLogTable } from "@workspace/db";
+import { db, bookingsTable, auditLogTable, driversTable } from "@workspace/db";
 import { UpsertBookingBody, DeleteBookingParams } from "@workspace/api-zod";
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
@@ -124,11 +124,21 @@ router.delete("/bookings/:id", async (req, res): Promise<void> => {
 
     if (!existing) return null;
 
+    // The audit_log FK is ON DELETE SET NULL, so once the booking row is gone
+    // the driver name and shift date can no longer be derived via joins. Embed
+    // that context into the audit value so the deletion stays self-describing.
+    const [driver] = await tx
+      .select({ fullName: driversTable.fullName })
+      .from(driversTable)
+      .where(eq(driversTable.id, existing.driverId));
+
+    const context = `${driver?.fullName ?? `Driver #${existing.driverId}`} · ${existing.shiftDate}`;
+
     await tx.insert(auditLogTable).values({
       bookingId: existing.id,
       userId,
       action: "deleted",
-      oldValue: describe(existing.status, existing.startTime),
+      oldValue: `${context} · ${describe(existing.status, existing.startTime)}`,
       newValue: null,
     });
 

@@ -7,8 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useUpsertBooking, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import { useUpsertBooking, useDeleteBooking, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface BookingGridProps {
   contractId: number;
@@ -21,19 +31,24 @@ interface BookingGridProps {
 export function BookingGrid({ contractId, start, end, data, isLoading }: BookingGridProps) {
   const queryClient = useQueryClient();
   const upsertBooking = useUpsertBooking();
+  const deleteBooking = useDeleteBooking();
   const days = eachDayOfInterval({ start, end });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ contractId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
+    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListAuditQueryKey({}) });
+  };
 
   const handleCellSave = (driverId: number, dateStr: string, status: Status, startTime: string) => {
     upsertBooking.mutate(
       { data: { contractId, driverId, shiftDate: dateStr, status, startTime: startTime || null } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ contractId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListAuditQueryKey({}) });
-        }
-      }
+      { onSuccess: invalidate }
     );
+  };
+
+  const handleCellDelete = (id: number) => {
+    deleteBooking.mutate({ id }, { onSuccess: invalidate });
   };
 
   if (isLoading) {
@@ -84,7 +99,9 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
                       booking={booking}
                       dateStr={dateStr}
                       driverId={driver.id}
+                      driverName={driver.fullName}
                       onSave={handleCellSave}
+                      onDelete={handleCellDelete}
                     />
                   );
                 })}
@@ -118,13 +135,20 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
   );
 }
 
-function BookingCell({ booking, dateStr, driverId, onSave }: { booking?: Booking, dateStr: string, driverId: number, onSave: (driverId: number, dateStr: string, status: Status, startTime: string) => void }) {
+function BookingCell({ booking, dateStr, driverId, driverName, onSave, onDelete }: { booking?: Booking, dateStr: string, driverId: number, driverName: string, onSave: (driverId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void }) {
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status>(booking?.status || "Off");
   const [time, setTime] = useState(booking?.startTime || "");
 
   const handleSave = () => {
     onSave(driverId, dateStr, status, time);
+    setOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (booking) onDelete(booking.id);
+    setConfirmDelete(false);
     setOpen(false);
   };
 
@@ -189,9 +213,40 @@ function BookingCell({ booking, dateStr, driverId, onSave }: { booking?: Booking
             <Button size="sm" className="w-full h-8 mt-2" onClick={handleSave}>
               Save
             </Button>
+
+            {booking && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Clear cell
+              </Button>
+            )}
           </div>
         </PopoverContent>
       </Popover>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear this cell?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {driverName}'s {booking ? booking.status : ""} entry for {dateStr} and leave the cell empty. This action is recorded in the activity log and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TableCell>
   );
 }
