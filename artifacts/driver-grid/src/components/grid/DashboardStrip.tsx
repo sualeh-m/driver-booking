@@ -12,8 +12,8 @@ export function DashboardStrip({ summary }: { summary?: DashboardSummary }) {
           <UsersIcon className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-2xl font-bold">{summary.totalDrivers}</div>
-          <div className="text-xs text-muted-foreground">Total Drivers</div>
+          <div className="text-2xl font-bold">{summary.totalWorkers}</div>
+          <div className="text-xs text-muted-foreground">Total Workers</div>
         </div>
       </div>
       <div className="flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm">
@@ -21,8 +21,8 @@ export function DashboardStrip({ summary }: { summary?: DashboardSummary }) {
           <ActivityIcon className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-2xl font-bold">{summary.totalActiveDrivers}</div>
-          <div className="text-xs text-muted-foreground">Active Drivers</div>
+          <div className="text-2xl font-bold">{summary.totalActiveWorkers}</div>
+          <div className="text-xs text-muted-foreground">Active Workers</div>
         </div>
       </div>
       <div className="flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm">
@@ -30,8 +30,8 @@ export function DashboardStrip({ summary }: { summary?: DashboardSummary }) {
           <BriefcaseIcon className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-2xl font-bold">{summary.totalContracts}</div>
-          <div className="text-xs text-muted-foreground">Contracts</div>
+          <div className="text-2xl font-bold">{summary.totalSheets}</div>
+          <div className="text-xs text-muted-foreground">Sheets</div>
         </div>
       </div>
       <div className="flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm">

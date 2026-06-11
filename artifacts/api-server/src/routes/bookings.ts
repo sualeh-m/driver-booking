@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
-import { db, bookingsTable, auditLogTable, driversTable } from "@workspace/db";
+import { db, bookingsTable, auditLogTable, workersTable } from "@workspace/db";
 import { UpsertBookingBody, DeleteBookingParams } from "@workspace/api-zod";
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
@@ -24,7 +24,7 @@ router.put("/bookings", async (req, res): Promise<void> => {
     return;
   }
 
-  const { driverId, contractId, shiftDate, status } = parsed.data;
+  const { workerId, sheetId, shiftDate, status } = parsed.data;
   const startTime = parsed.data.startTime ?? null;
 
   const result = await db.transaction(async (tx) => {
@@ -33,7 +33,7 @@ router.put("/bookings", async (req, res): Promise<void> => {
       .from(bookingsTable)
       .where(
         and(
-          eq(bookingsTable.driverId, driverId),
+          eq(bookingsTable.workerId, workerId),
           eq(bookingsTable.shiftDate, shiftDate),
         ),
       );
@@ -42,8 +42,8 @@ router.put("/bookings", async (req, res): Promise<void> => {
       const [created] = await tx
         .insert(bookingsTable)
         .values({
-          driverId,
-          contractId,
+          workerId,
+          sheetId,
           shiftDate,
           status,
           startTime,
@@ -66,7 +66,7 @@ router.put("/bookings", async (req, res): Promise<void> => {
     const [updated] = await tx
       .update(bookingsTable)
       .set({
-        contractId,
+        sheetId,
         status,
         startTime,
         updatedBy: userId,
@@ -125,14 +125,14 @@ router.delete("/bookings/:id", async (req, res): Promise<void> => {
     if (!existing) return null;
 
     // The audit_log FK is ON DELETE SET NULL, so once the booking row is gone
-    // the driver name and shift date can no longer be derived via joins. Embed
+    // the worker name and shift date can no longer be derived via joins. Embed
     // that context into the audit value so the deletion stays self-describing.
-    const [driver] = await tx
-      .select({ fullName: driversTable.fullName })
-      .from(driversTable)
-      .where(eq(driversTable.id, existing.driverId));
+    const [worker] = await tx
+      .select({ fullName: workersTable.fullName })
+      .from(workersTable)
+      .where(eq(workersTable.id, existing.workerId));
 
-    const context = `${driver?.fullName ?? `Driver #${existing.driverId}`} · ${existing.shiftDate}`;
+    const context = `${worker?.fullName ?? `Worker #${existing.workerId}`} · ${existing.shiftDate}`;
 
     await tx.insert(auditLogTable).values({
       bookingId: existing.id,

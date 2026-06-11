@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
-import contractsRouter from "./contracts";
-import driversRouter from "./drivers";
+import sheetsRouter from "./sheets";
+import workersRouter from "./workers";
 import gridRouter from "./grid";
 import bookingsRouter from "./bookings";
 import auditRouter from "./audit";
@@ -19,8 +19,8 @@ router.use(authRouter);
 
 // Everything below requires an authenticated session.
 router.use(requireAuth);
-router.use(contractsRouter);
-router.use(driversRouter);
+router.use(sheetsRouter);
+router.use(workersRouter);
 router.use(gridRouter);
 router.use(bookingsRouter);
 router.use(auditRouter);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, eachDayOfInterval } from "date-fns";
 import { GridResponse, Booking, Status } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,28 +21,28 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface BookingGridProps {
-  contractId: number;
+  sheetId: number;
   start: Date;
   end: Date;
   data?: GridResponse;
   isLoading: boolean;
 }
 
-export function BookingGrid({ contractId, start, end, data, isLoading }: BookingGridProps) {
+export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGridProps) {
   const queryClient = useQueryClient();
   const upsertBooking = useUpsertBooking();
   const deleteBooking = useDeleteBooking();
   const days = eachDayOfInterval({ start, end });
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ contractId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
+    queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ sheetId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     queryClient.invalidateQueries({ queryKey: getListAuditQueryKey({}) });
   };
 
-  const handleCellSave = (driverId: number, dateStr: string, status: Status, startTime: string) => {
+  const handleCellSave = (workerId: number, dateStr: string, status: Status, startTime: string) => {
     upsertBooking.mutate(
-      { data: { contractId, driverId, shiftDate: dateStr, status, startTime: startTime || null } },
+      { data: { sheetId, workerId, shiftDate: dateStr, status, startTime: startTime || null } },
       { onSuccess: invalidate }
     );
   };
@@ -55,11 +55,11 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
     return <div className="p-8 text-center text-muted-foreground">Loading grid...</div>;
   }
 
-  if (!data?.drivers.length) {
-    return <div className="p-8 text-center text-muted-foreground">No drivers linked to this contract.</div>;
+  if (!data?.workers.length) {
+    return <div className="p-8 text-center text-muted-foreground">No workers linked to this sheet. Use "Add Worker" to get started.</div>;
   }
 
-  // Count working shifts per day
+  // Count working shifts per day (a working shift = a booking with a start time)
   const shiftsPerDay = days.map(day => {
     const dateStr = format(day, "yyyy-MM-dd");
     return data.bookings.filter(b => b.shiftDate === dateStr && b.startTime).length;
@@ -71,9 +71,9 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
         <Table className="border-collapse">
           <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
             <TableRow>
-              <TableHead className="w-[200px] border-r">Driver</TableHead>
+              <TableHead className="w-[180px] border-r">Worker</TableHead>
               <TableHead className="w-[120px] border-r">Phone</TableHead>
-              <TableHead className="w-[120px] border-r">Role</TableHead>
+              <TableHead className="w-[220px] border-r">Standing Note</TableHead>
               {days.map((day) => (
                 <TableHead key={day.toISOString()} className="min-w-[100px] border-r text-center">
                   <div className="font-semibold">{format(day, "EEE")}</div>
@@ -83,23 +83,26 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.drivers.map((driver) => (
-              <TableRow key={driver.id}>
-                <TableCell className="border-r font-medium sticky left-0 bg-background">{driver.fullName}</TableCell>
-                <TableCell className="border-r text-xs text-muted-foreground">{driver.phone || "-"}</TableCell>
-                <TableCell className="border-r text-xs">{driver.jobRole || "-"}</TableCell>
+            {data.workers.map((worker) => (
+              <TableRow key={worker.id}>
+                <TableCell className="border-r font-medium sticky left-0 bg-background">
+                  <div>{worker.fullName}</div>
+                  {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
+                </TableCell>
+                <TableCell className="border-r text-xs text-muted-foreground">{worker.phone || "-"}</TableCell>
+                <TableCell className="border-r text-xs text-muted-foreground">{worker.note || "-"}</TableCell>
                 {days.map((day) => {
                   const dateStr = format(day, "yyyy-MM-dd");
                   const booking = data.bookings.find(
-                    (b) => b.driverId === driver.id && b.shiftDate === dateStr
+                    (b) => b.workerId === worker.id && b.shiftDate === dateStr
                   );
                   return (
                     <BookingCell
-                      key={`${driver.id}-${dateStr}`}
+                      key={`${worker.id}-${dateStr}`}
                       booking={booking}
                       dateStr={dateStr}
-                      driverId={driver.id}
-                      driverName={driver.fullName}
+                      workerId={worker.id}
+                      workerName={worker.fullName}
                       onSave={handleCellSave}
                       onDelete={handleCellDelete}
                     />
@@ -123,26 +126,26 @@ export function BookingGrid({ contractId, start, end, data, isLoading }: Booking
         </Table>
       </div>
 
-      <div className="border-t bg-card p-2 flex items-center justify-end gap-4 text-xs">
+      <div className="border-t bg-card p-2 flex flex-wrap items-center justify-end gap-4 text-xs">
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-available" /> Available</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-pre-booked" /> Pre-Booked</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-confirmed" /> Confirmed</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-rest" /> Rest</div>
-        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-off" /> Off</div>
-        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday" /> Holiday</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-off" /> Off</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday flex items-center justify-center text-[8px] text-white leading-none">✕</div> Holiday</div>
       </div>
     </div>
   );
 }
 
-function BookingCell({ booking, dateStr, driverId, driverName, onSave, onDelete }: { booking?: Booking, dateStr: string, driverId: number, driverName: string, onSave: (driverId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void }) {
+function BookingCell({ booking, dateStr, workerId, workerName, onSave, onDelete }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void }) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status>(booking?.status || "Off");
   const [time, setTime] = useState(booking?.startTime || "");
 
   const handleSave = () => {
-    onSave(driverId, dateStr, status, time);
+    onSave(workerId, dateStr, status, time);
     setOpen(false);
   };
 
@@ -166,14 +169,21 @@ function BookingCell({ booking, dateStr, driverId, driverName, onSave, onDelete 
 
   const isWorkingStatus = ["Available", "Pre-Booked", "Confirmed"].includes(status);
 
+  const renderContent = () => {
+    if (!booking) return "";
+    if (booking.status === "Holiday") return "✕";
+    if (booking.startTime) return booking.startTime;
+    return booking.status;
+  };
+
   return (
     <TableCell className="border-r p-0 align-top">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div 
+          <div
             className={`h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${getStatusClass(booking?.status)}`}
           >
-            {booking?.startTime ? booking.startTime : (!booking ? "" : booking?.status)}
+            {renderContent()}
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" side="bottom" align="start">
@@ -198,10 +208,10 @@ function BookingCell({ booking, dateStr, driverId, driverName, onSave, onDelete 
             {isWorkingStatus && (
               <div className="space-y-1">
                 <Label className="text-xs">Start Time (24h)</Label>
-                <Input 
-                  value={time} 
-                  onChange={(e) => setTime(e.target.value)} 
-                  placeholder="04:00" 
+                <Input
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  placeholder="04:00"
                   className="h-8 font-mono"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSave();
@@ -233,7 +243,7 @@ function BookingCell({ booking, dateStr, driverId, driverName, onSave, onDelete 
           <AlertDialogHeader>
             <AlertDialogTitle>Clear this cell?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {driverName}'s {booking ? booking.status : ""} entry for {dateStr} and leave the cell empty. This action is recorded in the activity log and cannot be undone.
+              This will permanently delete {workerName}'s {booking ? booking.status : ""} entry for {dateStr} and leave the cell empty. This action is recorded in the activity log and cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

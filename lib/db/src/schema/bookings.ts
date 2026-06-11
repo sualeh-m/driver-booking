@@ -8,32 +8,34 @@ import {
   timestamp,
   unique,
   index,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { driversTable } from "./drivers";
-import { contractsTable } from "./contracts";
+import { workersTable } from "./workers";
+import { sheetsTable } from "./sheets";
 import { usersTable } from "./users";
 
 export const BOOKING_STATUSES = [
   "Available",
   "Pre-Booked",
-  "Confirmed",
   "Rest",
   "Off",
   "Holiday",
+  "Confirmed",
 ] as const;
 
 export const bookingsTable = pgTable(
   "bookings",
   {
     id: serial("id").primaryKey(),
-    driverId: integer("driver_id")
+    workerId: integer("worker_id")
       .notNull()
-      .references(() => driversTable.id, { onDelete: "cascade" }),
-    contractId: integer("contract_id")
+      .references(() => workersTable.id, { onDelete: "cascade" }),
+    sheetId: integer("sheet_id")
       .notNull()
-      .references(() => contractsTable.id, { onDelete: "restrict" }),
+      .references(() => sheetsTable.id, { onDelete: "restrict" }),
     shiftDate: date("shift_date", { mode: "string" }).notNull(),
     status: text("status").notNull().default("Available"),
     startTime: time("start_time"),
@@ -47,9 +49,14 @@ export const bookingsTable = pgTable(
       .defaultNow(),
   },
   (t) => [
-    unique("one_booking_per_driver_per_day").on(t.driverId, t.shiftDate),
+    unique("one_booking_per_worker_per_day").on(t.workerId, t.shiftDate),
+    check(
+      "bookings_status",
+      sql`${t.status} IN ('Available','Pre-Booked','Rest','Off','Holiday','Confirmed')`,
+    ),
     index("idx_bookings_date").on(t.shiftDate),
-    index("idx_bookings_contract").on(t.contractId),
+    index("idx_bookings_sheet").on(t.sheetId),
+    index("idx_bookings_worker").on(t.workerId, t.shiftDate),
   ],
 );
 

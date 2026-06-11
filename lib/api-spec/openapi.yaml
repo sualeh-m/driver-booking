@@ -3,7 +3,7 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: Internal HGV driver shift booking system
+  description: Internal HGV/Warehouse worker shift booking system
 servers:
   - url: /api
     description: Base API path
@@ -12,10 +12,10 @@ tags:
     description: Health operations
   - name: auth
     description: Internal login and current user
-  - name: contracts
-    description: Client + location contracts
-  - name: drivers
-    description: Driver records (local cache of Vincere)
+  - name: sheets
+    description: Booking sheets (depot + worker type + client)
+  - name: workers
+    description: Worker records (local cache of Vincere)
   - name: grid
     description: The booking grid
   - name: bookings
@@ -109,37 +109,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /contracts:
+  /sheets:
     get:
-      operationId: listContracts
-      tags: [contracts]
-      summary: List all contracts
+      operationId: listSheets
+      tags: [sheets]
+      summary: List all booking sheets
       responses:
         "200":
-          description: List of contracts
+          description: List of sheets
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Contract"
+                  $ref: "#/components/schemas/Sheet"
     post:
-      operationId: createContract
-      tags: [contracts]
-      summary: Create a new contract
+      operationId: createSheet
+      tags: [sheets]
+      summary: Create a new booking sheet
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ContractInput"
+              $ref: "#/components/schemas/SheetInput"
       responses:
         "201":
-          description: Created contract
+          description: Created sheet
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Contract"
+                $ref: "#/components/schemas/Sheet"
         "400":
           description: Invalid request
           content:
@@ -147,58 +147,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /drivers:
+  /sheets/{sheetId}/contacts:
     get:
-      operationId: listDrivers
-      tags: [drivers]
-      summary: List or search drivers (local table)
+      operationId: listSheetContacts
+      tags: [sheets]
+      summary: List client contacts for a sheet
       parameters:
-        - name: search
-          in: query
-          required: false
+        - name: sheetId
+          in: path
+          required: true
           schema:
-            type: string
-          description: Filter by name, phone, or job role
+            type: integer
       responses:
         "200":
-          description: List of drivers
+          description: List of contacts
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Driver"
+                  $ref: "#/components/schemas/SheetContact"
     post:
-      operationId: createDriver
-      tags: [drivers]
-      summary: Create a new driver in the local table
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DriverInput"
-      responses:
-        "201":
-          description: Created driver
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Driver"
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /contracts/{contractId}/drivers:
-    post:
-      operationId: addDriverToContract
-      tags: [contracts]
-      summary: Link a driver to a contract (add them to the grid)
+      operationId: addSheetContact
+      tags: [sheets]
+      summary: Add a client contact to a sheet
       parameters:
-        - name: contractId
+        - name: sheetId
           in: path
           required: true
           schema:
@@ -208,7 +182,137 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DriverContractInput"
+              $ref: "#/components/schemas/SheetContactInput"
+      responses:
+        "201":
+          description: Created contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SheetContact"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /sheets/{sheetId}/contacts/{contactId}:
+    patch:
+      operationId: updateSheetContact
+      tags: [sheets]
+      summary: Update a contact (e.g. mark as primary)
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: contactId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SheetContactUpdate"
+      responses:
+        "200":
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SheetContact"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: removeSheetContact
+      tags: [sheets]
+      summary: Remove a contact from a sheet
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: contactId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  /workers:
+    get:
+      operationId: listWorkers
+      tags: [workers]
+      summary: List or search workers (local table)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by name, phone, or job role
+      responses:
+        "200":
+          description: List of workers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Worker"
+    post:
+      operationId: createWorker
+      tags: [workers]
+      summary: Create a new worker in the local table
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerInput"
+      responses:
+        "201":
+          description: Created worker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /sheets/{sheetId}/workers:
+    post:
+      operationId: addWorkerToSheet
+      tags: [sheets]
+      summary: Link a worker to a sheet (add them to the grid)
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddWorkerToSheetInput"
       responses:
         "204":
           description: Linked
@@ -219,18 +323,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /contracts/{contractId}/drivers/{driverId}:
+  /sheets/{sheetId}/workers/{workerId}:
     delete:
-      operationId: removeDriverFromContract
-      tags: [contracts]
-      summary: Remove a driver from a contract
+      operationId: removeWorkerFromSheet
+      tags: [sheets]
+      summary: Remove a worker from a sheet
       parameters:
-        - name: contractId
+        - name: sheetId
           in: path
           required: true
           schema:
             type: integer
-        - name: driverId
+        - name: workerId
           in: path
           required: true
           schema:
@@ -243,9 +347,9 @@ paths:
     get:
       operationId: getGrid
       tags: [grid]
-      summary: Get drivers and bookings for a contract within a date range
+      summary: Get workers and bookings for a sheet within a date range
       parameters:
-        - name: contractId
+        - name: sheetId
           in: query
           required: true
           schema:
@@ -280,7 +384,7 @@ paths:
     put:
       operationId: upsertBooking
       tags: [bookings]
-      summary: Create or update a booking cell for a driver on a date
+      summary: Create or update a booking cell for a worker on a date
       requestBody:
         required: true
         content:
@@ -361,7 +465,7 @@ paths:
     post:
       operationId: previewClientEmail
       tags: [previews]
-      summary: Build the client email preview for a contract and date range
+      summary: Build the client email preview for a sheet and date range
       requestBody:
         required: true
         content:
@@ -386,7 +490,7 @@ paths:
     post:
       operationId: previewConfirmations
       tags: [previews]
-      summary: Build candidate confirmation previews (all drivers or one)
+      summary: Build candidate confirmation previews (all workers or one)
       requestBody:
         required: true
         content:
@@ -413,7 +517,7 @@ paths:
     post:
       operationId: importBookings
       tags: [grid]
-      summary: Import drivers and bookings from CSV text into a contract
+      summary: Import workers and bookings from CSV text into a sheet
       requestBody:
         required: true
         content:
@@ -454,7 +558,11 @@ components:
 
     Status:
       type: string
-      enum: [Available, Pre-Booked, Confirmed, Rest, Off, Holiday]
+      enum: [Available, Pre-Booked, Rest, Off, Holiday, Confirmed]
+
+    WorkerType:
+      type: string
+      enum: [HGV, Warehouse]
 
     User:
       type: object
@@ -471,62 +579,104 @@ components:
       properties:
         userId: { type: integer }
 
-    Contract:
+    Sheet:
       type: object
-      required: [id, companyName, createdAt]
+      required: [id, name, clientCompany, workerType, createdAt]
       properties:
         id: { type: integer }
-        companyName: { type: string }
-        clientContactName: { type: ["string", "null"] }
-        clientContactEmail: { type: ["string", "null"] }
-        location: { type: ["string", "null"] }
+        name: { type: string }
+        clientCompany: { type: string }
+        depot: { type: ["string", "null"] }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
         createdAt: { type: string }
 
-    ContractInput:
+    SheetInput:
       type: object
-      required: [companyName]
+      required: [name, clientCompany, workerType]
       properties:
-        companyName: { type: string, minLength: 1 }
-        clientContactName: { type: string }
-        clientContactEmail: { type: string }
-        location: { type: string }
+        name: { type: string, minLength: 1 }
+        clientCompany: { type: string, minLength: 1 }
+        depot: { type: string }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
 
-    Driver:
+    SheetContact:
       type: object
-      required: [id, fullName, active, syncedAt]
+      required: [id, sheetId, email, isPrimary]
+      properties:
+        id: { type: integer }
+        sheetId: { type: integer }
+        contactName: { type: ["string", "null"] }
+        email: { type: string }
+        isPrimary: { type: boolean }
+
+    SheetContactInput:
+      type: object
+      required: [email]
+      properties:
+        contactName: { type: string }
+        email: { type: string, minLength: 1 }
+        isPrimary: { type: boolean }
+
+    SheetContactUpdate:
+      type: object
+      required: [isPrimary]
+      properties:
+        isPrimary: { type: boolean }
+
+    Worker:
+      type: object
+      required: [id, fullName, workerType, status, syncedAt]
       properties:
         id: { type: integer }
         vincereId: { type: ["string", "null"] }
         fullName: { type: string }
         phone: { type: ["string", "null"] }
         jobRole: { type: ["string", "null"] }
-        notes: { type: ["string", "null"] }
-        active: { type: boolean }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
+        startDate: { type: ["string", "null"] }
+        status: { type: string }
         syncedAt: { type: string }
 
-    DriverInput:
+    WorkerInput:
       type: object
-      required: [fullName]
+      required: [fullName, workerType]
       properties:
         fullName: { type: string, minLength: 1 }
         phone: { type: string }
         jobRole: { type: string }
-        notes: { type: string }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
+        startDate: { type: string }
         vincereId: { type: string }
 
-    DriverContractInput:
+    AddWorkerToSheetInput:
       type: object
-      required: [driverId]
+      required: [workerId]
       properties:
-        driverId: { type: integer }
+        workerId: { type: integer }
+        notes: { type: string }
+
+    GridWorker:
+      type: object
+      required: [id, fullName, workerType, status, syncedAt]
+      properties:
+        id: { type: integer }
+        vincereId: { type: ["string", "null"] }
+        fullName: { type: string }
+        phone: { type: ["string", "null"] }
+        jobRole: { type: ["string", "null"] }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
+        startDate: { type: ["string", "null"] }
+        status: { type: string }
+        syncedAt: { type: string }
+        note: { type: ["string", "null"] }
 
     Booking:
       type: object
-      required: [id, driverId, contractId, shiftDate, status, createdAt, updatedAt]
+      required: [id, workerId, sheetId, shiftDate, status, createdAt, updatedAt]
       properties:
         id: { type: integer }
-        driverId: { type: integer }
-        contractId: { type: integer }
+        workerId: { type: integer }
+        sheetId: { type: integer }
         shiftDate: { type: string }
         status: { $ref: "#/components/schemas/Status" }
         startTime: { type: ["string", "null"] }
@@ -537,22 +687,22 @@ components:
 
     BookingInput:
       type: object
-      required: [driverId, contractId, shiftDate, status]
+      required: [workerId, sheetId, shiftDate, status]
       properties:
-        driverId: { type: integer }
-        contractId: { type: integer }
+        workerId: { type: integer }
+        sheetId: { type: integer }
         shiftDate: { type: string }
         status: { $ref: "#/components/schemas/Status" }
         startTime: { type: ["string", "null"] }
 
     GridResponse:
       type: object
-      required: [drivers, bookings]
+      required: [workers, bookings]
       properties:
-        drivers:
+        workers:
           type: array
           items:
-            $ref: "#/components/schemas/Driver"
+            $ref: "#/components/schemas/GridWorker"
         bookings:
           type: array
           items:
@@ -566,7 +716,7 @@ components:
         bookingId: { type: ["integer", "null"] }
         userId: { type: ["integer", "null"] }
         userName: { type: ["string", "null"] }
-        driverName: { type: ["string", "null"] }
+        workerName: { type: ["string", "null"] }
         shiftDate: { type: ["string", "null"] }
         action: { type: string }
         oldValue: { type: ["string", "null"] }
@@ -582,11 +732,11 @@ components:
 
     DashboardSummary:
       type: object
-      required: [totalDrivers, totalActiveDrivers, totalContracts, shiftsToday, shiftsThisWeek, statusBreakdown]
+      required: [totalWorkers, totalActiveWorkers, totalSheets, shiftsToday, shiftsThisWeek, statusBreakdown]
       properties:
-        totalDrivers: { type: integer }
-        totalActiveDrivers: { type: integer }
-        totalContracts: { type: integer }
+        totalWorkers: { type: integer }
+        totalActiveWorkers: { type: integer }
+        totalSheets: { type: integer }
         shiftsToday: { type: integer }
         shiftsThisWeek: { type: integer }
         statusBreakdown:
@@ -596,17 +746,17 @@ components:
 
     ClientEmailPreviewInput:
       type: object
-      required: [contractId, start, end]
+      required: [sheetId, start, end]
       properties:
-        contractId: { type: integer }
+        sheetId: { type: integer }
         start: { type: string }
         end: { type: string }
 
     ClientEmailRow:
       type: object
-      required: [driverName, shiftDate, status]
+      required: [workerName, shiftDate, status]
       properties:
-        driverName: { type: string }
+        workerName: { type: string }
         jobRole: { type: ["string", "null"] }
         shiftDate: { type: string }
         status: { type: string }
@@ -614,12 +764,12 @@ components:
 
     ClientEmailPreview:
       type: object
-      required: [subject, body, companyName, rows]
+      required: [subject, body, clientCompany, rows]
       properties:
         subject: { type: string }
         body: { type: string }
-        companyName: { type: string }
-        location: { type: ["string", "null"] }
+        clientCompany: { type: string }
+        depot: { type: ["string", "null"] }
         recipientName: { type: ["string", "null"] }
         recipientEmail: { type: ["string", "null"] }
         rows:
@@ -631,8 +781,8 @@ components:
       type: object
       required: [start, end]
       properties:
-        driverId: { type: ["integer", "null"] }
-        contractId: { type: ["integer", "null"] }
+        workerId: { type: ["integer", "null"] }
+        sheetId: { type: ["integer", "null"] }
         start: { type: string }
         end: { type: string }
 
@@ -643,15 +793,16 @@ components:
         shiftDate: { type: string }
         status: { type: string }
         startTime: { type: ["string", "null"] }
-        companyName: { type: ["string", "null"] }
-        location: { type: ["string", "null"] }
+        sheetName: { type: ["string", "null"] }
+        clientCompany: { type: ["string", "null"] }
+        depot: { type: ["string", "null"] }
 
     ConfirmationPreview:
       type: object
-      required: [driverId, driverName, messageText, shifts]
+      required: [workerId, workerName, messageText, shifts]
       properties:
-        driverId: { type: integer }
-        driverName: { type: string }
+        workerId: { type: integer }
+        workerName: { type: string }
         phone: { type: ["string", "null"] }
         messageText: { type: string }
         shifts:
@@ -661,17 +812,17 @@ components:
 
     ImportInput:
       type: object
-      required: [contractId, csvText]
+      required: [sheetId, csvText]
       properties:
-        contractId: { type: integer }
+        sheetId: { type: integer }
         csvText: { type: string }
 
     ImportResult:
       type: object
-      required: [driversCreated, driversMatched, bookingsUpserted, errors]
+      required: [workersCreated, workersMatched, bookingsUpserted, errors]
       properties:
-        driversCreated: { type: integer }
-        driversMatched: { type: integer }
+        workersCreated: { type: integer }
+        workersMatched: { type: integer }
         bookingsUpserted: { type: integer }
         errors:
           type: array

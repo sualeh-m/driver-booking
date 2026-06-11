@@ -2,15 +2,15 @@ import { Router, type IRouter } from "express";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import {
   db,
-  driversTable,
-  driverContractsTable,
+  workersTable,
+  workerSheetsTable,
   bookingsTable,
   auditLogTable,
-  contractsTable,
+  sheetsTable,
   BOOKING_STATUSES,
 } from "@workspace/db";
 import { GetGridQueryParams, ImportBookingsBody } from "@workspace/api-zod";
-import { serializeDriver, serializeBooking } from "../lib/serialize";
+import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
 import { parseCsv } from "../lib/csv";
 
@@ -38,40 +38,51 @@ router.get("/grid", async (req, res): Promise<void> => {
     return;
   }
 
-  const { contractId, start, end } = query.data;
+  const { sheetId, start, end } = query.data;
 
-  const drivers = await db
+  const workers = await db
     .select({
-      id: driversTable.id,
-      vincereId: driversTable.vincereId,
-      fullName: driversTable.fullName,
-      phone: driversTable.phone,
-      jobRole: driversTable.jobRole,
-      notes: driversTable.notes,
-      active: driversTable.active,
-      syncedAt: driversTable.syncedAt,
+      id: workersTable.id,
+      vincereId: workersTable.vincereId,
+      fullName: workersTable.fullName,
+      phone: workersTable.phone,
+      jobRole: workersTable.jobRole,
+      workerType: workersTable.workerType,
+      startDate: workersTable.startDate,
+      status: workersTable.status,
+      syncedAt: workersTable.syncedAt,
+      note: workerSheetsTable.notes,
     })
-    .from(driverContractsTable)
-    .innerJoin(
-      driversTable,
-      eq(driversTable.id, driverContractsTable.driverId),
-    )
-    .where(eq(driverContractsTable.contractId, contractId))
-    .orderBy(driversTable.fullName);
+    .from(workerSheetsTable)
+    .innerJoin(workersTable, eq(workersTable.id, workerSheetsTable.workerId))
+    .where(eq(workerSheetsTable.sheetId, sheetId))
+    .orderBy(workersTable.fullName);
 
   const bookings = await db
     .select()
     .from(bookingsTable)
     .where(
       and(
-        eq(bookingsTable.contractId, contractId),
+        eq(bookingsTable.sheetId, sheetId),
         gte(bookingsTable.shiftDate, start),
         lte(bookingsTable.shiftDate, end),
       ),
     );
 
   res.json({
-    drivers: drivers.map(serializeDriver),
+    workers: workers.map((w) => ({
+      id: w.id,
+      vincereId: w.vincereId,
+      fullName: w.fullName,
+      phone: w.phone,
+      jobRole: w.jobRole,
+      workerType: w.workerType,
+      startDate: w.startDate,
+      status: w.status,
+      syncedAt:
+        w.syncedAt instanceof Date ? w.syncedAt.toISOString() : w.syncedAt,
+      note: w.note,
+    })),
     bookings: bookings.map(serializeBooking),
   });
 });
@@ -89,25 +100,25 @@ router.post("/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { contractId, csvText } = parsed.data;
+  const { sheetId, csvText } = parsed.data;
 
-  const [contract] = await db
+  const [sheet] = await db
     .select()
-    .from(contractsTable)
-    .where(eq(contractsTable.id, contractId));
-  if (!contract) {
-    res.status(400).json({ error: "Unknown contract" });
+    .from(sheetsTable)
+    .where(eq(sheetsTable.id, sheetId));
+  if (!sheet) {
+    res.status(400).json({ error: "Unknown sheet" });
     return;
   }
 
   const rows = parseCsv(csvText);
   const errors: string[] = [];
-  let driversCreated = 0;
-  let driversMatched = 0;
+  let workersCreated = 0;
+  let workersMatched = 0;
   let bookingsUpserted = 0;
 
   if (rows.length === 0) {
-    res.json({ driversCreated, driversMatched, bookingsUpserted, errors });
+    res.json({ workersCreated, workersMatched, bookingsUpserted, errors });
     return;
   }
 
@@ -156,29 +167,32 @@ router.post("/import", async (req, res): Promise<void> => {
 
     try {
       await db.transaction(async (tx) => {
-        let [driver] = await tx
+        let [worker] = await tx
           .select()
-          .from(driversTable)
-          .where(sql`lower(${driversTable.fullName}) = ${fullName.toLowerCase()}`)
+          .from(workersTable)
+          .where(
+            sql`lower(${workersTable.fullName}) = ${fullName.toLowerCase()}`,
+          )
           .limit(1);
 
-        if (!driver) {
-          [driver] = await tx
-            .insert(driversTable)
+        if (!worker) {
+          [worker] = await tx
+            .insert(workersTable)
             .values({
               fullName,
               phone: phone || null,
               jobRole: jobRole || null,
+              workerType: sheet.workerType,
             })
             .returning();
-          driversCreated++;
+          workersCreated++;
         } else {
-          driversMatched++;
+          workersMatched++;
         }
 
         await tx
-          .insert(driverContractsTable)
-          .values({ contractId, driverId: driver.id })
+          .insert(workerSheetsTable)
+          .values({ sheetId, workerId: worker.id })
           .onConflictDoNothing();
 
         const [existing] = await tx
@@ -186,7 +200,7 @@ router.post("/import", async (req, res): Promise<void> => {
           .from(bookingsTable)
           .where(
             and(
-              eq(bookingsTable.driverId, driver.id),
+              eq(bookingsTable.workerId, worker.id),
               eq(bookingsTable.shiftDate, shiftDate),
             ),
           );
@@ -195,8 +209,8 @@ router.post("/import", async (req, res): Promise<void> => {
           const [created] = await tx
             .insert(bookingsTable)
             .values({
-              driverId: driver.id,
-              contractId,
+              workerId: worker.id,
+              sheetId,
               shiftDate,
               status,
               startTime,
@@ -215,7 +229,7 @@ router.post("/import", async (req, res): Promise<void> => {
           await tx
             .update(bookingsTable)
             .set({
-              contractId,
+              sheetId,
               status,
               startTime,
               updatedBy: userId,
@@ -239,7 +253,7 @@ router.post("/import", async (req, res): Promise<void> => {
     }
   }
 
-  res.json({ driversCreated, driversMatched, bookingsUpserted, errors });
+  res.json({ workersCreated, workersMatched, bookingsUpserted, errors });
 });
 
 export default router;

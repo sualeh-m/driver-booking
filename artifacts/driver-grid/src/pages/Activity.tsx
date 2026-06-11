@@ -12,7 +12,7 @@ export function Activity() {
       <Card>
         <CardHeader>
           <CardTitle>Activity Log</CardTitle>
-          <CardDescription>Recent changes made across all contracts</CardDescription>
+          <CardDescription>Recent changes made across all sheets</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -51,9 +51,9 @@ export function Activity() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1 text-sm">
-                        {entry.driverName && entry.shiftDate && (
+                        {entry.workerName && entry.shiftDate && (
                           <span className="font-semibold">
-                            {entry.driverName} on {format(new Date(entry.shiftDate), "MMM d, yyyy")}
+                            {entry.workerName} on {format(new Date(entry.shiftDate), "MMM d, yyyy")}
                           </span>
                         )}
                         {(entry.oldValue || entry.newValue) && (

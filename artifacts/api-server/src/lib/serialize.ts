@@ -1,7 +1,8 @@
 import type {
   User,
-  Contract,
-  Driver,
+  Sheet,
+  SheetContact,
+  Worker,
   Booking,
 } from "@workspace/db";
 
@@ -18,27 +19,38 @@ export function serializeUser(u: User) {
   };
 }
 
-export function serializeContract(c: Contract) {
+export function serializeSheet(s: Sheet) {
   return {
-    id: c.id,
-    companyName: c.companyName,
-    clientContactName: c.clientContactName,
-    clientContactEmail: c.clientContactEmail,
-    location: c.location,
-    createdAt: iso(c.createdAt),
+    id: s.id,
+    name: s.name,
+    clientCompany: s.clientCompany,
+    depot: s.depot,
+    workerType: s.workerType,
+    createdAt: iso(s.createdAt),
   };
 }
 
-export function serializeDriver(d: Driver) {
+export function serializeSheetContact(c: SheetContact) {
   return {
-    id: d.id,
-    vincereId: d.vincereId,
-    fullName: d.fullName,
-    phone: d.phone,
-    jobRole: d.jobRole,
-    notes: d.notes,
-    active: d.active,
-    syncedAt: iso(d.syncedAt),
+    id: c.id,
+    sheetId: c.sheetId,
+    contactName: c.contactName,
+    email: c.email,
+    isPrimary: c.isPrimary,
+  };
+}
+
+export function serializeWorker(w: Worker) {
+  return {
+    id: w.id,
+    vincereId: w.vincereId,
+    fullName: w.fullName,
+    phone: w.phone,
+    jobRole: w.jobRole,
+    workerType: w.workerType,
+    startDate: w.startDate,
+    status: w.status,
+    syncedAt: iso(w.syncedAt),
   };
 }
 
@@ -51,8 +63,8 @@ function shortTime(t: string | null): string | null {
 export function serializeBooking(b: Booking) {
   return {
     id: b.id,
-    driverId: b.driverId,
-    contractId: b.contractId,
+    workerId: b.workerId,
+    sheetId: b.sheetId,
     shiftDate: b.shiftDate,
     status: b.status,
     startTime: shortTime(b.startTime),

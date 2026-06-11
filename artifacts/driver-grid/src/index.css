@@ -125,8 +125,8 @@
 
 /* Domain specific status colors */
 .status-available { background-color: #f97316; color: white; }
-.status-pre-booked { background-color: #eab308; color: black; }
+.status-pre-booked { background-color: #eab308; color: #1f2937; }
 .status-confirmed { background-color: #22c55e; color: white; }
 .status-rest { background-color: #9ca3af; color: white; }
-.status-off { background-color: #bfdbfe; color: #1e3a5f; }
-.status-holiday { background-color: #000000; color: white; }
+.status-off { background-color: #ffffff; color: #374151; }
+.status-holiday { background-color: #000000; color: white; font-weight: 700; }

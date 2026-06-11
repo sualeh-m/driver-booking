@@ -1,6 +1,6 @@
 # ShiftControl
 
-Internal HGV driver shift-booking app for a recruitment agency — a spreadsheet-style editable grid (drivers × dates) that replaces the team's Google Sheets workflow.
+Internal HGV/Warehouse shift-booking app for a recruitment agency — a spreadsheet-style editable grid (workers × dates) that replaces the team's Google Sheets workflow. Bookings are organised per **sheet** (a client depot + worker type).
 
 ## Run & Operate
 
@@ -22,7 +22,7 @@ Internal HGV driver shift-booking app for a recruitment agency — a spreadsheet
 
 ## Where things live
 
-- DB schema (source of truth): `lib/db/src/schema/*.ts` — mirrors the user-provided `attached_assets/extracted_files/schema.sql` exactly (7 tables: users, contracts, drivers, driverContracts, bookings, auditLog, messages).
+- DB schema (source of truth): `lib/db/src/schema/*.ts` — mirrors the user-provided v2 `attached_assets/extracted_files/schema.sql` exactly. Active tables: users, sheets, sheetContacts, workers, workerSheets, bookings, auditLog, messages. Empty-by-design tables exist but are NOT wired up: shiftRequirements, submissions, leavers, events. `session` is infra (provisioned via Drizzle, see Gotchas).
 - API contract (source of truth): `lib/api-spec/openapi.yaml` — drives codegen (React Query hooks + Zod schemas in `@workspace/api-client-react`).
 - Backend routes: `artifacts/api-server/src/routes/*.ts`; helpers in `artifacts/api-server/src/lib/` (serialize, auth, session, csv, dates); wiring in `src/app.ts`.
 - Frontend: `artifacts/driver-grid/src/` — grid in `components/grid/BookingGrid.tsx`, layout in `components/layout/Shell.tsx`.
@@ -36,7 +36,9 @@ Internal HGV driver shift-booking app for a recruitment agency — a spreadsheet
 
 ## Product
 
-Spreadsheet-style grid (drivers down, dates across) with Day/Week/Month toggle (Week = Sun–Sat, Month from 1st), contract filter, inline status + 24h start-time editing, colour-coded status cells, and per-day working-shift totals. Top actions: Add driver, New contract, Import CSV (confirm + choose contract), Export CSV (client-side), Email-to-client preview, Send-confirmations preview. Pick-your-name login, full audit trail, Activity view.
+Spreadsheet-style grid (workers down, dates across) scoped to the selected **sheet**, with Day/Week/Month toggle (Week = Sun–Sat, Month from 1st), inline status + 24h start-time editing, colour-coded status cells, per-worker standing note column (from `workerSheets.notes`), and per-day working-shift totals. Statuses + colours: Available=orange, Pre-Booked=yellow, Confirmed=green, Rest=grey, Off=white, Holiday=black with a white ✕. Top actions: Add Worker (creates worker with sheet's worker type + links with a standing note), New Sheet (name, client company, depot, worker type HGV/Warehouse), Sheet Settings (manage multiple client contacts, one primary), Import CSV, Export CSV (client-side), Email-to-client preview (uses the sheet's primary contact), Send-confirmations preview. Pick-your-name login, full audit trail, Activity view.
+
+Deliberately NOT built (tables exist but stay empty): KPI/reporting dashboard, rest-day rule enforcement, shift-requirements roster, submissions, leavers, events.
 
 ## User preferences
 

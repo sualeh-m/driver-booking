@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { usePreviewConfirmations, useListDrivers } from "@workspace/api-client-react";
+import { usePreviewConfirmations } from "@workspace/api-client-react";
+import type { GridWorker } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircleIcon } from "lucide-react";
@@ -9,29 +10,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-export function SendConfirmationsDialog({ open, onOpenChange, contractId }: { open: boolean, onOpenChange: (o: boolean) => void, contractId: number | null }) {
-  const [selectedDriverId, setSelectedDriverId] = useState<string>("all");
-  
+export function SendConfirmationsDialog({ open, onOpenChange, sheetId, workers }: { open: boolean, onOpenChange: (o: boolean) => void, sheetId: number | null, workers?: GridWorker[] }) {
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");
+
   const start = format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd");
   const end = format(endOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd");
 
   const previewConfirmations = usePreviewConfirmations();
-  const { data: drivers } = useListDrivers();
+  const { reset, mutate } = previewConfirmations;
 
-  const handlePreview = () => {
-    previewConfirmations.mutate({ 
-      data: { 
-        contractId: contractId || undefined, 
-        driverId: selectedDriverId !== "all" ? Number(selectedDriverId) : undefined,
-        start, 
-        end 
-      } 
+  const runPreview = (workerSel: string) => {
+    mutate({
+      data: {
+        sheetId: sheetId || undefined,
+        workerId: workerSel !== "all" ? Number(workerSel) : undefined,
+        start,
+        end,
+      },
     });
   };
 
-  if (open && !previewConfirmations.isPending && !previewConfirmations.data && !previewConfirmations.isError && previewConfirmations.isIdle) {
-    handlePreview();
-  }
+  // Fetch fresh on open / sheet change; reset selection + clear stale data on
+  // close so a previously selected sheet's previews can't leak into a new one.
+  useEffect(() => {
+    if (open && sheetId !== null) {
+      setSelectedWorkerId("all");
+      reset();
+      runPreview("all");
+    } else if (!open) {
+      reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sheetId, start, end]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,7 +49,7 @@ export function SendConfirmationsDialog({ open, onOpenChange, contractId }: { op
         <DialogHeader>
           <DialogTitle>Send Confirmations</DialogTitle>
           <DialogDescription>
-            Preview SMS/WhatsApp confirmations to drivers for the current week.
+            Preview SMS/WhatsApp confirmations to workers for the current week.
           </DialogDescription>
         </DialogHeader>
 
@@ -52,29 +62,21 @@ export function SendConfirmationsDialog({ open, onOpenChange, contractId }: { op
         </Alert>
 
         <div className="flex items-center gap-4 py-2">
-          <Select value={selectedDriverId} onValueChange={(val) => {
-            setSelectedDriverId(val);
-            // Trigger new preview when selection changes
-            previewConfirmations.mutate({ 
-              data: { 
-                contractId: contractId || undefined, 
-                driverId: val !== "all" ? Number(val) : undefined,
-                start, 
-                end 
-              } 
-            });
+          <Select value={selectedWorkerId} onValueChange={(val) => {
+            setSelectedWorkerId(val);
+            runPreview(val);
           }}>
             <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Select Driver" />
+              <SelectValue placeholder="Select Worker" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Drivers (This Contract)</SelectItem>
-              {drivers?.map((d) => (
-                <SelectItem key={d.id} value={d.id.toString()}>{d.fullName}</SelectItem>
+              <SelectItem value="all">All Workers (This Sheet)</SelectItem>
+              {workers?.map((w) => (
+                <SelectItem key={w.id} value={w.id.toString()}>{w.fullName}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button variant="secondary" onClick={handlePreview} disabled={previewConfirmations.isPending}>
+          <Button variant="secondary" onClick={() => runPreview(selectedWorkerId)} disabled={previewConfirmations.isPending}>
             Refresh Preview
           </Button>
         </div>
@@ -92,7 +94,7 @@ export function SendConfirmationsDialog({ open, onOpenChange, contractId }: { op
                 <Card key={i} className="shadow-sm">
                   <CardHeader className="pb-2 bg-muted/30">
                     <CardTitle className="text-sm flex justify-between">
-                      <span>{preview.driverName}</span>
+                      <span>{preview.workerName}</span>
                       <span className="text-muted-foreground font-normal">{preview.phone || "No phone"}</span>
                     </CardTitle>
                   </CardHeader>

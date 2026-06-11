@@ -1,1 +1,2 @@
 - [connect-pg-simple session table](connect-pg-simple-bundling.md) — createTableIfMissing throws ENOENT under esbuild bundle; provision the session table via Drizzle schema instead.
+- [Preview/send dialogs (POST mutations)](preview-mutation-dialogs.md) — effect-driven reset+refetch on open/scope-change, never render-time conditions, or stale cross-sheet data leaks.

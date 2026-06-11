@@ -6,19 +6,21 @@ import {
   text,
   timestamp,
   index,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { driversTable } from "./drivers";
+import { workersTable } from "./workers";
 import { usersTable } from "./users";
 
 export const messagesTable = pgTable(
   "messages",
   {
     id: serial("id").primaryKey(),
-    driverId: integer("driver_id")
+    workerId: integer("worker_id")
       .notNull()
-      .references(() => driversTable.id, { onDelete: "cascade" }),
+      .references(() => workersTable.id, { onDelete: "cascade" }),
     shiftDate: date("shift_date", { mode: "string" }),
     direction: text("direction").notNull(),
     channel: text("channel").notNull().default("sms"),
@@ -29,7 +31,11 @@ export const messagesTable = pgTable(
     responseText: text("response_text"),
     respondedAt: timestamp("responded_at", { withTimezone: true }),
   },
-  (t) => [index("idx_messages_driver").on(t.driverId)],
+  (t) => [
+    index("idx_messages_worker").on(t.workerId),
+    check("messages_direction", sql`${t.direction} IN ('outbound','inbound')`),
+    check("messages_channel", sql`${t.channel} IN ('sms','email')`),
+  ],
 );
 
 export const insertMessageSchema = createInsertSchema(messagesTable).omit({

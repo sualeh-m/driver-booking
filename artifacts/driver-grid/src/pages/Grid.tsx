@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths, addDays, subDays } from "date-fns";
-import { useListContracts, useGetGrid, getGetGridQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { useListSheets, useGetGrid, getGetGridQueryKey, useGetDashboardSummary } from "@workspace/api-client-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, DownloadIcon, MailIcon, MessageSquareIcon, UploadIcon, UsersIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { GridToolbar } from "@/components/grid/GridToolbar";
 import { BookingGrid } from "@/components/grid/BookingGrid";
 import { DashboardStrip } from "@/components/grid/DashboardStrip";
@@ -13,14 +13,16 @@ type ViewMode = "Day" | "Week" | "Month";
 export function Grid() {
   const [viewMode, setViewMode] = useState<ViewMode>("Week");
   const [currentDate, setCurrentDate] = useState(new Date());
-  
-  const { data: contracts, isLoading: isLoadingContracts } = useListContracts();
-  const [selectedContractId, setSelectedContractId] = useState<number | null>(null);
 
-  // Auto-select first contract
-  if (contracts && contracts.length > 0 && selectedContractId === null) {
-    setSelectedContractId(contracts[0].id);
+  const { data: sheets } = useListSheets();
+  const [selectedSheetId, setSelectedSheetId] = useState<number | null>(null);
+
+  // Auto-select first sheet
+  if (sheets && sheets.length > 0 && selectedSheetId === null) {
+    setSelectedSheetId(sheets[0].id);
   }
+
+  const selectedSheet = sheets?.find((s) => s.id === selectedSheetId) ?? null;
 
   const getRange = () => {
     switch (viewMode) {
@@ -38,8 +40,8 @@ export function Grid() {
   const endStr = format(end, "yyyy-MM-dd");
 
   const { data: gridData, isLoading: isLoadingGrid } = useGetGrid(
-    { contractId: selectedContractId || 0, start: startStr, end: endStr },
-    { query: { enabled: !!selectedContractId, queryKey: getGetGridQueryKey({ contractId: selectedContractId || 0, start: startStr, end: endStr }) } }
+    { sheetId: selectedSheetId || 0, start: startStr, end: endStr },
+    { query: { enabled: !!selectedSheetId, queryKey: getGetGridQueryKey({ sheetId: selectedSheetId || 0, start: startStr, end: endStr }) } }
   );
 
   const { data: summary } = useGetDashboardSummary();
@@ -63,20 +65,20 @@ export function Grid() {
   return (
     <div className="flex h-full flex-col">
       <DashboardStrip summary={summary} />
-      
+
       <div className="flex items-center justify-between border-b bg-card p-4">
         <div className="flex items-center gap-4">
           <Select
-            value={selectedContractId?.toString() ?? ""}
-            onValueChange={(val) => setSelectedContractId(Number(val))}
+            value={selectedSheetId?.toString() ?? ""}
+            onValueChange={(val) => setSelectedSheetId(Number(val))}
           >
-            <SelectTrigger className="w-[280px] font-semibold">
-              <SelectValue placeholder="Select Contract" />
+            <SelectTrigger className="w-[300px] font-semibold">
+              <SelectValue placeholder="Select Sheet" />
             </SelectTrigger>
             <SelectContent>
-              {contracts?.map((c) => (
-                <SelectItem key={c.id} value={c.id.toString()}>
-                  {c.companyName} {c.location ? `(${c.location})` : ""}
+              {sheets?.map((s) => (
+                <SelectItem key={s.id} value={s.id.toString()}>
+                  {s.name} — {s.clientCompany}{s.depot ? ` (${s.depot})` : ""} · {s.workerType}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -111,13 +113,13 @@ export function Grid() {
           </div>
         </div>
 
-        <GridToolbar contractId={selectedContractId} />
+        <GridToolbar sheet={selectedSheet} start={start} end={end} bookings={gridData?.bookings} workers={gridData?.workers} />
       </div>
 
       <div className="flex-1 overflow-hidden bg-background">
-        {selectedContractId ? (
-          <BookingGrid 
-            contractId={selectedContractId}
+        {selectedSheetId ? (
+          <BookingGrid
+            sheetId={selectedSheetId}
             start={start}
             end={end}
             data={gridData}
@@ -125,7 +127,7 @@ export function Grid() {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
-            Select a contract to view the grid.
+            Select a sheet to view the grid, or create one with "New Sheet".
           </div>
         )}
       </div>

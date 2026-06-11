@@ -5,7 +5,7 @@ import {
   auditLogTable,
   usersTable,
   bookingsTable,
-  driversTable,
+  workersTable,
 } from "@workspace/db";
 import { ListAuditQueryParams } from "@workspace/api-zod";
 
@@ -30,13 +30,13 @@ router.get("/audit", async (req, res): Promise<void> => {
       newValue: auditLogTable.newValue,
       changedAt: auditLogTable.changedAt,
       userName: usersTable.name,
-      driverName: driversTable.fullName,
+      workerName: workersTable.fullName,
       shiftDate: bookingsTable.shiftDate,
     })
     .from(auditLogTable)
     .leftJoin(usersTable, eq(usersTable.id, auditLogTable.userId))
     .leftJoin(bookingsTable, eq(bookingsTable.id, auditLogTable.bookingId))
-    .leftJoin(driversTable, eq(driversTable.id, bookingsTable.driverId))
+    .leftJoin(workersTable, eq(workersTable.id, bookingsTable.workerId))
     .orderBy(desc(auditLogTable.changedAt))
     .limit(limit);
 
@@ -46,7 +46,7 @@ router.get("/audit", async (req, res): Promise<void> => {
       bookingId: r.bookingId,
       userId: r.userId,
       userName: r.userName,
-      driverName: r.driverName,
+      workerName: r.workerName,
       shiftDate: r.shiftDate,
       action: r.action,
       oldValue: r.oldValue,

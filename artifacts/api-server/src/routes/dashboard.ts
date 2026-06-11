@@ -1,11 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, count, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
-import {
-  db,
-  driversTable,
-  contractsTable,
-  bookingsTable,
-} from "@workspace/db";
+import { db, workersTable, sheetsTable, bookingsTable } from "@workspace/db";
 import { todayString, weekRange } from "../lib/dates";
 
 const router: IRouter = Router();
@@ -14,14 +9,14 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   const today = todayString();
   const week = weekRange(new Date());
 
-  const [[drivers], [activeDrivers], [contracts], [todayShifts], [weekShifts]] =
+  const [[workers], [activeWorkers], [sheets], [todayShifts], [weekShifts]] =
     await Promise.all([
-      db.select({ value: count() }).from(driversTable),
+      db.select({ value: count() }).from(workersTable),
       db
         .select({ value: count() })
-        .from(driversTable)
-        .where(eq(driversTable.active, true)),
-      db.select({ value: count() }).from(contractsTable),
+        .from(workersTable)
+        .where(eq(workersTable.status, "active")),
+      db.select({ value: count() }).from(sheetsTable),
       db
         .select({ value: count() })
         .from(bookingsTable)
@@ -56,9 +51,9 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     .orderBy(sql`count(*) desc`);
 
   res.json({
-    totalDrivers: drivers.value,
-    totalActiveDrivers: activeDrivers.value,
-    totalContracts: contracts.value,
+    totalWorkers: workers.value,
+    totalActiveWorkers: activeWorkers.value,
+    totalSheets: sheets.value,
     shiftsToday: todayShifts.value,
     shiftsThisWeek: weekShifts.value,
     statusBreakdown: breakdown.map((b) => ({
