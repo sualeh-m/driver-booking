@@ -8,6 +8,7 @@ import {
   auditLogTable,
   sheetsTable,
   eventsTable,
+  shiftRequirementsTable,
   BOOKING_STATUSES,
 } from "@workspace/db";
 import { GetGridQueryParams, ImportBookingsBody } from "@workspace/api-zod";
@@ -153,6 +154,23 @@ router.get("/grid", async (req, res): Promise<void> => {
     }
   }
 
+  // Per-day total quantity needed for this sheet across all roles, within the
+  // visible window. Powers the Required / Filled / Still Needed summary rows.
+  const requirementRows = await db
+    .select({
+      shiftDate: shiftRequirementsTable.reqDate,
+      required: sql<number>`sum(${shiftRequirementsTable.quantityNeeded})::int`,
+    })
+    .from(shiftRequirementsTable)
+    .where(
+      and(
+        eq(shiftRequirementsTable.sheetId, sheetId),
+        gte(shiftRequirementsTable.reqDate, start),
+        lte(shiftRequirementsTable.reqDate, end),
+      ),
+    )
+    .groupBy(shiftRequirementsTable.reqDate);
+
   res.json({
     workers: workers.map((w) => ({
       id: w.id,
@@ -171,6 +189,7 @@ router.get("/grid", async (req, res): Promise<void> => {
     bookings: bookings.map(serializeBooking),
     restCounters,
     noShows,
+    requirements: requirementRows,
   });
 });
 

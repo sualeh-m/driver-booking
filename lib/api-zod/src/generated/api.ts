@@ -453,7 +453,11 @@ export const GetGridResponse = zod.object({
   "noShows": zod.array(zod.object({
   "workerId": zod.number(),
   "shiftDate": zod.string()
-}).describe('A logged no-show event for a worker on a date (display only).')).describe('No-show events in the window so cells can render red (display only).')
+}).describe('A logged no-show event for a worker on a date (display only).')).describe('No-show events in the window so cells can render red (display only).'),
+  "requirements": zod.array(zod.object({
+  "shiftDate": zod.string(),
+  "required": zod.number()
+}).describe('Total quantity needed for a sheet on a date (all roles summed).')).describe('Per-day total quantity needed for the sheet (all roles summed).')
 })
 
 

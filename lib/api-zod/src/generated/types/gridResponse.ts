@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Booking } from './booking';
+import type { DayRequirement } from './dayRequirement';
 import type { GridWorker } from './gridWorker';
 import type { NoShowCell } from './noShowCell';
 import type { RestCounter } from './restCounter';
@@ -17,4 +18,6 @@ export interface GridResponse {
   restCounters: RestCounter[];
   /** No-show events in the window so cells can render red (display only). */
   noShows: NoShowCell[];
+  /** Per-day total quantity needed for the sheet (all roles summed). */
+  requirements: DayRequirement[];
 }

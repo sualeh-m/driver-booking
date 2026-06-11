@@ -17,6 +17,7 @@ export * from './confirmationPreview';
 export * from './confirmationPreviewInput';
 export * from './confirmationShift';
 export * from './dashboardSummary';
+export * from './dayRequirement';
 export * from './doNotBookWorker';
 export * from './error';
 export * from './event';

@@ -1154,9 +1154,17 @@ components:
         workerId: { type: integer }
         shiftDate: { type: string }
 
+    DayRequirement:
+      type: object
+      required: [shiftDate, required]
+      description: Total quantity needed for a sheet on a date (all roles summed).
+      properties:
+        shiftDate: { type: string }
+        required: { type: integer }
+
     GridResponse:
       type: object
-      required: [workers, bookings, restCounters, noShows]
+      required: [workers, bookings, restCounters, noShows, requirements]
       properties:
         workers:
           type: array
@@ -1176,6 +1184,11 @@ components:
           description: No-show events in the window so cells can render red (display only).
           items:
             $ref: "#/components/schemas/NoShowCell"
+        requirements:
+          type: array
+          description: Per-day total quantity needed for the sheet (all roles summed).
+          items:
+            $ref: "#/components/schemas/DayRequirement"
 
     AuditEntry:
       type: object

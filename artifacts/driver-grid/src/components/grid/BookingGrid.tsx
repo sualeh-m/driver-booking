@@ -131,6 +131,25 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     return data.bookings.filter(b => b.shiftDate === dateStr && b.startTime).length;
   });
 
+  // Requirement coverage per day: Required (sum of shift_requirement quantities
+  // for the sheet that day), Filled (workers booked Confirmed/Pre-Booked that
+  // day), Still Needed (Required − Filled, floored at zero).
+  const requiredByDate = new Map<string, number>();
+  for (const r of data.requirements ?? []) {
+    requiredByDate.set(r.shiftDate, r.required);
+  }
+  const coveragePerDay = days.map((day) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    const required = requiredByDate.get(dateStr) ?? 0;
+    const filled = data.bookings.filter(
+      (b) =>
+        b.shiftDate === dateStr &&
+        (b.status === "Confirmed" || b.status === "Pre-Booked"),
+    ).length;
+    const stillNeeded = Math.max(0, required - filled);
+    return { required, filled, stillNeeded };
+  });
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-auto">
@@ -195,6 +214,43 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
               {shiftsPerDay.map((count, i) => (
                 <TableHead key={i} className="border-r text-center font-bold text-primary">
                   {count}
+                </TableHead>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableHead colSpan={3} className="border-r text-right font-medium sticky left-0 bg-muted">
+                Required
+              </TableHead>
+              {coveragePerDay.map((c, i) => (
+                <TableHead key={i} className="border-r text-center text-foreground">
+                  {c.required > 0 ? c.required : "-"}
+                </TableHead>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableHead colSpan={3} className="border-r text-right font-medium sticky left-0 bg-muted">
+                Filled
+              </TableHead>
+              {coveragePerDay.map((c, i) => (
+                <TableHead key={i} className="border-r text-center text-foreground">
+                  {c.required > 0 || c.filled > 0 ? c.filled : "-"}
+                </TableHead>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableHead colSpan={3} className="border-r text-right font-semibold sticky left-0 bg-muted">
+                Still Needed
+              </TableHead>
+              {coveragePerDay.map((c, i) => (
+                <TableHead
+                  key={i}
+                  className={`border-r text-center font-bold ${
+                    c.stillNeeded > 0
+                      ? "bg-red-100 text-red-700"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {c.required > 0 ? c.stillNeeded : "-"}
                 </TableHead>
               ))}
             </TableRow>

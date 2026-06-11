@@ -328,6 +328,14 @@ export interface NoShowCell {
   shiftDate: string;
 }
 
+/**
+ * Total quantity needed for a sheet on a date (all roles summed).
+ */
+export interface DayRequirement {
+  shiftDate: string;
+  required: number;
+}
+
 export interface GridResponse {
   workers: GridWorker[];
   bookings: Booking[];
@@ -335,6 +343,8 @@ export interface GridResponse {
   restCounters: RestCounter[];
   /** No-show events in the window so cells can render red (display only). */
   noShows: NoShowCell[];
+  /** Per-day total quantity needed for the sheet (all roles summed). */
+  requirements: DayRequirement[];
 }
 
 export interface AuditEntry {
