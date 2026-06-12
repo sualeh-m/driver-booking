@@ -770,7 +770,9 @@ function BatchFillDialog({ count, pending, onCancel, onApply }: { count: number,
   const isWorkingStatus = ["Available", "Pre-Booked", "Confirmed"].includes(status);
 
   const handleApply = () => {
-    onApply(status, isWorkingStatus ? time : null);
+    // Match single-cell editing: a blank time is allowed (saved as null). Only
+    // working statuses can carry a time, and even then it stays optional.
+    onApply(status, isWorkingStatus && time ? time : null);
   };
 
   return (
