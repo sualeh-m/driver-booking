@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   useListLeavers,
   useRestoreWorker,
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
 
 export const LEAVER_REASON_LABELS: Record<LeaverReason, string> = {
   low_rates: "Low Rates",
@@ -44,6 +46,7 @@ export function Leavers() {
     query: { queryKey: getListLeaversQueryKey() },
   });
   const restore = useRestoreWorker();
+  const [profileFor, setProfileFor] = useState<number | null>(null);
 
   const handleRestore = (id: number, fullName: string) => {
     restore.mutate(
@@ -99,7 +102,14 @@ export function Leavers() {
                   <TableRow key={l.workerId}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        {l.fullName}
+                        <button
+                          type="button"
+                          className="rounded text-left hover:underline"
+                          onClick={() => setProfileFor(l.workerId)}
+                          title="View or edit worker"
+                        >
+                          {l.fullName}
+                        </button>
                         <Badge variant="secondary">Left</Badge>
                       </div>
                       {l.jobRole && (
@@ -132,6 +142,17 @@ export function Leavers() {
           </Table>
         </CardContent>
       </Card>
+
+      {profileFor != null && (
+        <WorkerProfileDialog
+          open={profileFor != null}
+          onOpenChange={(o) => { if (!o) setProfileFor(null); }}
+          workerId={profileFor}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: getListLeaversQueryKey() })
+          }
+        />
+      )}
     </div>
   );
 }

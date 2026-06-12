@@ -11,6 +11,7 @@ import { useUpsertBooking, useDeleteBooking, useCreateEvent, useClearNoShow, use
 import type { WorkerType } from "@workspace/api-client-react";
 import { EventsDialog } from "./dialogs/EventsDialog";
 import { MarkLeaverDialog } from "./dialogs/MarkLeaverDialog";
+import { WorkerProfileDialog } from "./dialogs/WorkerProfileDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -44,6 +45,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const [restWarning, setRestWarning] = useState<{ input: BookingInput; message: string } | null>(null);
   const [eventsFor, setEventsFor] = useState<{ id: number; fullName: string; workerType: WorkerType } | null>(null);
   const [leaverFor, setLeaverFor] = useState<{ id: number; fullName: string } | null>(null);
+  const [profileFor, setProfileFor] = useState<{ id: number; fullName: string; workerType: WorkerType; note: string | null } | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ sheetId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
@@ -233,8 +235,8 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                   <button
                     type="button"
                     className="-mx-1 block w-full rounded px-1 py-0.5 text-left hover:bg-muted"
-                    onClick={() => setEventsFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType })}
-                    title="Log or view events"
+                    onClick={() => setProfileFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType, note: worker.note ?? null })}
+                    title="View or edit worker"
                   >
                     <div>{worker.fullName}</div>
                     {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
@@ -359,6 +361,20 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {profileFor && (
+        <WorkerProfileDialog
+          open={!!profileFor}
+          onOpenChange={(o) => { if (!o) setProfileFor(null); }}
+          workerId={profileFor.id}
+          sheetId={sheetId}
+          note={profileFor.note}
+          onOpenEvents={() => {
+            setEventsFor({ id: profileFor.id, fullName: profileFor.fullName, workerType: profileFor.workerType });
+            setProfileFor(null);
+          }}
+        />
+      )}
 
       {eventsFor && (
         <EventsDialog

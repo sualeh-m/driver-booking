@@ -344,6 +344,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /workers/{id}:
+    get:
+      operationId: getWorker
+      tags: [workers]
+      summary: Get a single worker by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The worker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateWorker
+      tags: [workers]
+      summary: Update a worker's editable details (start date is auto-set and never editable)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkerUpdateInput"
+      responses:
+        "200":
+          description: Updated worker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /leavers:
     get:
       operationId: listLeavers
@@ -1121,6 +1175,17 @@ components:
         workerType: { $ref: "#/components/schemas/WorkerType" }
         startDate: { type: string }
         vincereId: { type: string }
+
+    WorkerUpdateInput:
+      type: object
+      required: [fullName, workerType]
+      properties:
+        fullName: { type: string, minLength: 1 }
+        phone: { type: ["string", "null"] }
+        jobRole: { type: ["string", "null"] }
+        workerType: { $ref: "#/components/schemas/WorkerType" }
+        note: { type: ["string", "null"] }
+        sheetId: { type: integer }
 
     AddWorkerToSheetInput:
       type: object

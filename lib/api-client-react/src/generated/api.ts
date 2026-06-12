@@ -64,7 +64,8 @@ import type {
   UpdateSubmissionOutcomeInput,
   User,
   Worker,
-  WorkerInput
+  WorkerInput,
+  WorkerUpdateInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1197,6 +1198,155 @@ export const useSetWorkerDoNotBook = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getSetWorkerDoNotBookMutationOptions(options));
+    }
+
+export const getGetWorkerUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}`
+}
+
+/**
+ * @summary Get a single worker by id
+ */
+export const getWorker = async (id: number, options?: RequestInit): Promise<Worker> => {
+
+  return customFetch<Worker>(getGetWorkerUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerQueryKey = (id: number,) => {
+    return [
+    `/api/workers/${id}`
+    ] as const;
+    }
+
+
+export const getGetWorkerQueryOptions = <TData = Awaited<ReturnType<typeof getWorker>>, TError = ErrorType<Error>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorker>>> = ({ signal }) => getWorker(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerQueryResult = NonNullable<Awaited<ReturnType<typeof getWorker>>>
+export type GetWorkerQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Get a single worker by id
+ */
+
+export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = ErrorType<Error>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateWorkerUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}`
+}
+
+/**
+ * @summary Update a worker's editable details (start date is auto-set and never editable)
+ */
+export const updateWorker = async (id: number,
+    workerUpdateInput: WorkerUpdateInput, options?: RequestInit): Promise<Worker> => {
+
+  return customFetch<Worker>(getUpdateWorkerUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      workerUpdateInput,)
+  }
+);}
+
+
+
+
+export const getUpdateWorkerMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorker>>, TError,{id: number;data: BodyType<WorkerUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWorker>>, TError,{id: number;data: BodyType<WorkerUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateWorker'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWorker>>, {id: number;data: BodyType<WorkerUpdateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateWorker(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWorkerMutationResult = NonNullable<Awaited<ReturnType<typeof updateWorker>>>
+    export type UpdateWorkerMutationBody = BodyType<WorkerUpdateInput>
+    export type UpdateWorkerMutationError = ErrorType<Error>
+
+    /**
+ * @summary Update a worker's editable details (start date is auto-set and never editable)
+ */
+export const useUpdateWorker = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorker>>, TError,{id: number;data: BodyType<WorkerUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWorker>>,
+        TError,
+        {id: number;data: BodyType<WorkerUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWorkerMutationOptions(options));
     }
 
 export const getListLeaversUrl = () => {

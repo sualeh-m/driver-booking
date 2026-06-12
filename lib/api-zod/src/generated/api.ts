@@ -227,6 +227,60 @@ export const SetWorkerDoNotBookResponse = zod.object({
 
 
 /**
+ * @summary Get a single worker by id
+ */
+export const GetWorkerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetWorkerResponse = zod.object({
+  "id": zod.number(),
+  "vincereId": zod.string().nullish(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "startDate": zod.string().nullish(),
+  "status": zod.string(),
+  "doNotBook": zod.boolean(),
+  "syncedAt": zod.string()
+})
+
+
+/**
+ * @summary Update a worker's editable details (start date is auto-set and never editable)
+ */
+export const UpdateWorkerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateWorkerBody = zod.object({
+  "fullName": zod.string().min(1),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "note": zod.string().nullish(),
+  "sheetId": zod.number().optional()
+})
+
+export const UpdateWorkerResponse = zod.object({
+  "id": zod.number(),
+  "vincereId": zod.string().nullish(),
+  "fullName": zod.string(),
+  "phone": zod.string().nullish(),
+  "jobRole": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "startDate": zod.string().nullish(),
+  "status": zod.string(),
+  "doNotBook": zod.boolean(),
+  "syncedAt": zod.string()
+})
+
+
+/**
  * @summary List workers who have left, with reason and length of service
  */
 export const ListLeaversResponseItem = zod.object({

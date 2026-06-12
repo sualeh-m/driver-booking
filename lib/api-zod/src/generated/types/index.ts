@@ -67,3 +67,4 @@ export * from './user';
 export * from './worker';
 export * from './workerInput';
 export * from './workerType';
+export * from './workerUpdateInput';

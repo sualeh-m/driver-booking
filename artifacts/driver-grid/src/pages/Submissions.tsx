@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { RecordSubmissionDialog } from "@/components/grid/dialogs/RecordSubmissionDialog";
+import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
 
 export const SUBMISSION_OUTCOMES: SubmissionOutcome[] = ["submitted", "passed", "rejected"];
 
@@ -42,6 +43,7 @@ export function Submissions() {
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
   const [recordOpen, setRecordOpen] = useState(false);
+  const [profileFor, setProfileFor] = useState<number | null>(null);
 
   const { data: sheets } = useListSheets();
 
@@ -153,7 +155,16 @@ export function Submissions() {
               ) : (
                 submissions.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.workerName}</TableCell>
+                    <TableCell className="font-medium">
+                      <button
+                        type="button"
+                        className="rounded text-left hover:underline"
+                        onClick={() => setProfileFor(s.workerId)}
+                        title="View or edit worker"
+                      >
+                        {s.workerName}
+                      </button>
+                    </TableCell>
                     <TableCell className="text-sm">
                       {format(new Date(s.submittedDate), "d MMM yyyy")}
                     </TableCell>
@@ -221,6 +232,17 @@ export function Submissions() {
         onOpenChange={setRecordOpen}
         defaultSheetId={sheetFilter !== ALL_SHEETS ? Number(sheetFilter) : null}
       />
+
+      {profileFor != null && (
+        <WorkerProfileDialog
+          open={profileFor != null}
+          onOpenChange={(o) => { if (!o) setProfileFor(null); }}
+          workerId={profileFor}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() })
+          }
+        />
+      )}
     </div>
   );
 }

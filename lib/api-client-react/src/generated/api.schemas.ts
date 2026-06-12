@@ -148,6 +148,19 @@ export interface WorkerInput {
   vincereId?: string;
 }
 
+export interface WorkerUpdateInput {
+  /** @minLength 1 */
+  fullName: string;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  jobRole?: string | null;
+  workerType: WorkerType;
+  /** @nullable */
+  note?: string | null;
+  sheetId?: number;
+}
+
 export interface AddWorkerToSheetInput {
   workerId: number;
   notes?: string;

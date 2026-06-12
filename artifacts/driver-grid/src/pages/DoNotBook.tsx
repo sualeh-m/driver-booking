@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   useListDoNotBookWorkers,
   useSetWorkerDoNotBook,
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
 
 export function DoNotBook() {
   const queryClient = useQueryClient();
@@ -17,6 +19,7 @@ export function DoNotBook() {
     query: { queryKey: getListDoNotBookWorkersQueryKey() },
   });
   const setDoNotBook = useSetWorkerDoNotBook();
+  const [profileFor, setProfileFor] = useState<number | null>(null);
 
   const handleAllowAgain = (id: number, fullName: string) => {
     setDoNotBook.mutate(
@@ -70,7 +73,14 @@ export function DoNotBook() {
                   <TableRow key={w.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        {w.fullName}
+                        <button
+                          type="button"
+                          className="rounded text-left hover:underline"
+                          onClick={() => setProfileFor(w.id)}
+                          title="View or edit worker"
+                        >
+                          {w.fullName}
+                        </button>
                         <Badge variant="destructive">Do Not Book</Badge>
                       </div>
                       {w.jobRole && (
@@ -96,6 +106,17 @@ export function DoNotBook() {
           </Table>
         </CardContent>
       </Card>
+
+      {profileFor != null && (
+        <WorkerProfileDialog
+          open={profileFor != null}
+          onOpenChange={(o) => { if (!o) setProfileFor(null); }}
+          workerId={profileFor}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: getListDoNotBookWorkersQueryKey() })
+          }
+        />
+      )}
     </div>
   );
 }
