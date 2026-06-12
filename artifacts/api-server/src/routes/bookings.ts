@@ -1,16 +1,17 @@
 import { Router, type IRouter } from "express";
-import { and, eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, bookingsTable, auditLogTable, workersTable } from "@workspace/db";
-import { UpsertBookingBody, DeleteBookingParams } from "@workspace/api-zod";
+import {
+  UpsertBookingBody,
+  UpsertBookingsBatchBody,
+  DeleteBookingParams,
+} from "@workspace/api-zod";
 import { maxAllowedConsecutiveDays } from "@workspace/rest-rules";
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
-import { evaluateRestRule } from "../lib/restCheck";
+import { evaluateRestRule, evaluateRestBatchForWorker } from "../lib/restCheck";
 import { clearNoShowsForDate } from "../lib/noShow";
-
-function describe(status: string, startTime: string | null): string {
-  return startTime ? `${status} @ ${startTime.slice(0, 5)}` : status;
-}
+import { applyBookingTx, describeBooking } from "../lib/applyBooking";
 
 const router: IRouter = Router();
 
@@ -53,108 +54,86 @@ router.put("/bookings", async (req, res): Promise<void> => {
     }
   }
 
-  const result = await db.transaction(async (tx) => {
-    const [existing] = await tx
-      .select()
-      .from(bookingsTable)
-      .where(
-        and(
-          eq(bookingsTable.workerId, workerId),
-          eq(bookingsTable.shiftDate, shiftDate),
-        ),
-      );
-
-    if (!existing) {
-      const [created] = await tx
-        .insert(bookingsTable)
-        .values({
-          workerId,
-          sheetId,
-          shiftDate,
-          status,
-          startTime,
-          createdBy: userId,
-          updatedBy: userId,
-        })
-        .returning();
-
-      await tx.insert(auditLogTable).values({
-        bookingId: created.id,
-        userId,
-        action: "created",
-        oldValue: null,
-        newValue: describe(status, startTime),
-      });
-
-      // A worker's start_date is the date of their first ever booking. It only
-      // ever moves earlier (a genuinely earlier booking corrects it), never
-      // later — so out-of-order entry still records the true first booking.
-      const [worker] = await tx
-        .select({ startDate: workersTable.startDate })
-        .from(workersTable)
-        .where(eq(workersTable.id, workerId));
-      if (worker) {
-        const [{ first }] = await tx
-          .select({ first: sql<string | null>`min(${bookingsTable.shiftDate})` })
-          .from(bookingsTable)
-          .where(eq(bookingsTable.workerId, workerId));
-        if (first && (worker.startDate == null || first < worker.startDate)) {
-          await tx
-            .update(workersTable)
-            .set({ startDate: first })
-            .where(eq(workersTable.id, workerId));
-        }
-      }
-
-      // A no-show must not outlive its cell: setting any status on this
-      // worker+date clears a previously logged no-show (keeps the flag honest).
-      await clearNoShowsForDate(tx, workerId, shiftDate);
-
-      return created;
-    }
-
-    const [updated] = await tx
-      .update(bookingsTable)
-      .set({
-        sheetId,
-        status,
-        startTime,
-        updatedBy: userId,
-        updatedAt: new Date(),
-      })
-      .where(eq(bookingsTable.id, existing.id))
-      .returning();
-
-    if (existing.status !== status) {
-      await tx.insert(auditLogTable).values({
-        bookingId: updated.id,
-        userId,
-        action: "status_change",
-        oldValue: existing.status,
-        newValue: status,
-      });
-    }
-
-    const oldTime = existing.startTime?.slice(0, 5) ?? null;
-    const newTime = startTime?.slice(0, 5) ?? null;
-    if (oldTime !== newTime) {
-      await tx.insert(auditLogTable).values({
-        bookingId: updated.id,
-        userId,
-        action: "time_change",
-        oldValue: oldTime,
-        newValue: newTime,
-      });
-    }
-
-    // A no-show must not outlive its cell: changing this worker+date to any
-    // status clears a previously logged no-show (keeps the flag honest).
-    await clearNoShowsForDate(tx, workerId, shiftDate);
-
-    return updated;
-  });
+  const result = await db.transaction((tx) =>
+    applyBookingTx(tx, { workerId, sheetId, shiftDate, status, startTime }, userId),
+  );
 
   res.json(serializeBooking(result));
+});
+
+router.put("/bookings/batch", async (req, res): Promise<void> => {
+  const parsed = UpsertBookingsBatchBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const userId = getUserId(req);
+  if (userId == null) {
+    res.status(401).json({ error: "Not logged in" });
+    return;
+  }
+
+  const { sheetId, status, cells } = parsed.data;
+  const startTime = parsed.data.startTime ?? null;
+  const acknowledgeRestWarning = parsed.data.acknowledgeRestWarning === true;
+
+  // Group the selected cells by worker so the rest-day rule can be evaluated
+  // per worker, in ascending date order, exactly like single-cell editing.
+  const datesByWorker = new Map<number, string[]>();
+  for (const cell of cells) {
+    const list = datesByWorker.get(cell.workerId) ?? [];
+    list.push(cell.shiftDate);
+    datesByWorker.set(cell.workerId, list);
+  }
+
+  type ResultCell = {
+    workerId: number;
+    shiftDate: string;
+    workerName: string;
+    consecutiveDays: number;
+  };
+  const applied: ResultCell[] = [];
+  const warnings: ResultCell[] = [];
+  const blocked: ResultCell[] = [];
+
+  await db.transaction(async (tx) => {
+    for (const [workerId, dates] of datesByWorker) {
+      const { workerName, perDate } = await evaluateRestBatchForWorker(
+        tx,
+        workerId,
+        dates,
+        status,
+      );
+
+      // Apply in ascending date order so accumulated state matches the
+      // per-cell classification (which assumed the same order).
+      const ordered = [...new Set(dates)].sort();
+      for (const shiftDate of ordered) {
+        const decision = perDate.get(shiftDate);
+        const consecutiveDays = decision?.consecutiveDays ?? 0;
+        const cell: ResultCell = { workerId, shiftDate, workerName, consecutiveDays };
+
+        if (decision?.decision === "block") {
+          blocked.push(cell);
+          continue;
+        }
+        if (decision?.decision === "warn" && !acknowledgeRestWarning) {
+          warnings.push(cell);
+          continue;
+        }
+
+        await applyBookingTx(
+          tx,
+          { workerId, sheetId, shiftDate, status, startTime },
+          userId,
+        );
+        applied.push(cell);
+      }
+    }
+  });
+
+  res.json({ applied, warnings, blocked });
 });
 
 router.delete("/bookings/:id", async (req, res): Promise<void> => {
@@ -192,7 +171,7 @@ router.delete("/bookings/:id", async (req, res): Promise<void> => {
       bookingId: existing.id,
       userId,
       action: "deleted",
-      oldValue: `${context} · ${describe(existing.status, existing.startTime)}`,
+      oldValue: `${context} · ${describeBooking(existing.status, existing.startTime)}`,
       newValue: null,
     });
 

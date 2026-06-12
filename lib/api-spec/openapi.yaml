@@ -716,6 +716,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /bookings/batch:
+    put:
+      operationId: upsertBookingsBatch
+      tags: [bookings]
+      summary: Create or update many booking cells at once (drag-fill)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchBookingInput"
+      responses:
+        "200":
+          description: Per-cell result of the batch apply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchBookingResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /bookings/{id}:
     delete:
       operationId: deleteBooking
@@ -1346,6 +1371,57 @@ components:
           description: >-
             Set true to confirm an HGV rest-day warning and save anyway. Ignored
             for Warehouse workers and for bookings below the warn threshold.
+
+    BatchBookingCell:
+      type: object
+      required: [workerId, shiftDate]
+      properties:
+        workerId: { type: integer }
+        shiftDate: { type: string }
+
+    BatchBookingInput:
+      type: object
+      required: [sheetId, status, cells]
+      properties:
+        sheetId: { type: integer }
+        status: { $ref: "#/components/schemas/Status" }
+        startTime: { type: ["string", "null"] }
+        cells:
+          type: array
+          items: { $ref: "#/components/schemas/BatchBookingCell" }
+        acknowledgeRestWarning:
+          type: boolean
+          description: >-
+            Set true to confirm HGV rest-day warnings and save the warned cells
+            anyway. Blocked cells (at the block threshold) are never saved.
+
+    BatchBookingResultCell:
+      type: object
+      required: [workerId, shiftDate, workerName, consecutiveDays]
+      properties:
+        workerId: { type: integer }
+        shiftDate: { type: string }
+        workerName: { type: string }
+        consecutiveDays: { type: integer }
+
+    BatchBookingResult:
+      type: object
+      required: [applied, warnings, blocked]
+      description: >-
+        Outcome of a drag-fill apply, split per cell. applied = saved;
+        warnings = HGV cells at the warn threshold not yet saved (resubmit with
+        acknowledgeRestWarning to save them); blocked = HGV cells at the block
+        threshold that cannot be saved.
+      properties:
+        applied:
+          type: array
+          items: { $ref: "#/components/schemas/BatchBookingResultCell" }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/BatchBookingResultCell" }
+        blocked:
+          type: array
+          items: { $ref: "#/components/schemas/BatchBookingResultCell" }
 
     RestCounter:
       type: object

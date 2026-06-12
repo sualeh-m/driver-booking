@@ -8,6 +8,10 @@
 
 export * from './addWorkerToSheetInput';
 export * from './auditEntry';
+export * from './batchBookingCell';
+export * from './batchBookingInput';
+export * from './batchBookingResult';
+export * from './batchBookingResultCell';
 export * from './booking';
 export * from './bookingInput';
 export * from './clientEmailPreview';

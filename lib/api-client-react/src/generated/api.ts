@@ -22,6 +22,8 @@ import type {
 import type {
   AddWorkerToSheetInput,
   AuditEntry,
+  BatchBookingInput,
+  BatchBookingResult,
   Booking,
   BookingInput,
   ClientEmailPreview,
@@ -2248,6 +2250,77 @@ export const useUpsertBooking = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getUpsertBookingMutationOptions(options));
+    }
+
+export const getUpsertBookingsBatchUrl = () => {
+
+
+
+
+  return `/api/bookings/batch`
+}
+
+/**
+ * @summary Create or update many booking cells at once (drag-fill)
+ */
+export const upsertBookingsBatch = async (batchBookingInput: BatchBookingInput, options?: RequestInit): Promise<BatchBookingResult> => {
+
+  return customFetch<BatchBookingResult>(getUpsertBookingsBatchUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      batchBookingInput,)
+  }
+);}
+
+
+
+
+export const getUpsertBookingsBatchMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertBookingsBatch>>, TError,{data: BodyType<BatchBookingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertBookingsBatch>>, TError,{data: BodyType<BatchBookingInput>}, TContext> => {
+
+const mutationKey = ['upsertBookingsBatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertBookingsBatch>>, {data: BodyType<BatchBookingInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  upsertBookingsBatch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertBookingsBatchMutationResult = NonNullable<Awaited<ReturnType<typeof upsertBookingsBatch>>>
+    export type UpsertBookingsBatchMutationBody = BodyType<BatchBookingInput>
+    export type UpsertBookingsBatchMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create or update many booking cells at once (drag-fill)
+ */
+export const useUpsertBookingsBatch = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertBookingsBatch>>, TError,{data: BodyType<BatchBookingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertBookingsBatch>>,
+        TError,
+        {data: BodyType<BatchBookingInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertBookingsBatchMutationOptions(options));
     }
 
 export const getDeleteBookingUrl = (id: number,) => {

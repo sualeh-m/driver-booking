@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format, eachDayOfInterval } from "date-fns";
 import { GridResponse, Booking, Status, BookingInput } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useUpsertBooking, useDeleteBooking, useCreateEvent, useClearNoShow, useUpsertDailyRequirement, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
-import type { WorkerType } from "@workspace/api-client-react";
+import { useUpsertBooking, useDeleteBooking, useCreateEvent, useClearNoShow, useUpsertDailyRequirement, useUpsertBookingsBatch, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
+import type { WorkerType, BatchBookingResult } from "@workspace/api-client-react";
 import { EventsDialog } from "./dialogs/EventsDialog";
 import { MarkLeaverDialog } from "./dialogs/MarkLeaverDialog";
 import { WorkerProfileDialog } from "./dialogs/WorkerProfileDialog";
@@ -24,6 +24,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface BookingGridProps {
   sheetId: number;
@@ -47,10 +55,160 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const [leaverFor, setLeaverFor] = useState<{ id: number; fullName: string } | null>(null);
   const [profileFor, setProfileFor] = useState<{ id: number; fullName: string; workerType: WorkerType; note: string | null } | null>(null);
 
+  // --- Drag-fill selection ---------------------------------------------------
+  // Selection is tracked by grid coordinates (worker row index × day column
+  // index). A single cell (no drag) opens that cell's editor popover; two or
+  // more cells open the batch-fill dialog.
+  const upsertBatch = useUpsertBookingsBatch();
+  const [openCellKey, setOpenCellKey] = useState<string | null>(null);
+  const [drag, setDrag] = useState<{ anchor: [number, number]; current: [number, number] } | null>(null);
+  const pointerDown = useRef(false);
+  const [batch, setBatch] = useState<{ cells: { workerId: number; shiftDate: string }[] } | null>(null);
+  const [batchWarn, setBatchWarn] = useState<{
+    status: Status;
+    startTime: string | null;
+    applied: BatchBookingResult["applied"];
+    warnings: BatchBookingResult["warnings"];
+    blocked: BatchBookingResult["blocked"];
+  } | null>(null);
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetGridQueryKey({ sheetId, start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }) });
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     queryClient.invalidateQueries({ queryKey: getListAuditQueryKey({}) });
+  };
+
+  // Begin a drag from a cell (worker row index × day column index).
+  const beginDrag = useCallback((wi: number, di: number) => {
+    pointerDown.current = true;
+    setOpenCellKey(null);
+    setDrag({ anchor: [wi, di], current: [wi, di] });
+  }, []);
+
+  // Extend the drag rectangle as the pointer enters another cell.
+  const extendDrag = useCallback((wi: number, di: number) => {
+    if (!pointerDown.current) return;
+    setDrag((d) => (d ? { anchor: d.anchor, current: [wi, di] } : d));
+  }, []);
+
+  const inSelection = (wi: number, di: number): boolean => {
+    if (!drag) return false;
+    const [aw, ad] = drag.anchor;
+    const [cw, cd] = drag.current;
+    return (
+      wi >= Math.min(aw, cw) && wi <= Math.max(aw, cw) &&
+      di >= Math.min(ad, cd) && di <= Math.max(ad, cd)
+    );
+  };
+
+  // Resolve the drag on pointer-up: a single cell opens its editor popover, a
+  // rectangle of two or more opens the batch-fill dialog. Held in a ref so the
+  // window listener is bound once but always sees the latest selection.
+  const finishRef = useRef<() => void>(() => {});
+  finishRef.current = () => {
+    if (!pointerDown.current) return;
+    pointerDown.current = false;
+    const d = drag;
+    setDrag(null);
+    if (!d || !data) return;
+    const [aw, ad] = d.anchor;
+    const [cw, cd] = d.current;
+    const wLo = Math.min(aw, cw), wHi = Math.max(aw, cw);
+    const dLo = Math.min(ad, cd), dHi = Math.max(ad, cd);
+    const cells: { workerId: number; shiftDate: string }[] = [];
+    for (let wi = wLo; wi <= wHi; wi++) {
+      const worker = data.workers[wi];
+      if (!worker) continue;
+      for (let di = dLo; di <= dHi; di++) {
+        cells.push({ workerId: worker.id, shiftDate: format(days[di], "yyyy-MM-dd") });
+      }
+    }
+    if (cells.length === 1) {
+      setOpenCellKey(`${cells[0].workerId}|${cells[0].shiftDate}`);
+    } else if (cells.length > 1) {
+      setBatch({ cells });
+    }
+  };
+
+  useEffect(() => {
+    const onUp = () => finishRef.current();
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+  }, []);
+
+  const summarizeBatch = (result: BatchBookingResult) => {
+    const savedN = result.applied.length;
+    const blockedN = result.blocked.length;
+    if (savedN === 0 && blockedN > 0) {
+      toast({
+        title: "Nothing saved",
+        description: `${blockedN} cell${blockedN === 1 ? "" : "s"} blocked at the HGV 7-day rest limit.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const parts = [`${savedN} cell${savedN === 1 ? "" : "s"} updated`];
+    if (blockedN > 0) parts.push(`${blockedN} blocked (HGV 7-day rest limit)`);
+    toast({ title: "Drag-fill applied", description: parts.join(" · ") });
+  };
+
+  const batchError = (err: unknown) => {
+    const body = (err as { data?: { error?: string } } | undefined)?.data;
+    toast({ title: "Could not apply", description: body?.error ?? "Please try again.", variant: "destructive" });
+  };
+
+  // First pass: ok cells are applied immediately; warned cells are held back and
+  // surfaced for confirmation, blocked cells reported. ack is always false here.
+  const runBatch = (
+    cells: { workerId: number; shiftDate: string }[],
+    status: Status,
+    startTime: string | null,
+  ) => {
+    upsertBatch.mutate(
+      { data: { sheetId, status, startTime, cells, acknowledgeRestWarning: false } },
+      {
+        onSuccess: (result) => {
+          invalidate();
+          setBatch(null);
+          if (result.warnings.length > 0) {
+            setBatchWarn({ status, startTime, applied: result.applied, warnings: result.warnings, blocked: result.blocked });
+          } else {
+            setBatchWarn(null);
+            summarizeBatch(result);
+          }
+        },
+        onError: batchError,
+      },
+    );
+  };
+
+  // Second pass: resubmit ONLY the warned cells with the warning acknowledged.
+  // The first-pass ok cells are already persisted, so re-evaluating just the
+  // warned dates yields the same decisions — we never rewrite already-saved
+  // cells (avoids clobbering concurrent edits / bumping updatedAt).
+  const confirmBatchWarn = () => {
+    if (!batchWarn) return;
+    const prior = batchWarn;
+    const ackCells = prior.warnings.map((w) => ({ workerId: w.workerId, shiftDate: w.shiftDate }));
+    upsertBatch.mutate(
+      { data: { sheetId, status: prior.status, startTime: prior.startTime, cells: ackCells, acknowledgeRestWarning: true } },
+      {
+        onSuccess: (result) => {
+          invalidate();
+          setBatchWarn(null);
+          // A warned cell can come back blocked if a concurrent write between
+          // the two passes pushed it over the limit, so fold the ack pass's
+          // blocked cells into the summary too (they're disjoint from prior
+          // blocked — these were warnings last pass).
+          summarizeBatch({
+            applied: [...prior.applied, ...result.applied],
+            warnings: [],
+            blocked: [...prior.blocked, ...result.blocked],
+          });
+        },
+        onError: batchError,
+      },
+    );
   };
 
   // Lookup of consecutive-working-day counters keyed "workerId|date" (HGV only).
@@ -214,7 +372,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-auto">
-        <Table className="border-collapse">
+        <Table className="border-collapse select-none">
           <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
             <TableRow>
               <TableHead className="w-[180px] border-r">Worker</TableHead>
@@ -229,7 +387,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.workers.map((worker) => (
+            {data.workers.map((worker, wi) => (
               <TableRow key={worker.id}>
                 <TableCell className="border-r py-0.5 font-medium sticky left-0 bg-background">
                   <button
@@ -244,11 +402,12 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                 </TableCell>
                 <TableCell className="border-r py-0.5 text-[11px] text-muted-foreground">{worker.phone || "-"}</TableCell>
                 <TableCell className="border-r py-0.5 text-[11px] text-muted-foreground">{worker.note || "-"}</TableCell>
-                {days.map((day) => {
+                {days.map((day, di) => {
                   const dateStr = format(day, "yyyy-MM-dd");
                   const booking = data.bookings.find(
                     (b) => b.workerId === worker.id && b.shiftDate === dateStr
                   );
+                  const cellKey = `${worker.id}|${dateStr}`;
                   return (
                     <BookingCell
                       key={`${worker.id}-${dateStr}`}
@@ -256,8 +415,13 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                       dateStr={dateStr}
                       workerId={worker.id}
                       workerName={worker.fullName}
-                      restDays={restCounters.get(`${worker.id}|${dateStr}`)}
-                      isNoShow={noShowCells.has(`${worker.id}|${dateStr}`)}
+                      restDays={restCounters.get(cellKey)}
+                      isNoShow={noShowCells.has(cellKey)}
+                      open={openCellKey === cellKey}
+                      onOpenChange={(o) => setOpenCellKey(o ? cellKey : null)}
+                      selected={inSelection(wi, di)}
+                      onPointerDown={() => beginDrag(wi, di)}
+                      onPointerEnter={() => extendDrag(wi, di)}
                       onSave={handleCellSave}
                       onDelete={handleCellDelete}
                       onLogNoShow={handleLogNoShow}
@@ -362,6 +526,39 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         </AlertDialogContent>
       </AlertDialog>
 
+      {batch && (
+        <BatchFillDialog
+          count={batch.cells.length}
+          pending={upsertBatch.isPending}
+          onCancel={() => setBatch(null)}
+          onApply={(status, startTime) => runBatch(batch.cells, status, startTime)}
+        />
+      )}
+
+      <AlertDialog open={!!batchWarn} onOpenChange={(o) => { if (!o) setBatchWarn(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rest-day warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              {batchWarn && (
+                <>
+                  {batchWarn.warnings.length} cell{batchWarn.warnings.length === 1 ? "" : "s"} would reach the {""}
+                  rest-day warning threshold for HGV worker{batchWarn.warnings.length === 1 ? "" : "s"} (no rest day).
+                  {batchWarn.blocked.length > 0 && ` ${batchWarn.blocked.length} cell${batchWarn.blocked.length === 1 ? "" : "s"} are over the limit and cannot be saved.`}
+                  {" "}Book the warned shift{batchWarn.warnings.length === 1 ? "" : "s"} anyway?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { if (batchWarn) summarizeBatch({ applied: batchWarn.applied, warnings: [], blocked: batchWarn.blocked }); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBatchWarn}>
+              Book anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {profileFor && (
         <WorkerProfileDialog
           open={!!profileFor}
@@ -405,11 +602,19 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
 
 const NO_SHOW_OPTION = "__no_show__";
 
-function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
-  const [open, setOpen] = useState(false);
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, open, onOpenChange, selected, onPointerDown, onPointerEnter, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, open: boolean, onOpenChange: (open: boolean) => void, selected: boolean, onPointerDown: () => void, onPointerEnter: () => void, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status | typeof NO_SHOW_OPTION>(booking?.status || "Off");
   const [time, setTime] = useState(booking?.startTime || "");
+
+  // Re-sync the editor to the current booking each time the popover opens, so a
+  // controlled (re-)open never shows a stale status/time from a prior edit.
+  useEffect(() => {
+    if (open) {
+      setStatus(booking?.status || "Off");
+      setTime(booking?.startTime || "");
+    }
+  }, [open, booking?.status, booking?.startTime]);
 
   const handleSave = () => {
     if (status === NO_SHOW_OPTION) {
@@ -417,7 +622,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
     } else {
       onSave(workerId, dateStr, status, time);
     }
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleDelete = () => {
@@ -427,7 +632,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
     if (booking) onDelete(booking.id);
     else if (isNoShow) onClearNoShow(workerId, workerName, dateStr);
     setConfirmDelete(false);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const getStatusClass = (s?: Status) => {
@@ -459,10 +664,16 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
 
   return (
     <TableCell className="border-r p-0 align-top">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverAnchor asChild>
           <div
-            className={`relative h-full w-full min-h-[28px] cursor-pointer p-1 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${cellClass}`}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              onPointerDown();
+            }}
+            onMouseEnter={onPointerEnter}
+            className={`relative h-full w-full min-h-[28px] cursor-pointer p-1 flex items-center justify-center text-xs font-medium transition-all ${cellClass} ${selected ? "ring-2 ring-inset ring-primary" : "hover:ring-2 hover:ring-inset hover:ring-primary/50"}`}
           >
             {restDays != null && restDays > 0 && (
               <span
@@ -474,7 +685,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
             )}
             {renderContent()}
           </div>
-        </PopoverTrigger>
+        </PopoverAnchor>
         <PopoverContent className="w-64 p-3" side="bottom" align="start">
           <div className="space-y-3">
             <div className="space-y-1">
@@ -550,5 +761,65 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
         </AlertDialogContent>
       </AlertDialog>
     </TableCell>
+  );
+}
+
+function BatchFillDialog({ count, pending, onCancel, onApply }: { count: number, pending: boolean, onCancel: () => void, onApply: (status: Status, startTime: string | null) => void }) {
+  const [status, setStatus] = useState<Status>("Confirmed");
+  const [time, setTime] = useState("");
+  const isWorkingStatus = ["Available", "Pre-Booked", "Confirmed"].includes(status);
+
+  const handleApply = () => {
+    onApply(status, isWorkingStatus ? time : null);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Fill {count} cells</DialogTitle>
+          <DialogDescription>
+            Apply a status to all {count} selected cells. Each is saved individually, with the same rules and audit trail as a single edit. HGV rest-day limits are checked per cell.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Status</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
+              <SelectTrigger className="h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Off">Off</SelectItem>
+                <SelectItem value="Available">Available</SelectItem>
+                <SelectItem value="Pre-Booked">Pre-Booked</SelectItem>
+                <SelectItem value="Confirmed">Confirmed</SelectItem>
+                <SelectItem value="Rest">Rest</SelectItem>
+                <SelectItem value="Holiday">Holiday</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isWorkingStatus && (
+            <div className="space-y-1">
+              <Label className="text-xs">Start Time (24h)</Label>
+              <Input
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                placeholder="04:00"
+                className="h-8 font-mono"
+                onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
+              />
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button size="sm" variant="outline" onClick={onCancel} disabled={pending}>Cancel</Button>
+          <Button size="sm" onClick={handleApply} disabled={pending}>
+            {pending ? "Applying…" : `Apply to ${count} cells`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

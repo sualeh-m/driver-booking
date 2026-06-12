@@ -324,6 +324,37 @@ export interface BookingInput {
   acknowledgeRestWarning?: boolean;
 }
 
+export interface BatchBookingCell {
+  workerId: number;
+  shiftDate: string;
+}
+
+export interface BatchBookingInput {
+  sheetId: number;
+  status: Status;
+  /** @nullable */
+  startTime?: string | null;
+  cells: BatchBookingCell[];
+  /** Set true to confirm HGV rest-day warnings and save the warned cells anyway. Blocked cells (at the block threshold) are never saved. */
+  acknowledgeRestWarning?: boolean;
+}
+
+export interface BatchBookingResultCell {
+  workerId: number;
+  shiftDate: string;
+  workerName: string;
+  consecutiveDays: number;
+}
+
+/**
+ * Outcome of a drag-fill apply, split per cell. applied = saved; warnings = HGV cells at the warn threshold not yet saved (resubmit with acknowledgeRestWarning to save them); blocked = HGV cells at the block threshold that cannot be saved.
+ */
+export interface BatchBookingResult {
+  applied: BatchBookingResultCell[];
+  warnings: BatchBookingResultCell[];
+  blocked: BatchBookingResultCell[];
+}
+
 /**
  * Consecutive working days ending on a date (HGV workers only).
  */

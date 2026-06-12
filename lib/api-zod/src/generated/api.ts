@@ -562,6 +562,42 @@ export const UpsertBookingResponse = zod.object({
 
 
 /**
+ * @summary Create or update many booking cells at once (drag-fill)
+ */
+export const UpsertBookingsBatchBody = zod.object({
+  "sheetId": zod.number(),
+  "status": zod.enum(['Available', 'Pre-Booked', 'Rest', 'Off', 'Holiday', 'Confirmed']),
+  "startTime": zod.string().nullish(),
+  "cells": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string()
+})),
+  "acknowledgeRestWarning": zod.boolean().optional().describe('Set true to confirm HGV rest-day warnings and save the warned cells anyway. Blocked cells (at the block threshold) are never saved.')
+})
+
+export const UpsertBookingsBatchResponse = zod.object({
+  "applied": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string(),
+  "workerName": zod.string(),
+  "consecutiveDays": zod.number()
+})),
+  "warnings": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string(),
+  "workerName": zod.string(),
+  "consecutiveDays": zod.number()
+})),
+  "blocked": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string(),
+  "workerName": zod.string(),
+  "consecutiveDays": zod.number()
+}))
+}).describe('Outcome of a drag-fill apply, split per cell. applied = saved; warnings = HGV cells at the warn threshold not yet saved (resubmit with acknowledgeRestWarning to save them); blocked = HGV cells at the block threshold that cannot be saved.')
+
+
+/**
  * @summary Delete a booking cell
  */
 export const DeleteBookingParams = zod.object({
