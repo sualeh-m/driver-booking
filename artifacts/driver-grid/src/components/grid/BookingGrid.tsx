@@ -231,19 +231,19 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           <TableBody>
             {data.workers.map((worker) => (
               <TableRow key={worker.id}>
-                <TableCell className="border-r font-medium sticky left-0 bg-background">
+                <TableCell className="border-r py-0.5 font-medium sticky left-0 bg-background">
                   <button
                     type="button"
-                    className="-mx-1 block w-full rounded px-1 py-0.5 text-left hover:bg-muted"
+                    className="-mx-1 block w-full rounded px-1 py-0.5 text-left leading-tight hover:bg-muted"
                     onClick={() => setProfileFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType, note: worker.note ?? null })}
                     title="View or edit worker"
                   >
-                    <div>{worker.fullName}</div>
-                    {worker.jobRole && <div className="text-xs text-muted-foreground">{worker.jobRole}</div>}
+                    <span className="text-xs">{worker.fullName}</span>
+                    {worker.jobRole && <span className="text-[11px] text-muted-foreground"> · {worker.jobRole}</span>}
                   </button>
                 </TableCell>
-                <TableCell className="border-r text-xs text-muted-foreground">{worker.phone || "-"}</TableCell>
-                <TableCell className="border-r text-xs text-muted-foreground">{worker.note || "-"}</TableCell>
+                <TableCell className="border-r py-0.5 text-[11px] text-muted-foreground">{worker.phone || "-"}</TableCell>
+                <TableCell className="border-r py-0.5 text-[11px] text-muted-foreground">{worker.note || "-"}</TableCell>
                 {days.map((day) => {
                   const dateStr = format(day, "yyyy-MM-dd");
                   const booking = data.bookings.find(
@@ -462,7 +462,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div
-            className={`relative h-full w-full min-h-[48px] cursor-pointer p-2 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${cellClass}`}
+            className={`relative h-full w-full min-h-[28px] cursor-pointer p-1 flex items-center justify-center text-xs font-medium hover:ring-2 hover:ring-inset hover:ring-primary/50 transition-all ${cellClass}`}
           >
             {restDays != null && restDays > 0 && (
               <span
