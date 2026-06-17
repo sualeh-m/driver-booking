@@ -963,6 +963,76 @@ export const useCreateSheet = <TError = ErrorType<Error>,
       return useMutation(getCreateSheetMutationOptions(options));
     }
 
+export const getDeleteSheetUrl = (sheetId: number,) => {
+
+
+
+
+  return `/api/sheets/${sheetId}`
+}
+
+/**
+ * @summary Delete a whole sheet and all of its bookings (admin only)
+ */
+export const deleteSheet = async (sheetId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSheetUrl(sheetId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSheetMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSheet>>, TError,{sheetId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSheet>>, TError,{sheetId: number}, TContext> => {
+
+const mutationKey = ['deleteSheet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSheet>>, {sheetId: number}> = (props) => {
+          const {sheetId} = props ?? {};
+
+          return  deleteSheet(sheetId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSheetMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSheet>>>
+
+    export type DeleteSheetMutationError = ErrorType<Error>
+
+    /**
+ * @summary Delete a whole sheet and all of its bookings (admin only)
+ */
+export const useDeleteSheet = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSheet>>, TError,{sheetId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSheet>>,
+        TError,
+        {sheetId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSheetMutationOptions(options));
+    }
+
 export const getListSheetContactsUrl = (sheetId: number,) => {
 
 
@@ -1787,6 +1857,76 @@ export function useListLeavers<TData = Awaited<ReturnType<typeof listLeavers>>, 
 
 
 
+
+export const getDeleteLeaverRecordUrl = (workerId: number,) => {
+
+
+
+
+  return `/api/leavers/${workerId}`
+}
+
+/**
+ * @summary Permanently delete a worker's leaver record(s) (admin only)
+ */
+export const deleteLeaverRecord = async (workerId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteLeaverRecordUrl(workerId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteLeaverRecordMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLeaverRecord>>, TError,{workerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteLeaverRecord>>, TError,{workerId: number}, TContext> => {
+
+const mutationKey = ['deleteLeaverRecord'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteLeaverRecord>>, {workerId: number}> = (props) => {
+          const {workerId} = props ?? {};
+
+          return  deleteLeaverRecord(workerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteLeaverRecordMutationResult = NonNullable<Awaited<ReturnType<typeof deleteLeaverRecord>>>
+
+    export type DeleteLeaverRecordMutationError = ErrorType<Error>
+
+    /**
+ * @summary Permanently delete a worker's leaver record(s) (admin only)
+ */
+export const useDeleteLeaverRecord = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLeaverRecord>>, TError,{workerId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteLeaverRecord>>,
+        TError,
+        {workerId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteLeaverRecordMutationOptions(options));
+    }
 
 export const getMarkWorkerAsLeaverUrl = (id: number,) => {
 

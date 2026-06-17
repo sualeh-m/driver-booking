@@ -5,9 +5,10 @@ import {
   MarkWorkerAsLeaverParams,
   MarkWorkerAsLeaverBody,
   RestoreWorkerParams,
+  DeleteLeaverRecordParams,
 } from "@workspace/api-zod";
 import { serializeWorker } from "../lib/serialize";
-import { getUserId } from "../lib/auth";
+import { getUserId, requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -150,5 +151,33 @@ router.post("/workers/:id/restore", async (req, res): Promise<void> => {
 
   res.json(serializeWorker(worker));
 });
+
+// Admin only. Permanently delete a worker's leaver record(s). Unlike Restore,
+// this does NOT reactivate the worker (they stay "left" and off the grid) — it
+// purges the leaver entry from retention tracking. requireAdmin is attached
+// per-route so the admin gate does not leak onto other routes in this router.
+router.delete(
+  "/leavers/:workerId",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = DeleteLeaverRecordParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const deleted = await db
+      .delete(leaversTable)
+      .where(eq(leaversTable.workerId, params.data.workerId))
+      .returning({ id: leaversTable.id });
+
+    if (deleted.length === 0) {
+      res.status(404).json({ error: "Leaver record not found" });
+      return;
+    }
+
+    res.status(204).end();
+  },
+);
 
 export default router;

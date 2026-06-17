@@ -113,7 +113,7 @@ export function Grid() {
           </div>
         </div>
 
-        <GridToolbar sheet={selectedSheet} start={start} end={end} bookings={gridData?.bookings} workers={gridData?.workers} />
+        <GridToolbar sheet={selectedSheet} start={start} end={end} bookings={gridData?.bookings} workers={gridData?.workers} onSheetDeleted={() => setSelectedSheetId(null)} />
       </div>
 
       <div className="flex-1 overflow-hidden bg-background">

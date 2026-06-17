@@ -1,5 +1,15 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +20,43 @@ import {
   useAddSheetContact,
   useUpdateSheetContact,
   useRemoveSheetContact,
+  useDeleteSheet,
+  useGetCurrentUser,
   getListSheetContactsQueryKey,
+  getListSheetsQueryKey,
+  getGetCurrentUserQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-export function SheetSettingsDialog({ open, onOpenChange, sheet }: { open: boolean, onOpenChange: (o: boolean) => void, sheet: Sheet }) {
+export function SheetSettingsDialog({ open, onOpenChange, sheet, onDeleted }: { open: boolean, onOpenChange: (o: boolean) => void, sheet: Sheet, onDeleted?: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const { data: currentUser } = useGetCurrentUser({
+    query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
+  });
+  const isAdmin = currentUser?.role === "admin";
+  const deleteSheet = useDeleteSheet();
+
+  const handleDeleteSheet = () => {
+    deleteSheet.mutate(
+      { sheetId: sheet.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListSheetsQueryKey() });
+          setConfirmDelete(false);
+          onOpenChange(false);
+          onDeleted?.();
+          toast({ title: `Sheet "${sheet.name}" deleted` });
+        },
+        onError: () => toast({ title: "Could not delete sheet", variant: "destructive" }),
+      },
+    );
+  };
 
   const { data: contacts, isLoading } = useListSheetContacts(sheet.id, {
     query: { enabled: open, queryKey: getListSheetContactsQueryKey(sheet.id) },
@@ -115,11 +152,51 @@ export function SheetSettingsDialog({ open, onOpenChange, sheet }: { open: boole
             </Button>
             <p className="text-xs text-muted-foreground">The primary contact receives the client email.</p>
           </div>
+
+          {isAdmin && (
+            <div className="space-y-2 border-t border-destructive/30 pt-3">
+              <h4 className="text-sm font-semibold text-destructive">Danger Zone</h4>
+              <p className="text-xs text-muted-foreground">
+                Permanently delete this sheet and all of its bookings. This cannot be undone.
+              </p>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                disabled={deleteSheet.isPending}
+              >
+                <TrashIcon className="mr-2 h-4 w-4" />
+                Delete Sheet
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </div>
+
+        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete sheet "{sheet.name}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes the sheet and every booking on it. Workers, leavers and
+                their event history are kept. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleDeleteSheet}
+                disabled={deleteSheet.isPending}
+              >
+                {deleteSheet.isPending ? "Deleting..." : "Delete sheet"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

@@ -6,9 +6,11 @@ import {
   sheetContactsTable,
   workersTable,
   workerSheetsTable,
+  bookingsTable,
 } from "@workspace/db";
 import {
   CreateSheetBody,
+  DeleteSheetParams,
   AddSheetContactParams,
   AddSheetContactBody,
   UpdateSheetContactParams,
@@ -19,6 +21,7 @@ import {
   RemoveWorkerFromSheetParams,
 } from "@workspace/api-zod";
 import { serializeSheet, serializeSheetContact } from "../lib/serialize";
+import { requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -49,6 +52,45 @@ router.post("/sheets", async (req, res): Promise<void> => {
 
   res.status(201).json(serializeSheet(sheet));
 });
+
+// Admin only. Delete a whole sheet plus all of its bookings. bookings.sheet_id
+// is ON DELETE RESTRICT, so bookings must be removed manually inside the txn
+// before the sheet; everything else (contacts, workerSheets, shiftRequirements)
+// cascades, and submissions/events/auditLog references are set null by the DB.
+// requireAdmin is attached per-route so the admin gate does not leak onto other
+// routes in this router.
+router.delete(
+  "/sheets/:sheetId",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = DeleteSheetParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const deleted = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: sheetsTable.id })
+        .from(sheetsTable)
+        .where(eq(sheetsTable.id, params.data.sheetId));
+      if (!existing) return false;
+
+      await tx
+        .delete(bookingsTable)
+        .where(eq(bookingsTable.sheetId, params.data.sheetId));
+      await tx.delete(sheetsTable).where(eq(sheetsTable.id, params.data.sheetId));
+      return true;
+    });
+
+    if (!deleted) {
+      res.status(404).json({ error: "Sheet not found" });
+      return;
+    }
+
+    res.status(204).end();
+  },
+);
 
 router.get(
   "/sheets/:sheetId/contacts",

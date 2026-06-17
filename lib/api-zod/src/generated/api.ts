@@ -196,6 +196,14 @@ export const CreateSheetBody = zod.object({
 
 
 /**
+ * @summary Delete a whole sheet and all of its bookings (admin only)
+ */
+export const DeleteSheetParams = zod.object({
+  "sheetId": zod.coerce.number()
+})
+
+
+/**
  * @summary List client contacts for a sheet
  */
 export const ListSheetContactsParams = zod.object({
@@ -406,6 +414,14 @@ export const ListLeaversResponseItem = zod.object({
   "serviceDays": zod.number().nullable().describe('Days from start_date (first booking) to leave_date; null when the worker never had a booking (\"not started\").')
 })
 export const ListLeaversResponse = zod.array(ListLeaversResponseItem)
+
+
+/**
+ * @summary Permanently delete a worker's leaver record(s) (admin only)
+ */
+export const DeleteLeaverRecordParams = zod.object({
+  "workerId": zod.coerce.number()
+})
 
 
 /**

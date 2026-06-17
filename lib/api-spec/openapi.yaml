@@ -317,6 +317,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /sheets/{sheetId}:
+    delete:
+      operationId: deleteSheet
+      tags: [sheets]
+      summary: Delete a whole sheet and all of its bookings (admin only)
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /sheets/{sheetId}/contacts:
     get:
       operationId: listSheetContacts
@@ -580,6 +607,33 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Leaver"
+
+  /leavers/{workerId}:
+    delete:
+      operationId: deleteLeaverRecord
+      tags: [workers]
+      summary: Permanently delete a worker's leaver record(s) (admin only)
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /workers/{id}/leave:
     post:

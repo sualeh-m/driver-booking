@@ -16,6 +16,7 @@ interface GridToolbarProps {
   end: Date;
   bookings?: Booking[];
   workers?: GridWorker[];
+  onSheetDeleted?: () => void;
 }
 
 function exportCsv(sheet: Sheet, workers: GridWorker[], bookings: Booking[]) {
@@ -51,7 +52,7 @@ function exportCsv(sheet: Sheet, workers: GridWorker[], bookings: Booking[]) {
   URL.revokeObjectURL(url);
 }
 
-export function GridToolbar({ sheet, start, end, bookings, workers }: GridToolbarProps) {
+export function GridToolbar({ sheet, start, end, bookings, workers, onSheetDeleted }: GridToolbarProps) {
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
   const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -104,7 +105,7 @@ export function GridToolbar({ sheet, start, end, bookings, workers }: GridToolba
 
       <AddWorkerDialog open={addWorkerOpen} onOpenChange={setAddWorkerOpen} sheet={sheet} start={startStr} end={endStr} />
       <NewSheetDialog open={newSheetOpen} onOpenChange={setNewSheetOpen} />
-      {sheet && <SheetSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} sheet={sheet} />}
+      {sheet && <SheetSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} sheet={sheet} onDeleted={onSheetDeleted} />}
       <ImportCsvDialog open={importOpen} onOpenChange={setImportOpen} sheet={sheet} start={startStr} end={endStr} />
       <EmailClientDialog open={emailClientOpen} onOpenChange={setEmailClientOpen} sheetId={sheet?.id ?? null} />
       <SendConfirmationsDialog open={sendConfirmationsOpen} onOpenChange={setSendConfirmationsOpen} sheetId={sheet?.id ?? null} workers={workers} />

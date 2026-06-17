@@ -2,7 +2,10 @@ import { useState } from "react";
 import {
   useListLeavers,
   useRestoreWorker,
+  useDeleteLeaverRecord,
+  useGetCurrentUser,
   getListLeaversQueryKey,
+  getGetCurrentUserQueryKey,
   type LeaverReason,
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
@@ -10,6 +13,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
@@ -46,7 +59,14 @@ export function Leavers() {
     query: { queryKey: getListLeaversQueryKey() },
   });
   const restore = useRestoreWorker();
+  const deleteLeaver = useDeleteLeaverRecord();
   const [profileFor, setProfileFor] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ workerId: number; fullName: string } | null>(null);
+
+  const { data: currentUser } = useGetCurrentUser({
+    query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
+  });
+  const isAdmin = currentUser?.role === "admin";
 
   const handleRestore = (id: number, fullName: string) => {
     restore.mutate(
@@ -58,6 +78,22 @@ export function Leavers() {
           toast({ title: `${fullName} restored to active` });
         },
         onError: () => toast({ title: "Could not restore worker", variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleDeleteLeaver = () => {
+    if (!deleteTarget) return;
+    const { workerId, fullName } = deleteTarget;
+    deleteLeaver.mutate(
+      { workerId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListLeaversQueryKey() });
+          setDeleteTarget(null);
+          toast({ title: `Leaver record for ${fullName} deleted` });
+        },
+        onError: () => toast({ title: "Could not delete leaver record", variant: "destructive" }),
       }
     );
   };
@@ -126,14 +162,27 @@ export function Leavers() {
                     <TableCell className="text-sm">{LEAVER_REASON_LABELS[l.reason]}</TableCell>
                     <TableCell className="text-sm">{formatService(l.serviceDays)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRestore(l.workerId, l.fullName)}
-                        disabled={restore.isPending}
-                      >
-                        Restore
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRestore(l.workerId, l.fullName)}
+                          disabled={restore.isPending}
+                        >
+                          Restore
+                        </Button>
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget({ workerId: l.workerId, fullName: l.fullName })}
+                            disabled={deleteLeaver.isPending}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -153,6 +202,29 @@ export function Leavers() {
           }
         />
       )}
+
+      <AlertDialog open={deleteTarget != null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete leaver record for {deleteTarget?.fullName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes their leaver record from this list. The worker stays off the
+              booking grid (this is not the same as Restore, which brings them back). This cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteLeaver}
+              disabled={deleteLeaver.isPending}
+            >
+              {deleteLeaver.isPending ? "Deleting..." : "Delete record"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
