@@ -39,6 +39,7 @@ export const bookingsTable = pgTable(
     shiftDate: date("shift_date", { mode: "string" }).notNull(),
     status: text("status").notNull().default("Available"),
     startTime: time("start_time"),
+    note: text("note"),
     createdBy: integer("created_by").references(() => usersTable.id),
     updatedBy: integer("updated_by").references(() => usersTable.id),
     createdAt: timestamp("created_at", { withTimezone: true })

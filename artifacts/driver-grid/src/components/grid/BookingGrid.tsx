@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useUpsertBooking, useDeleteBooking, useCreateEvent, useClearNoShow, useUpsertDailyRequirement, useUpsertBookingsBatch, getGetGridQueryKey, getGetDashboardSummaryQueryKey, getListAuditQueryKey } from "@workspace/api-client-react";
@@ -67,6 +68,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const [batchWarn, setBatchWarn] = useState<{
     status: Status;
     startTime: string | null;
+    note: string | null;
     applied: BatchBookingResult["applied"];
     warnings: BatchBookingResult["warnings"];
     blocked: BatchBookingResult["blocked"];
@@ -163,15 +165,16 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     cells: { workerId: number; shiftDate: string }[],
     status: Status,
     startTime: string | null,
+    note: string | null,
   ) => {
     upsertBatch.mutate(
-      { data: { sheetId, status, startTime, cells, acknowledgeRestWarning: false } },
+      { data: { sheetId, status, startTime, note, cells, acknowledgeRestWarning: false } },
       {
         onSuccess: (result) => {
           invalidate();
           setBatch(null);
           if (result.warnings.length > 0) {
-            setBatchWarn({ status, startTime, applied: result.applied, warnings: result.warnings, blocked: result.blocked });
+            setBatchWarn({ status, startTime, note, applied: result.applied, warnings: result.warnings, blocked: result.blocked });
           } else {
             setBatchWarn(null);
             summarizeBatch(result);
@@ -191,7 +194,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     const prior = batchWarn;
     const ackCells = prior.warnings.map((w) => ({ workerId: w.workerId, shiftDate: w.shiftDate }));
     upsertBatch.mutate(
-      { data: { sheetId, status: prior.status, startTime: prior.startTime, cells: ackCells, acknowledgeRestWarning: true } },
+      { data: { sheetId, status: prior.status, startTime: prior.startTime, note: prior.note, cells: ackCells, acknowledgeRestWarning: true } },
       {
         onSuccess: (result) => {
           invalidate();
@@ -248,8 +251,8 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     );
   };
 
-  const handleCellSave = (workerId: number, dateStr: string, status: Status, startTime: string) => {
-    saveBooking({ sheetId, workerId, shiftDate: dateStr, status, startTime: startTime || null });
+  const handleCellSave = (workerId: number, dateStr: string, status: Status, startTime: string, note: string) => {
+    saveBooking({ sheetId, workerId, shiftDate: dateStr, status, startTime: startTime || null, note: note.trim() || null });
   };
 
   const handleCellDelete = (id: number) => {
@@ -531,7 +534,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           count={batch.cells.length}
           pending={upsertBatch.isPending}
           onCancel={() => setBatch(null)}
-          onApply={(status, startTime) => runBatch(batch.cells, status, startTime)}
+          onApply={(status, startTime, note) => runBatch(batch.cells, status, startTime, note)}
         />
       )}
 
@@ -602,25 +605,27 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
 
 const NO_SHOW_OPTION = "__no_show__";
 
-function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, open, onOpenChange, selected, onPointerDown, onPointerEnter, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, open: boolean, onOpenChange: (open: boolean) => void, selected: boolean, onPointerDown: () => void, onPointerEnter: () => void, onSave: (workerId: number, dateStr: string, status: Status, startTime: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, open, onOpenChange, selected, onPointerDown, onPointerEnter, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, open: boolean, onOpenChange: (open: boolean) => void, selected: boolean, onPointerDown: () => void, onPointerEnter: () => void, onSave: (workerId: number, dateStr: string, status: Status, startTime: string, note: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status | typeof NO_SHOW_OPTION>(booking?.status || "Off");
   const [time, setTime] = useState(booking?.startTime || "");
+  const [note, setNote] = useState(booking?.note || "");
 
   // Re-sync the editor to the current booking each time the popover opens, so a
-  // controlled (re-)open never shows a stale status/time from a prior edit.
+  // controlled (re-)open never shows a stale status/time/note from a prior edit.
   useEffect(() => {
     if (open) {
       setStatus(booking?.status || "Off");
       setTime(booking?.startTime || "");
+      setNote(booking?.note || "");
     }
-  }, [open, booking?.status, booking?.startTime]);
+  }, [open, booking?.status, booking?.startTime, booking?.note]);
 
   const handleSave = () => {
     if (status === NO_SHOW_OPTION) {
       onLogNoShow(workerId, workerName, dateStr);
     } else {
-      onSave(workerId, dateStr, status, time);
+      onSave(workerId, dateStr, status, time, note);
     }
     onOpenChange(false);
   };
@@ -683,6 +688,15 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
                 {restDays}
               </span>
             )}
+            {!isNoShow && booking?.note && (
+              <span
+                title={booking.note}
+                aria-label={`Note: ${booking.note}`}
+                className="absolute bottom-0.5 left-0.5 text-[10px] leading-none"
+              >
+                📝
+              </span>
+            )}
             {renderContent()}
           </div>
         </PopoverAnchor>
@@ -717,6 +731,18 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSave();
                   }}
+                />
+              </div>
+            )}
+
+            {status !== NO_SHOW_OPTION && (
+              <div className="space-y-1">
+                <Label className="text-xs">Note (optional)</Label>
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="e.g. call transport on arrival"
+                  className="min-h-[56px] text-xs"
                 />
               </div>
             )}
@@ -764,15 +790,17 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
   );
 }
 
-function BatchFillDialog({ count, pending, onCancel, onApply }: { count: number, pending: boolean, onCancel: () => void, onApply: (status: Status, startTime: string | null) => void }) {
+function BatchFillDialog({ count, pending, onCancel, onApply }: { count: number, pending: boolean, onCancel: () => void, onApply: (status: Status, startTime: string | null, note: string | null) => void }) {
   const [status, setStatus] = useState<Status>("Confirmed");
   const [time, setTime] = useState("");
+  const [note, setNote] = useState("");
   const isWorkingStatus = ["Available", "Pre-Booked", "Confirmed"].includes(status);
 
   const handleApply = () => {
     // Match single-cell editing: a blank time is allowed (saved as null). Only
-    // working statuses can carry a time, and even then it stays optional.
-    onApply(status, isWorkingStatus && time ? time : null);
+    // working statuses can carry a time, and even then it stays optional. The
+    // note is always optional and applies to every selected cell.
+    onApply(status, isWorkingStatus && time ? time : null, note.trim() || null);
   };
 
   return (
@@ -814,6 +842,16 @@ function BatchFillDialog({ count, pending, onCancel, onApply }: { count: number,
               />
             </div>
           )}
+
+          <div className="space-y-1">
+            <Label className="text-xs">Note (optional)</Label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. needs to finish before 1pm"
+              className="min-h-[56px] text-xs"
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button size="sm" variant="outline" onClick={onCancel} disabled={pending}>Cancel</Button>

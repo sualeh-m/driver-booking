@@ -14,6 +14,8 @@ export interface BookingInput {
   status: Status;
   /** @nullable */
   startTime?: string | null;
+  /** @nullable */
+  note?: string | null;
   /** Set true to confirm an HGV rest-day warning and save anyway. Ignored for Warehouse workers and for bookings below the warn threshold. */
   acknowledgeRestWarning?: boolean;
 }

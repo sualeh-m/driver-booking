@@ -74,6 +74,7 @@ CREATE TABLE bookings (
     status       TEXT NOT NULL DEFAULT 'Available'
                  CHECK (status IN ('Available','Pre-Booked','Rest','Off','Holiday','Confirmed')),
     start_time   TIME,                -- 24h clock; NULL unless working
+    note         TEXT,                -- free-text instruction for the cell; NULL when none
     created_by   INTEGER REFERENCES users(id),
     updated_by   INTEGER REFERENCES users(id),
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),

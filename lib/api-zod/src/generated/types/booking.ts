@@ -16,6 +16,8 @@ export interface Booking {
   /** @nullable */
   startTime?: string | null;
   /** @nullable */
+  note?: string | null;
+  /** @nullable */
   createdBy?: number | null;
   /** @nullable */
   updatedBy?: number | null;

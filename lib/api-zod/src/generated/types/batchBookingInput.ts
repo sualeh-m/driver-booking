@@ -13,6 +13,8 @@ export interface BatchBookingInput {
   status: Status;
   /** @nullable */
   startTime?: string | null;
+  /** @nullable */
+  note?: string | null;
   cells: BatchBookingCell[];
   /** Set true to confirm HGV rest-day warnings and save the warned cells anyway. Blocked cells (at the block threshold) are never saved. */
   acknowledgeRestWarning?: boolean;

@@ -306,6 +306,8 @@ export interface Booking {
   /** @nullable */
   startTime?: string | null;
   /** @nullable */
+  note?: string | null;
+  /** @nullable */
   createdBy?: number | null;
   /** @nullable */
   updatedBy?: number | null;
@@ -320,6 +322,8 @@ export interface BookingInput {
   status: Status;
   /** @nullable */
   startTime?: string | null;
+  /** @nullable */
+  note?: string | null;
   /** Set true to confirm an HGV rest-day warning and save anyway. Ignored for Warehouse workers and for bookings below the warn threshold. */
   acknowledgeRestWarning?: boolean;
 }
@@ -334,6 +338,8 @@ export interface BatchBookingInput {
   status: Status;
   /** @nullable */
   startTime?: string | null;
+  /** @nullable */
+  note?: string | null;
   cells: BatchBookingCell[];
   /** Set true to confirm HGV rest-day warnings and save the warned cells anyway. Blocked cells (at the block threshold) are never saved. */
   acknowledgeRestWarning?: boolean;

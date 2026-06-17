@@ -70,6 +70,7 @@ export function serializeBooking(b: Booking) {
     shiftDate: b.shiftDate,
     status: b.status,
     startTime: shortTime(b.startTime),
+    note: b.note,
     createdBy: b.createdBy,
     updatedBy: b.updatedBy,
     createdAt: iso(b.createdAt),

@@ -17,6 +17,7 @@ export interface ApplyBookingParams {
   shiftDate: string;
   status: string;
   startTime: string | null;
+  note: string | null;
 }
 
 // Single source of the per-cell upsert: insert-or-update the booking, write the
@@ -29,7 +30,7 @@ export async function applyBookingTx(
   params: ApplyBookingParams,
   userId: number,
 ) {
-  const { workerId, sheetId, shiftDate, status, startTime } = params;
+  const { workerId, sheetId, shiftDate, status, startTime, note } = params;
 
   const [existing] = await tx
     .select()
@@ -50,6 +51,7 @@ export async function applyBookingTx(
         shiftDate,
         status,
         startTime,
+        note,
         createdBy: userId,
         updatedBy: userId,
       })
@@ -96,6 +98,7 @@ export async function applyBookingTx(
       sheetId,
       status,
       startTime,
+      note,
       updatedBy: userId,
       updatedAt: new Date(),
     })

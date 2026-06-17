@@ -514,6 +514,7 @@ export const GetGridResponse = zod.object({
   "shiftDate": zod.string(),
   "status": zod.enum(['Available', 'Pre-Booked', 'Rest', 'Off', 'Holiday', 'Confirmed']),
   "startTime": zod.string().nullish(),
+  "note": zod.string().nullish(),
   "createdBy": zod.number().nullish(),
   "updatedBy": zod.number().nullish(),
   "createdAt": zod.string(),
@@ -544,6 +545,7 @@ export const UpsertBookingBody = zod.object({
   "shiftDate": zod.string(),
   "status": zod.enum(['Available', 'Pre-Booked', 'Rest', 'Off', 'Holiday', 'Confirmed']),
   "startTime": zod.string().nullish(),
+  "note": zod.string().nullish(),
   "acknowledgeRestWarning": zod.boolean().optional().describe('Set true to confirm an HGV rest-day warning and save anyway. Ignored for Warehouse workers and for bookings below the warn threshold.')
 })
 
@@ -554,6 +556,7 @@ export const UpsertBookingResponse = zod.object({
   "shiftDate": zod.string(),
   "status": zod.enum(['Available', 'Pre-Booked', 'Rest', 'Off', 'Holiday', 'Confirmed']),
   "startTime": zod.string().nullish(),
+  "note": zod.string().nullish(),
   "createdBy": zod.number().nullish(),
   "updatedBy": zod.number().nullish(),
   "createdAt": zod.string(),
@@ -568,6 +571,7 @@ export const UpsertBookingsBatchBody = zod.object({
   "sheetId": zod.number(),
   "status": zod.enum(['Available', 'Pre-Booked', 'Rest', 'Off', 'Holiday', 'Confirmed']),
   "startTime": zod.string().nullish(),
+  "note": zod.string().nullish(),
   "cells": zod.array(zod.object({
   "workerId": zod.number(),
   "shiftDate": zod.string()

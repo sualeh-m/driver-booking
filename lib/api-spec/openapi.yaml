@@ -1352,6 +1352,7 @@ components:
         shiftDate: { type: string }
         status: { $ref: "#/components/schemas/Status" }
         startTime: { type: ["string", "null"] }
+        note: { type: ["string", "null"] }
         createdBy: { type: ["integer", "null"] }
         updatedBy: { type: ["integer", "null"] }
         createdAt: { type: string }
@@ -1366,6 +1367,7 @@ components:
         shiftDate: { type: string }
         status: { $ref: "#/components/schemas/Status" }
         startTime: { type: ["string", "null"] }
+        note: { type: ["string", "null"] }
         acknowledgeRestWarning:
           type: boolean
           description: >-
@@ -1386,6 +1388,7 @@ components:
         sheetId: { type: integer }
         status: { $ref: "#/components/schemas/Status" }
         startTime: { type: ["string", "null"] }
+        note: { type: ["string", "null"] }
         cells:
           type: array
           items: { $ref: "#/components/schemas/BatchBookingCell" }

@@ -30,6 +30,7 @@ router.put("/bookings", async (req, res): Promise<void> => {
 
   const { workerId, sheetId, shiftDate, status } = parsed.data;
   const startTime = parsed.data.startTime ?? null;
+  const note = parsed.data.note?.trim() || null;
   const acknowledgeRestWarning = parsed.data.acknowledgeRestWarning === true;
 
   // HGV rest-day safety check — Warehouse workers are never limited.
@@ -55,7 +56,7 @@ router.put("/bookings", async (req, res): Promise<void> => {
   }
 
   const result = await db.transaction((tx) =>
-    applyBookingTx(tx, { workerId, sheetId, shiftDate, status, startTime }, userId),
+    applyBookingTx(tx, { workerId, sheetId, shiftDate, status, startTime, note }, userId),
   );
 
   res.json(serializeBooking(result));
@@ -76,6 +77,7 @@ router.put("/bookings/batch", async (req, res): Promise<void> => {
 
   const { sheetId, status, cells } = parsed.data;
   const startTime = parsed.data.startTime ?? null;
+  const note = parsed.data.note?.trim() || null;
   const acknowledgeRestWarning = parsed.data.acknowledgeRestWarning === true;
 
   // Group the selected cells by worker so the rest-day rule can be evaluated
@@ -125,7 +127,7 @@ router.put("/bookings/batch", async (req, res): Promise<void> => {
 
         await applyBookingTx(
           tx,
-          { workerId, sheetId, shiftDate, status, startTime },
+          { workerId, sheetId, shiftDate, status, startTime, note },
           userId,
         );
         applied.push(cell);
