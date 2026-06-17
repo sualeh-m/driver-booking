@@ -18,28 +18,114 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary List account managers (for pick-your-name login)
+ * @summary List all users (admin only)
  */
 export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
+  "role": zod.enum(['admin', 'standard']),
+  "mustChangePassword": zod.boolean(),
   "createdAt": zod.string()
 })
 export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
 
 /**
- * @summary Log in by selecting a user
+ * @summary Create a user with a temporary password (admin only)
  */
+
+
+export const createUserBodyTemporaryPasswordMin = 8;
+
+
+
+export const CreateUserBody = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().min(1),
+  "role": zod.enum(['admin', 'standard']),
+  "temporaryPassword": zod.string().min(createUserBodyTemporaryPasswordMin)
+})
+
+
+/**
+ * @summary Update a user's name, email or role (admin only)
+ */
+export const UpdateUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+
+
+
+
+export const UpdateUserBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "email": zod.string().min(1).optional(),
+  "role": zod.enum(['admin', 'standard']).optional()
+})
+
+export const UpdateUserResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'standard']),
+  "mustChangePassword": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a user (admin only)
+ */
+export const DeleteUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Reset a user's password to a temporary one (admin only)
+ */
+export const ResetUserPasswordParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const resetUserPasswordBodyTemporaryPasswordMin = 8;
+
+
+
+export const ResetUserPasswordBody = zod.object({
+  "temporaryPassword": zod.string().min(resetUserPasswordBodyTemporaryPasswordMin)
+})
+
+export const ResetUserPasswordResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'standard']),
+  "mustChangePassword": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Log in with email and password
+ */
+
+
+
+
 export const LoginBody = zod.object({
-  "userId": zod.number()
+  "email": zod.string().min(1),
+  "password": zod.string().min(1)
 })
 
 export const LoginResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
+  "role": zod.enum(['admin', 'standard']),
+  "mustChangePassword": zod.boolean(),
   "createdAt": zod.string()
 })
 
@@ -51,6 +137,31 @@ export const GetCurrentUserResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
+  "role": zod.enum(['admin', 'standard']),
+  "mustChangePassword": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Change the current user's own password
+ */
+
+export const changePasswordBodyNewPasswordMin = 8;
+
+
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string().min(1),
+  "newPassword": zod.string().min(changePasswordBodyNewPasswordMin)
+})
+
+export const ChangePasswordResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'standard']),
+  "mustChangePassword": zod.boolean(),
   "createdAt": zod.string()
 })
 

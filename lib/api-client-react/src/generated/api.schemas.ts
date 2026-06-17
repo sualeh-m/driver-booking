@@ -71,15 +71,58 @@ export interface EventInput {
   notes?: string;
 }
 
+export type UserRole = typeof UserRole[keyof typeof UserRole];
+
+
+export const UserRole = {
+  admin: 'admin',
+  standard: 'standard',
+} as const;
+
 export interface User {
   id: number;
   name: string;
   email: string;
+  role: UserRole;
+  mustChangePassword: boolean;
   createdAt: string;
 }
 
 export interface LoginInput {
-  userId: number;
+  /** @minLength 1 */
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface CreateUserInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  email: string;
+  role: UserRole;
+  /** @minLength 8 */
+  temporaryPassword: string;
+}
+
+export interface UpdateUserInput {
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 1 */
+  email?: string;
+  role?: UserRole;
+}
+
+export interface ResetPasswordInput {
+  /** @minLength 8 */
+  temporaryPassword: string;
+}
+
+export interface ChangePasswordInput {
+  /** @minLength 1 */
+  currentPassword: string;
+  /** @minLength 8 */
+  newPassword: string;
 }
 
 export interface Sheet {

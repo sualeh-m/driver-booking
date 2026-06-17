@@ -1,21 +1,33 @@
-import { useListUsers, useLogin } from "@workspace/api-client-react";
+import { useState, FormEvent } from "react";
+import { useLogin, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { LogInIcon, UserIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { LogInIcon } from "lucide-react";
 
 export function Login() {
   const [, setLocation] = useLocation();
-  const { data: users, isLoading } = useListUsers();
+  const queryClient = useQueryClient();
   const login = useLogin();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (userId: number) => {
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
     login.mutate(
-      { data: { userId } },
+      { data: { email: email.trim(), password } },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
           setLocation("/");
+        },
+        onError: () => {
+          setError("Invalid email or password");
         },
       }
     );
@@ -29,44 +41,45 @@ export function Login() {
             <LogInIcon className="h-6 w-6" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">ShiftControl</h1>
-          <p className="text-muted-foreground">Select your account to continue</p>
+          <p className="text-muted-foreground">Sign in to continue</p>
         </div>
 
         <Card className="border-muted shadow-lg">
           <CardHeader className="pb-4">
-            <CardTitle>Account Managers</CardTitle>
+            <CardTitle>Sign in</CardTitle>
             <CardDescription>Internal access only</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-2">
-            {isLoading ? (
-              <>
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-              </>
-            ) : users?.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                No users found in the system.
+          <CardContent>
+            <form className="grid gap-4" onSubmit={handleSubmit}>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-            ) : (
-              users?.map((user) => (
-                <Button
-                  key={user.id}
-                  variant="outline"
-                  className="h-auto justify-start gap-4 p-4 text-left font-normal transition-all hover:border-primary hover:bg-primary/5"
-                  onClick={() => handleLogin(user.id)}
-                  disabled={login.isPending}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-                    <UserIcon className="h-5 w-5" />
-                  </div>
-                  <div className="flex flex-col items-start gap-1">
-                    <span className="font-semibold">{user.name}</span>
-                    <span className="text-xs text-muted-foreground">{user.email}</span>
-                  </div>
-                </Button>
-              ))
-            )}
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {error && (
+                <p className="text-sm font-medium text-destructive">{error}</p>
+              )}
+              <Button type="submit" disabled={login.isPending || !email || !password}>
+                {login.isPending ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>

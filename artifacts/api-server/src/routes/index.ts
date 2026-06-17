@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
-import authRouter from "./auth";
+import authRouter, { publicAuthRouter } from "./auth";
+import usersRouter from "./users";
 import sheetsRouter from "./sheets";
 import workersRouter from "./workers";
 import gridRouter from "./grid";
@@ -13,17 +14,25 @@ import eventsRouter from "./events";
 import leaversRouter from "./leavers";
 import requirementsRouter from "./requirements";
 import submissionsRouter from "./submissions";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, enforcePasswordChange } from "../lib/auth";
 
 const router: IRouter = Router();
 
-// Public routes: health check and the pick-your-name login flow
-// (the login screen lists users via GET /users before a session exists).
+// Public routes: health check and the email/password login.
 router.use(healthRouter);
-router.use(authRouter);
+router.use(publicAuthRouter);
 
 // Everything below requires an authenticated session.
 router.use(requireAuth);
+
+// Session-scoped auth routes that must stay reachable even when the user is
+// being forced to change their password (logout, me, change-password).
+router.use(authRouter);
+
+// Block all other actions until a forced password change is completed.
+router.use(enforcePasswordChange);
+
+router.use(usersRouter);
 router.use(sheetsRouter);
 router.use(workersRouter);
 router.use(gridRouter);

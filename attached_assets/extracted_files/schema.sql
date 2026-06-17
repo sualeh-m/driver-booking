@@ -9,10 +9,13 @@
 
 -- 1. Users — account managers (login + audit trail)
 CREATE TABLE users (
-    id          SERIAL PRIMARY KEY,
-    name        TEXT NOT NULL,
-    email       TEXT NOT NULL UNIQUE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id                   SERIAL PRIMARY KEY,
+    name                 TEXT NOT NULL,
+    email                TEXT NOT NULL UNIQUE,
+    password_hash        TEXT,                                  -- scrypt hash; null only for not-yet-provisioned accounts
+    role                 TEXT NOT NULL DEFAULT 'standard' CHECK (role IN ('admin','standard')),
+    must_change_password BOOLEAN NOT NULL DEFAULT false,        -- true after create / admin reset; cleared on self change
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- 2. Sheets — a booking schedule for one depot + worker type.

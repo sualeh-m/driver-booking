@@ -2,8 +2,9 @@ import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { ActivityIcon, BarChart3Icon, CalendarDaysIcon, LogOutIcon, SendIcon, UserMinusIcon, UserXIcon } from "lucide-react";
+import { ActivityIcon, BarChart3Icon, CalendarDaysIcon, LogOutIcon, SendIcon, UserMinusIcon, UsersIcon, UserXIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ForcePasswordChange } from "@/components/layout/ForcePasswordChange";
 
 export function Shell({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -26,6 +27,10 @@ export function Shell({ children }: { children: ReactNode }) {
 
   if (isError || !user) {
     return null;
+  }
+
+  if (user.mustChangePassword) {
+    return <ForcePasswordChange />;
   }
 
   const handleLogout = () => {
@@ -107,6 +112,18 @@ export function Shell({ children }: { children: ReactNode }) {
                 Activity
               </Button>
             </Link>
+            {user.role === "admin" && (
+              <Link href="/users">
+                <Button
+                  variant={location === "/users" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <UsersIcon className="h-4 w-4" />
+                  Users
+                </Button>
+              </Link>
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-4">

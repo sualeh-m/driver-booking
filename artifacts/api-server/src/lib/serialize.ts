@@ -16,6 +16,8 @@ export function serializeUser(u: User) {
     id: u.id,
     name: u.name,
     email: u.email,
+    role: u.role as "admin" | "standard",
+    mustChangePassword: u.mustChangePassword,
     createdAt: iso(u.createdAt),
   };
 }

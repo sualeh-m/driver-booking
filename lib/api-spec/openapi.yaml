@@ -46,8 +46,8 @@ paths:
   /users:
     get:
       operationId: listUsers
-      tags: [auth]
-      summary: List account managers (for pick-your-name login)
+      tags: [users]
+      summary: List all users (admin only)
       responses:
         "200":
           description: List of users
@@ -57,12 +57,143 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user with a temporary password (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserInput"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userId}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user's name, email or role (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: Cannot delete (e.g. self or last admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userId}/reset-password:
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset a user's password to a temporary one (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /auth/login:
     post:
       operationId: login
       tags: [auth]
-      summary: Log in by selecting a user
+      summary: Log in with email and password
       requestBody:
         required: true
         content:
@@ -78,6 +209,12 @@ paths:
                 $ref: "#/components/schemas/User"
         "400":
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid credentials
           content:
             application/json:
               schema:
@@ -106,6 +243,37 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           description: Not logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change the current user's own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Current password incorrect
           content:
             application/json:
               schema:
@@ -1118,18 +1286,54 @@ components:
 
     User:
       type: object
-      required: [id, name, email, createdAt]
+      required: [id, name, email, role, mustChangePassword, createdAt]
       properties:
         id: { type: integer }
         name: { type: string }
         email: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        mustChangePassword: { type: boolean }
         createdAt: { type: string }
+
+    UserRole:
+      type: string
+      enum: [admin, standard]
 
     LoginInput:
       type: object
-      required: [userId]
+      required: [email, password]
       properties:
-        userId: { type: integer }
+        email: { type: string, minLength: 1 }
+        password: { type: string, minLength: 1 }
+
+    CreateUserInput:
+      type: object
+      required: [name, email, role, temporaryPassword]
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string, minLength: 1 }
+        role: { $ref: "#/components/schemas/UserRole" }
+        temporaryPassword: { type: string, minLength: 8 }
+
+    UpdateUserInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string, minLength: 1 }
+        role: { $ref: "#/components/schemas/UserRole" }
+
+    ResetPasswordInput:
+      type: object
+      required: [temporaryPassword]
+      properties:
+        temporaryPassword: { type: string, minLength: 8 }
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1 }
+        newPassword: { type: string, minLength: 8 }
 
     Sheet:
       type: object

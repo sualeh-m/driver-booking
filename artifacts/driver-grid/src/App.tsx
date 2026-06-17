@@ -10,6 +10,7 @@ import { DoNotBook } from "@/pages/DoNotBook";
 import { Leavers } from "@/pages/Leavers";
 import { Submissions } from "@/pages/Submissions";
 import { Reports } from "@/pages/Reports";
+import { Users } from "@/pages/Users";
 import { Shell } from "@/components/layout/Shell";
 
 const queryClient = new QueryClient({
@@ -53,6 +54,11 @@ function Router() {
       <Route path="/reports">
         <Shell>
           <Reports />
+        </Shell>
+      </Route>
+      <Route path="/users">
+        <Shell>
+          <Users />
         </Shell>
       </Route>
       <Route component={NotFound} />

@@ -7,5 +7,8 @@
  */
 
 export interface LoginInput {
-  userId: number;
+  /** @minLength 1 */
+  email: string;
+  /** @minLength 1 */
+  password: string;
 }

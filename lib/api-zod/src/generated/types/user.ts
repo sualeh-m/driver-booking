@@ -5,10 +5,13 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
+import type { UserRole } from './userRole';
 
 export interface User {
   id: number;
   name: string;
   email: string;
+  role: UserRole;
+  mustChangePassword: boolean;
   createdAt: string;
 }
