@@ -1,0 +1,19 @@
+I want to add proper user logins and two permission levels to the app. This is security-sensitive, so build it carefully and verify it.USERS AND LOGIN:
+
+Every user logs in with their own email and password. Replace the current automatic login.
+There are two roles: "admin" and "standard".
+Passwords must be stored securely (hashed, never plain text).
+Admin can create users: enter their name, email, and a temporary password, and assign their role. New users are forced to change their password on first login.
+Only admin can reset another user's password (set a new temporary one, which the user must then change on next login). Standard users cannot reset anyone's password, including their own being reset by others — they just change their own when logged in.
+Set me up as the admin: name "Anthony K" — and I'll provide my email. Create these 8 additional users as STANDARD role, each with a temporary password I can give them: Nicholas K, Andreas P, Jude G, Isla M, Reemiah L, Nick C, Perla K. (That's 8 standard users plus me as admin = 9 total. I'll give you each person's email.)
+Wait — actually I listed names without emails. Ask me for each user's email address before creating them; do not invent emails.PERMISSIONS — admin-only actions (standard users must be blocked from these, both in the interface and on the server side):
+
+Deleting a whole sheet (and its bookings)
+Managing users (creating, removing, editing logins, resetting passwords)
+Deleting leaver records
+Everything else is allowed for ALL logged-in users, including: all booking actions (set status, clear cells, drag-fill, notes), creating sheets and contacts, adding and editing workers, marking leavers, and setting or removing Do Not Book flags, and viewing Reports.IMPORTANT:
+
+Enforce the admin-only restrictions on the SERVER, not just by hiding buttons. A standard user must not be able to perform an admin action even if they tried to bypass the interface.
+The audit trail must record actions against the specific logged-in user.
+Do not break any existing feature.
+Do NOT build email invites or email-based password resets yet — email isn't set up. For now, admin sets temporary passwords manually and users change them on first login. Email-based flows come later.When done, confirm: I can log in as admin, create a standard user, log in as that standard user, and that the standard user is BLOCKED from deleting a sheet and from managing users (both in the UI and if attempted directly). Tell me the result of each check.
