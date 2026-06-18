@@ -26,7 +26,7 @@ CREATE TABLE sheets (
     client_company  TEXT NOT NULL,                 -- the client, e.g. Martin Brower
     depot           TEXT,                          -- location / depot
     worker_type     TEXT NOT NULL
-                    CHECK (worker_type IN ('HGV','Warehouse')),  -- switches the rest-day rule on/off
+                    CHECK (worker_type IN ('HGV','Warehouse','Both')),  -- 'Both' = sheet runs HGV and warehouse work
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -174,7 +174,7 @@ export const ListSheetsResponseItem = zod.object({
   "name": zod.string(),
   "clientCompany": zod.string(),
   "depot": zod.string().nullish(),
-  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.'),
   "createdAt": zod.string()
 })
 export const ListSheetsResponse = zod.array(ListSheetsResponseItem)
@@ -191,7 +191,7 @@ export const CreateSheetBody = zod.object({
   "name": zod.string().min(1),
   "clientCompany": zod.string().min(1),
   "depot": zod.string().optional(),
-  "workerType": zod.enum(['HGV', 'Warehouse'])
+  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.')
 })
 
 
@@ -298,8 +298,7 @@ export const ListWorkersResponse = zod.array(ListWorkersResponseItem)
 export const CreateWorkerBody = zod.object({
   "fullName": zod.string().min(1),
   "phone": zod.string().optional(),
-  "jobRole": zod.string().optional(),
-  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "jobRole": zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Van', 'Forklift', 'Drivers Mate', 'Warehouse', 'Other']).optional().describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker).'),
   "startDate": zod.string().optional(),
   "vincereId": zod.string().optional()
 })
@@ -379,8 +378,7 @@ export const UpdateWorkerParams = zod.object({
 export const UpdateWorkerBody = zod.object({
   "fullName": zod.string().min(1),
   "phone": zod.string().nullish(),
-  "jobRole": zod.string().nullish(),
-  "workerType": zod.enum(['HGV', 'Warehouse']),
+  "jobRole": zod.union([zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Van', 'Forklift', 'Drivers Mate', 'Warehouse', 'Other']).describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker).'),zod.null()]).optional(),
   "note": zod.string().nullish(),
   "sheetId": zod.number().optional()
 })

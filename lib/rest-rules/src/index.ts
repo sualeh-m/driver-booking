@@ -34,11 +34,22 @@ export function isWorkingStatus(status: string | null | undefined): boolean {
   return status != null && WORKING_SET.has(status);
 }
 
-/** Only HGV workers are subject to the rest-day rule. */
-export function isRestRuleWorkerType(
-  workerType: string | null | undefined,
+/**
+ * The job roles that count as "HGV-type" for the rest-day rule. The rule keys
+ * off the worker's JOB ROLE (not their worker_type or the sheet type) so it
+ * applies to these roles wherever they appear — including on a "Both" sheet —
+ * and never to Van / Forklift / Drivers Mate / Warehouse / Other.
+ */
+export const REST_RULE_JOB_ROLES = ["HGV 1", "HGV 2", "Trunker"] as const;
+export type RestRuleJobRole = (typeof REST_RULE_JOB_ROLES)[number];
+
+const REST_RULE_JOB_ROLE_SET: ReadonlySet<string> = new Set(REST_RULE_JOB_ROLES);
+
+/** Only workers in an HGV-type job role are subject to the rest-day rule. */
+export function isRestRuleJobRole(
+  jobRole: string | null | undefined,
 ): boolean {
-  return workerType === "HGV";
+  return jobRole != null && REST_RULE_JOB_ROLE_SET.has(jobRole);
 }
 
 /** Map of ISO date (`YYYY-MM-DD`) -> booking status for a single worker. */

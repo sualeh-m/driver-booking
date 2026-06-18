@@ -11,11 +11,11 @@ import {
   shiftRequirementsTable,
   BOOKING_STATUSES,
 } from "@workspace/db";
-import { GetGridQueryParams, ImportBookingsBody } from "@workspace/api-zod";
+import { GetGridQueryParams, ImportBookingsBody, JobRole } from "@workspace/api-zod";
 import {
   addDays,
   consecutiveWorkingDaysEndingOn,
-  isRestRuleWorkerType,
+  isRestRuleJobRole,
   maxAllowedConsecutiveDays,
   type StatusByDate,
 } from "@workspace/rest-rules";
@@ -38,6 +38,28 @@ function normalizeTime(raw: string): string | null {
   const m = t.match(/^(\d{1,2}):(\d{2})/);
   if (!m) return null;
   return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+
+// CSV import is a place a worker's role gets SET, so it must land on the fixed
+// JobRole set — never persist arbitrary free text. Map known legacy/free-text
+// values to a canonical role; an unrecognised non-empty value becomes "Other";
+// a blank cell stays null (no role stated). Keeping this canonical also lets the
+// rest-day rule (which keys off job role) recognise imported HGV-type drivers.
+const JOB_ROLE_VALUES = Object.values(JobRole) as string[];
+function normalizeCsvJobRole(raw: string): (typeof JOB_ROLE_VALUES)[number] | null {
+  const t = raw.trim();
+  if (t === "") return null;
+  const lower = t.toLowerCase();
+  const exact = JOB_ROLE_VALUES.find((r) => r.toLowerCase() === lower);
+  if (exact) return exact;
+  if (/class\s*1|c1|hgv\s*1/.test(lower)) return JobRole.HGV_1;
+  if (/class\s*2|c2|hgv\s*2/.test(lower)) return JobRole.HGV_2;
+  if (lower.includes("trunk")) return JobRole.Trunker;
+  if (lower.includes("fork")) return JobRole.Forklift;
+  if (lower.includes("mate")) return JobRole.Drivers_Mate;
+  if (lower.includes("van")) return JobRole.Van;
+  if (lower.includes("warehouse") || lower.includes("pick")) return JobRole.Warehouse;
+  return JobRole.Other;
 }
 
 function normalizeDate(raw: string): string | null {
@@ -115,7 +137,7 @@ router.get("/grid", async (req, res): Promise<void> => {
   // before the window so counts at the start of the range are accurate, then
   // compute the "days worked since last rest" value for each visible day.
   const hgvWorkerIds = workers
-    .filter((w) => isRestRuleWorkerType(w.workerType))
+    .filter((w) => isRestRuleJobRole(w.jobRole))
     .map((w) => w.id);
 
   const restCounters: { workerId: number; shiftDate: string; days: number }[] =
@@ -269,7 +291,9 @@ router.post("/import", async (req, res): Promise<void> => {
     const startTime =
       idxTime !== -1 ? normalizeTime(row[idxTime] ?? "") : null;
     const phone = idxPhone !== -1 ? (row[idxPhone] ?? "").trim() : "";
-    const jobRole = idxRole !== -1 ? (row[idxRole] ?? "").trim() : "";
+    const jobRole = normalizeCsvJobRole(
+      idxRole !== -1 ? (row[idxRole] ?? "").trim() : "",
+    );
 
     try {
       await db.transaction(async (tx) => {
@@ -307,7 +331,15 @@ router.post("/import", async (req, res): Promise<void> => {
               fullName,
               phone: phone || null,
               jobRole: jobRole || null,
-              workerType: sheet.workerType,
+              // Workers are only ever HGV/Warehouse. On a "Both" sheet derive
+              // the worker type from the row's job role (HGV-type roles → HGV,
+              // otherwise Warehouse); single-type sheets keep their own type.
+              workerType:
+                sheet.workerType === "Both"
+                  ? isRestRuleJobRole(jobRole || null)
+                    ? "HGV"
+                    : "Warehouse"
+                  : sheet.workerType,
             })
             .returning();
           workersCreated++;

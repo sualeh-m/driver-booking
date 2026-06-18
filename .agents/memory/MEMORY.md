@@ -4,5 +4,6 @@
 - [Preview/send dialogs (POST mutations)](preview-mutation-dialogs.md) — effect-driven reset+refetch on open/scope-change, never render-time conditions, or stale cross-sheet data leaks.
 - [No-show auto-flag reversal](no-show-autoflag-reversal.md) — no flag-origin column; reverse Do Not Book only when removal crosses no-show count from ≥5 down to <5, else it's a manual flag.
 - [KPI report two-set scoping](kpi-report-scoping.md) — /reports filters by depot/client + worker type via TWO sheet-id sets: worker-centric metrics use the link set, sheet-centric use the type-scoped set.
+- [drizzle-kit push ignores CHECK constraints](drizzle-push-check-constraints.md) — push reports "No changes" for changed check()s; apply the ALTER + data migrations as manual SQL (dev + hand prod SQL to user).
 - [Auth + admin deletes](auth-and-admin-deletes.md) — email/pw + roles; attach requireAdmin PER-ROUTE (use leaks); sheet-delete must hand-delete bookings (RESTRICT); delete-leaver ≠ Restore (stays 'left').
 - [Batch grid edit + per-cell rest rule](batch-edit-rest-rule.md) — drag-fill must equal single-cell: one shared write helper, per-cell rest accumulation (block breaks streak), warn-ack resubmits ONLY warned cells.

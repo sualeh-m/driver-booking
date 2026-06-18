@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, count, eq, or, ilike, sql } from "drizzle-orm";
 import { db, workersTable, eventsTable, workerSheetsTable } from "@workspace/db";
+import { isRestRuleJobRole } from "@workspace/rest-rules";
 import {
   CreateWorkerBody,
   ListWorkersQueryParams,
@@ -18,6 +19,14 @@ function cleanText(v: string | null | undefined): string | null {
   if (v == null) return null;
   const t = v.trim();
   return t.length > 0 ? t : null;
+}
+
+// A worker is only ever HGV or Warehouse. The type is derived from the job role
+// (the single source of truth): HGV-type roles → HGV, everything else →
+// Warehouse. This keeps worker_type aligned with the rest-day rule and the
+// HGV-only event check, and lets a "Both" sheet hold workers of any role.
+function workerTypeForJobRole(jobRole: string | null): "HGV" | "Warehouse" {
+  return isRestRuleJobRole(jobRole) ? "HGV" : "Warehouse";
 }
 
 const router: IRouter = Router();
@@ -145,7 +154,8 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const { fullName, phone, jobRole, workerType, note, sheetId } = parsed.data;
+  const { fullName, phone, jobRole, note, sheetId } = parsed.data;
+  const cleanedJobRole = cleanText(jobRole);
 
   try {
     const worker = await db.transaction(async (tx) => {
@@ -154,8 +164,8 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
         .set({
           fullName: fullName.trim(),
           phone: cleanText(phone),
-          jobRole: cleanText(jobRole),
-          workerType,
+          jobRole: cleanedJobRole,
+          workerType: workerTypeForJobRole(cleanedJobRole),
         })
         .where(eq(workersTable.id, params.data.id))
         .returning();
@@ -197,13 +207,14 @@ router.post("/workers", async (req, res): Promise<void> => {
     return;
   }
 
+  const jobRole = parsed.data.jobRole ?? null;
   const [worker] = await db
     .insert(workersTable)
     .values({
       fullName: parsed.data.fullName,
       phone: parsed.data.phone ?? null,
-      jobRole: parsed.data.jobRole ?? null,
-      workerType: parsed.data.workerType,
+      jobRole,
+      workerType: workerTypeForJobRole(jobRole),
       startDate: parsed.data.startDate ?? null,
       vincereId: parsed.data.vincereId ?? null,
     })

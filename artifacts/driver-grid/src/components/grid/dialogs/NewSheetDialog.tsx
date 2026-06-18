@@ -14,7 +14,7 @@ const formSchema = z.object({
   name: z.string().min(1, "Sheet name is required"),
   clientCompany: z.string().min(1, "Client company is required"),
   depot: z.string().optional(),
-  workerType: z.enum(["HGV", "Warehouse"]),
+  workerType: z.enum(["HGV", "Warehouse", "Both"]),
 });
 
 export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (o: boolean) => void }) {
@@ -117,6 +117,7 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
                     <SelectContent>
                       <SelectItem value="HGV">HGV</SelectItem>
                       <SelectItem value="Warehouse">Warehouse</SelectItem>
+                      <SelectItem value="Both">Both</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

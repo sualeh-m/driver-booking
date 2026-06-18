@@ -1303,6 +1303,20 @@ components:
       type: string
       enum: [HGV, Warehouse]
 
+    SheetWorkerType:
+      type: string
+      description: >-
+        Worker type for a sheet. 'Both' means the sheet runs HGV and warehouse
+        work together. Workers themselves are only ever HGV or Warehouse.
+      enum: [HGV, Warehouse, Both]
+
+    JobRole:
+      type: string
+      description: >-
+        A worker's job role. The rest-day rule applies only to the HGV-type
+        roles (HGV 1, HGV 2, Trunker).
+      enum: ["HGV 1", "HGV 2", "Trunker", "Van", "Forklift", "Drivers Mate", "Warehouse", "Other"]
+
     EventType:
       type: string
       description: >-
@@ -1397,7 +1411,7 @@ components:
         name: { type: string }
         clientCompany: { type: string }
         depot: { type: ["string", "null"] }
-        workerType: { $ref: "#/components/schemas/WorkerType" }
+        workerType: { $ref: "#/components/schemas/SheetWorkerType" }
         createdAt: { type: string }
 
     SheetInput:
@@ -1407,7 +1421,7 @@ components:
         name: { type: string, minLength: 1 }
         clientCompany: { type: string, minLength: 1 }
         depot: { type: string }
-        workerType: { $ref: "#/components/schemas/WorkerType" }
+        workerType: { $ref: "#/components/schemas/SheetWorkerType" }
 
     SheetContact:
       type: object
@@ -1450,23 +1464,24 @@ components:
 
     WorkerInput:
       type: object
-      required: [fullName, workerType]
+      required: [fullName]
       properties:
         fullName: { type: string, minLength: 1 }
         phone: { type: string }
-        jobRole: { type: string }
-        workerType: { $ref: "#/components/schemas/WorkerType" }
+        jobRole: { $ref: "#/components/schemas/JobRole" }
         startDate: { type: string }
         vincereId: { type: string }
 
     WorkerUpdateInput:
       type: object
-      required: [fullName, workerType]
+      required: [fullName]
       properties:
         fullName: { type: string, minLength: 1 }
         phone: { type: ["string", "null"] }
-        jobRole: { type: ["string", "null"] }
-        workerType: { $ref: "#/components/schemas/WorkerType" }
+        jobRole:
+          anyOf:
+            - $ref: "#/components/schemas/JobRole"
+            - type: "null"
         note: { type: ["string", "null"] }
         sheetId: { type: integer }
 

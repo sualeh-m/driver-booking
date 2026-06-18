@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  JobRole,
   useGetWorker,
   useUpdateWorker,
   getGetWorkerQueryKey,
@@ -38,11 +39,24 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
+const JOB_ROLES = Object.values(JobRole);
+
+// Legacy/imported workers may carry a null or non-canonical job role. Seed the
+// edit form with a sensible valid role so the dropdown is always on a real
+// option: keep the role if it is already canonical, otherwise default by the
+// worker's derived type (HGV-typed → first HGV role, else Warehouse).
+function seedJobRole(
+  jobRole: string | null | undefined,
+  workerType: string,
+): string {
+  if (jobRole && (JOB_ROLES as string[]).includes(jobRole)) return jobRole;
+  return workerType === "HGV" ? "HGV 1" : "Warehouse";
+}
+
 const formSchema = z.object({
   fullName: z.string().min(1, "Name is required"),
   phone: z.string().optional(),
-  jobRole: z.string().optional(),
-  workerType: z.enum(["HGV", "Warehouse"]),
+  jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
   note: z.string().optional(),
 });
 
@@ -84,8 +98,7 @@ export function WorkerProfileDialog({
     defaultValues: {
       fullName: "",
       phone: "",
-      jobRole: "",
-      workerType: "HGV",
+      jobRole: "HGV 1",
       note: "",
     },
   });
@@ -96,8 +109,7 @@ export function WorkerProfileDialog({
       form.reset({
         fullName: worker.fullName,
         phone: worker.phone ?? "",
-        jobRole: worker.jobRole ?? "",
-        workerType: worker.workerType,
+        jobRole: seedJobRole(worker.jobRole, worker.workerType),
         note: note ?? "",
       });
     }
@@ -115,8 +127,7 @@ export function WorkerProfileDialog({
         data: {
           fullName: values.fullName,
           phone: values.phone?.trim() ? values.phone : null,
-          jobRole: values.jobRole?.trim() ? values.jobRole : null,
-          workerType: values.workerType,
+          jobRole: values.jobRole as (typeof JOB_ROLES)[number],
           ...(sheetId !== undefined
             ? { sheetId, note: values.note?.trim() ? values.note : null }
             : {}),
@@ -200,28 +211,16 @@ export function WorkerProfileDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Job Role</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Class 1 HGV" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="workerType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Worker Type</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select a role" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="HGV">HGV</SelectItem>
-                        <SelectItem value="Warehouse">Warehouse</SelectItem>
+                        {JOB_ROLES.map((role) => (
+                          <SelectItem key={role} value={role}>{role}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

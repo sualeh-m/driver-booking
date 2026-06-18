@@ -5,16 +5,14 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
-import type { WorkerType } from './workerType';
+import type { JobRole } from './jobRole';
 
 export interface WorkerUpdateInput {
   /** @minLength 1 */
   fullName: string;
   /** @nullable */
   phone?: string | null;
-  /** @nullable */
-  jobRole?: string | null;
-  workerType: WorkerType;
+  jobRole?: JobRole | null;
   /** @nullable */
   note?: string | null;
   sheetId?: number;

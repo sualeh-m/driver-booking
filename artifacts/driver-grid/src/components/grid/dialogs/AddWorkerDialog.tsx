@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -6,15 +7,25 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Sheet } from "@workspace/api-client-react";
-import { useCreateWorker, useAddWorkerToSheet, getGetGridQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { JobRole, useCreateWorker, useAddWorkerToSheet, getGetGridQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+
+const JOB_ROLES = Object.values(JobRole);
+
+// Sensible default role for a new worker, by the sheet's worker type. A
+// Warehouse sheet defaults to the Warehouse role; HGV and Both default to the
+// first HGV role (the user can change it).
+function defaultRoleForSheet(sheet: Sheet | null): string {
+  return sheet?.workerType === "Warehouse" ? "Warehouse" : "HGV 1";
+}
 
 const formSchema = z.object({
   fullName: z.string().min(1, "Name is required"),
   phone: z.string().optional(),
-  jobRole: z.string().optional(),
+  jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
   notes: z.string().optional(),
 });
 
@@ -26,8 +37,14 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end }: { ope
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { fullName: "", phone: "", jobRole: "", notes: "" },
+    defaultValues: { fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), notes: "" },
   });
+
+  // Seed the default role from the sheet's worker type whenever the dialog opens
+  // (the dialog is reused across sheets).
+  useEffect(() => {
+    if (open) form.reset({ fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), notes: "" });
+  }, [open, sheet, form]);
 
   const pending = createWorker.isPending || addWorkerToSheet.isPending;
 
@@ -36,8 +53,7 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end }: { ope
     createWorker.mutate({ data: {
       fullName: values.fullName,
       phone: values.phone || undefined,
-      jobRole: values.jobRole || undefined,
-      workerType: sheet.workerType,
+      jobRole: values.jobRole as (typeof JOB_ROLES)[number],
     } }, {
       onSuccess: (worker) => {
         addWorkerToSheet.mutate({
@@ -67,7 +83,7 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end }: { ope
         <DialogHeader>
           <DialogTitle>Add Worker</DialogTitle>
           <DialogDescription>
-            {sheet ? `Add a ${sheet.workerType} worker to ${sheet.name}.` : "Select a sheet first."}
+            {sheet ? `Add a worker to ${sheet.name}.` : "Select a sheet first."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -104,9 +120,18 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end }: { ope
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Job Role</FormLabel>
-                  <FormControl>
-                    <Input placeholder={sheet?.workerType === "Warehouse" ? "Picker" : "Class 1 HGV"} {...field} />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {JOB_ROLES.map((role) => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

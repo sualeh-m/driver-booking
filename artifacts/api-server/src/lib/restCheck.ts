@@ -4,7 +4,7 @@ import {
   addDays,
   classifyRestDecision,
   consecutiveRunLengthWith,
-  isRestRuleWorkerType,
+  isRestRuleJobRole,
   isWorkingStatus,
   type RestDecision,
   type StatusByDate,
@@ -45,13 +45,13 @@ export async function evaluateRestRule(
 
   const [worker] = await conn
     .select({
-      workerType: workersTable.workerType,
+      jobRole: workersTable.jobRole,
       fullName: workersTable.fullName,
     })
     .from(workersTable)
     .where(eq(workersTable.id, workerId));
 
-  if (!worker || !isRestRuleWorkerType(worker.workerType)) return NOT_APPLICABLE;
+  if (!worker || !isRestRuleJobRole(worker.jobRole)) return NOT_APPLICABLE;
 
   const windowStart = addDays(shiftDate, -REST_WINDOW_DAYS);
   const windowEnd = addDays(shiftDate, REST_WINDOW_DAYS);
@@ -126,14 +126,14 @@ export async function evaluateRestBatchForWorker(
 
   const [worker] = await conn
     .select({
-      workerType: workersTable.workerType,
+      jobRole: workersTable.jobRole,
       fullName: workersTable.fullName,
     })
     .from(workersTable)
     .where(eq(workersTable.id, workerId));
 
   if (!worker) return allOk("");
-  if (!isRestRuleWorkerType(worker.workerType)) return allOk(worker.fullName);
+  if (!isRestRuleJobRole(worker.jobRole)) return allOk(worker.fullName);
   if (sorted.length === 0) return { workerName: worker.fullName, perDate: new Map() };
 
   const windowStart = addDays(sorted[0], -REST_WINDOW_DAYS);

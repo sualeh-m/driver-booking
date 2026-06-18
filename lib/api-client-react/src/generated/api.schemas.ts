@@ -34,6 +34,35 @@ export const WorkerType = {
 } as const;
 
 /**
+ * Worker type for a sheet. 'Both' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.
+ */
+export type SheetWorkerType = typeof SheetWorkerType[keyof typeof SheetWorkerType];
+
+
+export const SheetWorkerType = {
+  HGV: 'HGV',
+  Warehouse: 'Warehouse',
+  Both: 'Both',
+} as const;
+
+/**
+ * A worker's job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker).
+ */
+export type JobRole = typeof JobRole[keyof typeof JobRole];
+
+
+export const JobRole = {
+  HGV_1: 'HGV 1',
+  HGV_2: 'HGV 2',
+  Trunker: 'Trunker',
+  Van: 'Van',
+  Forklift: 'Forklift',
+  Drivers_Mate: 'Drivers Mate',
+  Warehouse: 'Warehouse',
+  Other: 'Other',
+} as const;
+
+/**
  * Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.
  */
 export type EventType = typeof EventType[keyof typeof EventType];
@@ -131,7 +160,7 @@ export interface Sheet {
   clientCompany: string;
   /** @nullable */
   depot?: string | null;
-  workerType: WorkerType;
+  workerType: SheetWorkerType;
   createdAt: string;
 }
 
@@ -141,7 +170,7 @@ export interface SheetInput {
   /** @minLength 1 */
   clientCompany: string;
   depot?: string;
-  workerType: WorkerType;
+  workerType: SheetWorkerType;
 }
 
 export interface SheetContact {
@@ -185,8 +214,7 @@ export interface WorkerInput {
   /** @minLength 1 */
   fullName: string;
   phone?: string;
-  jobRole?: string;
-  workerType: WorkerType;
+  jobRole?: JobRole;
   startDate?: string;
   vincereId?: string;
 }
@@ -196,9 +224,7 @@ export interface WorkerUpdateInput {
   fullName: string;
   /** @nullable */
   phone?: string | null;
-  /** @nullable */
-  jobRole?: string | null;
-  workerType: WorkerType;
+  jobRole?: JobRole | null;
   /** @nullable */
   note?: string | null;
   sheetId?: number;

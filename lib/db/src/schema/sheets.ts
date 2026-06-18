@@ -4,6 +4,9 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const WORKER_TYPES = ["HGV", "Warehouse"] as const;
+// Sheets can additionally be "Both" (run HGV and warehouse work on one sheet).
+// Workers themselves stay HGV/Warehouse — see workers.ts.
+export const SHEET_WORKER_TYPES = ["HGV", "Warehouse", "Both"] as const;
 
 export const sheetsTable = pgTable(
   "sheets",
@@ -18,7 +21,7 @@ export const sheetsTable = pgTable(
       .defaultNow(),
   },
   (t) => [
-    check("sheets_worker_type", sql`${t.workerType} IN ('HGV','Warehouse')`),
+    check("sheets_worker_type", sql`${t.workerType} IN ('HGV','Warehouse','Both')`),
   ],
 );
 
