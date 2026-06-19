@@ -399,7 +399,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                     onClick={() => setProfileFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType, note: worker.note ?? null })}
                     title="View or edit worker"
                   >
-                    <span className="text-xs">{worker.fullName}</span>
+                    <span className="text-xs font-medium" style={{ color: roleNameColor(worker.jobRole) }}>{worker.fullName}</span>
                     {worker.jobRole && <span className="text-[11px] text-muted-foreground"> · {worker.jobRole}</span>}
                   </button>
                 </TableCell>
@@ -504,7 +504,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-available" /> Available</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-pre-booked" /> Pre-Booked</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-confirmed" /> Confirmed</div>
-        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-rest" /> Rest</div>
+        <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-rest" /> Rest</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm border status-off" /> Off</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm status-holiday"></div> Holiday</div>
         <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-red-600" /> No Show</div>
@@ -601,6 +601,24 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
       )}
     </div>
   );
+}
+
+// Worker-name text colours by job role — a system independent of the status
+// cell colours. Soft, muted, mid-tone shades that stay readable on a light
+// background. Unknown/null roles fall back to the default text colour.
+const ROLE_NAME_COLORS: Record<string, string> = {
+  "HGV 1": "#4f7a5b",       // green
+  "HGV 2": "#3f7d7d",       // teal
+  "Trunker": "#8267a6",     // light purple
+  "Van": "#5b7fa6",         // soft blue
+  "Forklift": "#9c7b3c",    // muted amber
+  "Drivers Mate": "#6b7a8f", // soft grey-blue
+  "Warehouse": "#977b5d",   // soft brown/tan
+  "Other": "#71717a",       // grey
+};
+function roleNameColor(jobRole?: string | null): string | undefined {
+  if (!jobRole) return undefined;
+  return ROLE_NAME_COLORS[jobRole];
 }
 
 const NO_SHOW_OPTION = "__no_show__";

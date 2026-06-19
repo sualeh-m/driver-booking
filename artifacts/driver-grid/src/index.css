@@ -123,10 +123,10 @@
   }
 }
 
-/* Domain specific status colors */
-.status-available { background-color: #f97316; color: white; }
-.status-pre-booked { background-color: #eab308; color: #1f2937; }
-.status-confirmed { background-color: #22c55e; color: white; }
-.status-rest { background-color: #9ca3af; color: white; }
-.status-off { background-color: #ffffff; color: #374151; }
-.status-holiday { background-color: #000000; color: white; font-weight: 700; }
+/* Domain specific status colors — muted, easy on the eye, dark text for contrast */
+.status-available { background-color: #ece1a0; color: #44403c; }   /* soft yellow */
+.status-pre-booked { background-color: #eccba0; color: #44403c; }  /* soft orange */
+.status-confirmed { background-color: #22c55e; color: white; }     /* green (kept) */
+.status-rest { background-color: #ffffff; color: #374151; }        /* white */
+.status-off { background-color: #d9d9de; color: #374151; }         /* soft grey */
+.status-holiday { background-color: #000000; color: white; font-weight: 700; } /* black + white X (kept) */
