@@ -38,6 +38,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { MarkLeaverDialog } from "./MarkLeaverDialog";
 
 const JOB_ROLES = Object.values(JobRole);
 
@@ -86,6 +87,7 @@ export function WorkerProfileDialog({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
+  const [leaverOpen, setLeaverOpen] = useState(false);
 
   const workerQuery = useGetWorker(workerId, {
     query: { enabled: open, queryKey: getGetWorkerQueryKey(workerId) },
@@ -159,6 +161,7 @@ export function WorkerProfileDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
@@ -298,13 +301,22 @@ export function WorkerProfileDialog({
               </dd>
             </dl>
             <DialogFooter className="gap-2 sm:justify-between">
-              {onOpenEvents ? (
-                <Button type="button" variant="outline" onClick={onOpenEvents}>
-                  Events &amp; history
-                </Button>
-              ) : (
-                <span />
-              )}
+              <div className="flex gap-2">
+                {onOpenEvents && (
+                  <Button type="button" variant="outline" onClick={onOpenEvents}>
+                    Events &amp; history
+                  </Button>
+                )}
+                {worker.status === "active" && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setLeaverOpen(true)}
+                  >
+                    Mark as Leaver
+                  </Button>
+                )}
+              </div>
               <Button type="button" onClick={() => setEditing(true)}>
                 Edit
               </Button>
@@ -313,5 +325,24 @@ export function WorkerProfileDialog({
         )}
       </DialogContent>
     </Dialog>
+
+    {worker && (
+      <MarkLeaverDialog
+        open={leaverOpen}
+        onOpenChange={setLeaverOpen}
+        workerId={workerId}
+        workerName={worker.fullName}
+        onSaved={() => {
+          // Refetch the worker so status flips to "left" and the destructive
+          // button disappears — prevents a second submission in the same open
+          // profile (backend also rejects a repeat with 409).
+          queryClient.invalidateQueries({
+            queryKey: getGetWorkerQueryKey(workerId),
+          });
+          onSaved?.();
+        }}
+      />
+    )}
+    </>
   );
 }

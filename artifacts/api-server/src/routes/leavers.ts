@@ -91,6 +91,9 @@ router.post("/workers/:id/leave", async (req, res): Promise<void> => {
       .from(workersTable)
       .where(eq(workersTable.id, params.data.id));
     if (!w) return null;
+    // Idempotency guard: a worker already marked "left" must not be re-marked
+    // (would create a duplicate leaver row). Signal back with a sentinel.
+    if (w.status === "left") return "already_left" as const;
 
     await tx.insert(leaversTable).values({
       workerId: w.id,
@@ -111,6 +114,10 @@ router.post("/workers/:id/leave", async (req, res): Promise<void> => {
 
   if (!worker) {
     res.status(404).json({ error: "Worker not found" });
+    return;
+  }
+  if (worker === "already_left") {
+    res.status(409).json({ error: "Worker is already marked as a leaver" });
     return;
   }
 
