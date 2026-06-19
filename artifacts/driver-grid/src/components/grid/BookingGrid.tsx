@@ -419,7 +419,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                   </button>
                 </TableCell>
                 <TableCell className="w-[160px] whitespace-nowrap border-r py-0.5 text-[11px] text-muted-foreground">{worker.phone || "-"}</TableCell>
-                <TableCell className="border-r py-0.5 text-[11px] text-muted-foreground">{worker.note || "-"}</TableCell>
+                <TableCell className="w-[240px] whitespace-nowrap border-r py-0.5 text-[11px] text-muted-foreground">{worker.note || "-"}</TableCell>
                 {days.map((day, di) => {
                   const dateStr = format(day, "yyyy-MM-dd");
                   const booking = data.bookings.find(
