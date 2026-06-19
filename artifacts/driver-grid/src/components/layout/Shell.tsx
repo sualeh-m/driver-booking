@@ -42,7 +42,7 @@ export function Shell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-card px-4 shadow-xs">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 font-semibold text-primary">
