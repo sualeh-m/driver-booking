@@ -381,12 +381,12 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
         <table className={`caption-bottom text-sm border-collapse select-none ${isDayView ? "w-auto" : "w-full"}`}>
           <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
             <TableRow>
-              <TableHead className="w-[240px] border-r sticky left-0 z-20 bg-muted">Worker</TableHead>
-              <TableHead className="w-[150px] border-r">Phone</TableHead>
+              <TableHead className="w-[260px] border-r sticky left-0 z-20 bg-muted">Worker</TableHead>
+              <TableHead className="w-[160px] border-r">Phone</TableHead>
               <TableHead className="w-[240px] border-r">Standing Note</TableHead>
               {days.map((day) => {
                 const dStr = format(day, "yyyy-MM-dd");
@@ -407,7 +407,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           <TableBody>
             {data.workers.map((worker, wi) => (
               <TableRow key={worker.id}>
-                <TableCell className="w-[240px] whitespace-nowrap border-r py-0.5 font-medium sticky left-0 bg-background" style={{ backgroundColor: roleCellBg(worker.jobRole) }}>
+                <TableCell className="w-[260px] whitespace-nowrap border-r py-0.5 font-medium sticky left-0 bg-background" style={{ backgroundColor: roleCellBg(worker.jobRole) }}>
                   <button
                     type="button"
                     className="-mx-1 block w-full rounded px-1 py-0.5 text-left leading-tight hover:bg-muted"
@@ -418,7 +418,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                     {worker.jobRole && <span className="text-[11px] text-muted-foreground"> · {worker.jobRole}</span>}
                   </button>
                 </TableCell>
-                <TableCell className="w-[150px] whitespace-nowrap border-r py-0.5 text-[11px] text-muted-foreground">{worker.phone || "-"}</TableCell>
+                <TableCell className="w-[160px] whitespace-nowrap border-r py-0.5 text-[11px] text-muted-foreground">{worker.phone || "-"}</TableCell>
                 <TableCell className="border-r py-0.5 text-[11px] text-muted-foreground">{worker.note || "-"}</TableCell>
                 {days.map((day, di) => {
                   const dateStr = format(day, "yyyy-MM-dd");

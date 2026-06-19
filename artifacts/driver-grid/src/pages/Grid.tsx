@@ -116,7 +116,7 @@ export function Grid() {
         <GridToolbar sheet={selectedSheet} start={start} end={end} bookings={gridData?.bookings} workers={gridData?.workers} onSheetDeleted={() => setSelectedSheetId(null)} />
       </div>
 
-      <div className="flex-1 overflow-hidden bg-background">
+      <div className="flex-1 min-h-0 overflow-hidden bg-background">
         {selectedSheetId ? (
           <BookingGrid
             sheetId={selectedSheetId}

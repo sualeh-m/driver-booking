@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, DownloadIcon, MailIcon, MessageSquareIcon, UploadIcon, UserPlusIcon, SettingsIcon } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { DownloadIcon, MailIcon, MessageSquareIcon, UserPlusIcon, SettingsIcon, FilePlusIcon } from "lucide-react";
 import type { Sheet, Booking, GridWorker } from "@workspace/api-client-react";
 import { AddWorkerDialog } from "./dialogs/AddWorkerDialog";
 import { NewSheetDialog } from "./dialogs/NewSheetDialog";
 import { SheetSettingsDialog } from "./dialogs/SheetSettingsDialog";
-import { ImportCsvDialog } from "./dialogs/ImportCsvDialog";
 import { EmailClientDialog } from "./dialogs/EmailClientDialog";
 import { SendConfirmationsDialog } from "./dialogs/SendConfirmationsDialog";
 
@@ -56,57 +56,49 @@ export function GridToolbar({ sheet, start, end, bookings, workers, onSheetDelet
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
   const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [emailClientOpen, setEmailClientOpen] = useState(false);
   const [sendConfirmationsOpen, setSendConfirmationsOpen] = useState(false);
 
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
+  const actions = [
+    { key: "add", label: "Add Worker", Icon: UserPlusIcon, onClick: () => setAddWorkerOpen(true), disabled: !sheet },
+    { key: "new", label: "New Sheet", Icon: FilePlusIcon, onClick: () => setNewSheetOpen(true), disabled: false },
+    { key: "settings", label: "Sheet Settings", Icon: SettingsIcon, onClick: () => setSettingsOpen(true), disabled: !sheet },
+    {
+      key: "export",
+      label: "Export",
+      Icon: DownloadIcon,
+      onClick: () => {
+        if (sheet && bookings && workers) exportCsv(sheet, workers, bookings);
+      },
+      disabled: !sheet || !bookings || !workers,
+    },
+    { key: "email", label: "Email Client", Icon: MailIcon, onClick: () => setEmailClientOpen(true), disabled: !sheet },
+    { key: "confirm", label: "Confirmations", Icon: MessageSquareIcon, onClick: () => setSendConfirmationsOpen(true), disabled: !sheet },
+  ] as const;
+
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setAddWorkerOpen(true)} disabled={!sheet}>
-          <UserPlusIcon className="mr-2 h-4 w-4" />
-          Add Worker
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setNewSheetOpen(true)}>
-          <PlusIcon className="mr-2 h-4 w-4" />
-          New Sheet
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!sheet}>
-          <SettingsIcon className="mr-2 h-4 w-4" />
-          Sheet Settings
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} disabled={!sheet}>
-          <UploadIcon className="mr-2 h-4 w-4" />
-          Import CSV
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!sheet || !bookings || !workers}
-          onClick={() => {
-            if (sheet && bookings && workers) exportCsv(sheet, workers, bookings);
-          }}
-        >
-          <DownloadIcon className="mr-2 h-4 w-4" />
-          Export
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setEmailClientOpen(true)} disabled={!sheet}>
-          <MailIcon className="mr-2 h-4 w-4" />
-          Email Client
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setSendConfirmationsOpen(true)} disabled={!sheet}>
-          <MessageSquareIcon className="mr-2 h-4 w-4" />
-          Confirmations
-        </Button>
-      </div>
+      <TooltipProvider delayDuration={200}>
+        <div className="flex flex-nowrap items-center gap-1">
+          {actions.map(({ key, label, Icon, onClick, disabled }) => (
+            <Tooltip key={key}>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={onClick} disabled={disabled} aria-label={label}>
+                  <Icon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </TooltipProvider>
 
       <AddWorkerDialog open={addWorkerOpen} onOpenChange={setAddWorkerOpen} sheet={sheet} start={startStr} end={endStr} />
       <NewSheetDialog open={newSheetOpen} onOpenChange={setNewSheetOpen} />
       {sheet && <SheetSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} sheet={sheet} onDeleted={onSheetDeleted} />}
-      <ImportCsvDialog open={importOpen} onOpenChange={setImportOpen} sheet={sheet} start={startStr} end={endStr} />
       <EmailClientDialog open={emailClientOpen} onOpenChange={setEmailClientOpen} sheetId={sheet?.id ?? null} />
       <SendConfirmationsDialog open={sendConfirmationsOpen} onOpenChange={setSendConfirmationsOpen} sheetId={sheet?.id ?? null} workers={workers} />
     </>
