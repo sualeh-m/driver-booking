@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { format, eachDayOfInterval } from "date-fns";
 import { GridResponse, Booking, Status, BookingInput } from "@workspace/api-client-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -372,21 +372,36 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     full: "bg-green-100 text-green-700",
   };
 
+  // Day view (a single date) should stay compact — let the table take its
+  // natural width so the lone date column does not stretch across the screen.
+  // Week/Month fill the width; Month overflows and scrolls horizontally.
+  const isDayView = days.length === 1;
+  // Past dates are dimmed; today is highlighted. Compared as ISO date strings.
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-auto">
-        <Table className="border-collapse select-none">
+        <table className={`caption-bottom text-sm border-collapse select-none ${isDayView ? "w-auto" : "w-full"}`}>
           <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
             <TableRow>
-              <TableHead className="w-[180px] border-r">Worker</TableHead>
+              <TableHead className="w-[180px] border-r sticky left-0 z-20 bg-muted">Worker</TableHead>
               <TableHead className="w-[120px] border-r">Phone</TableHead>
               <TableHead className="w-[220px] border-r">Standing Note</TableHead>
-              {days.map((day) => (
-                <TableHead key={day.toISOString()} className="min-w-[100px] border-r text-center">
-                  <div className="font-semibold">{format(day, "EEE")}</div>
-                  <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
-                </TableHead>
-              ))}
+              {days.map((day) => {
+                const dStr = format(day, "yyyy-MM-dd");
+                const isPast = dStr < todayStr;
+                const isToday = dStr === todayStr;
+                return (
+                  <TableHead
+                    key={day.toISOString()}
+                    className={`min-w-[100px] border-r text-center ${isToday ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : isPast ? "bg-muted/60 text-muted-foreground" : ""}`}
+                  >
+                    <div className={`font-semibold ${isToday ? "text-primary" : ""}`}>{format(day, "EEE")}</div>
+                    <div className="text-xs text-muted-foreground">{format(day, "MMM d")}{isToday ? " · Today" : ""}</div>
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -420,6 +435,8 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                       workerName={worker.fullName}
                       restDays={restCounters.get(cellKey)}
                       isNoShow={noShowCells.has(cellKey)}
+                      isPast={dateStr < todayStr}
+                      isToday={dateStr === todayStr}
                       open={openCellKey === cellKey}
                       onOpenChange={(o) => setOpenCellKey(o ? cellKey : null)}
                       selected={inSelection(wi, di)}
@@ -497,7 +514,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
               ))}
             </TableRow>
           </TableHeader>
-        </Table>
+        </table>
       </div>
 
       <div className="border-t bg-card p-2 flex flex-wrap items-center justify-end gap-4 text-xs">
@@ -624,7 +641,7 @@ function roleCellBg(jobRole?: string | null): string | undefined {
 
 const NO_SHOW_OPTION = "__no_show__";
 
-function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, open, onOpenChange, selected, onPointerDown, onPointerEnter, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, open: boolean, onOpenChange: (open: boolean) => void, selected: boolean, onPointerDown: () => void, onPointerEnter: () => void, onSave: (workerId: number, dateStr: string, status: Status, startTime: string, note: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
+function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoShow, isPast, isToday, open, onOpenChange, selected, onPointerDown, onPointerEnter, onSave, onDelete, onLogNoShow, onClearNoShow }: { booking?: Booking, dateStr: string, workerId: number, workerName: string, restDays?: number, isNoShow?: boolean, isPast?: boolean, isToday?: boolean, open: boolean, onOpenChange: (open: boolean) => void, selected: boolean, onPointerDown: () => void, onPointerEnter: () => void, onSave: (workerId: number, dateStr: string, status: Status, startTime: string, note: string) => void, onDelete: (id: number) => void, onLogNoShow: (workerId: number, workerName: string, dateStr: string) => void, onClearNoShow: (workerId: number, workerName: string, dateStr: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<Status | typeof NO_SHOW_OPTION>(booking?.status || "Off");
   const [time, setTime] = useState(booking?.startTime || "");
@@ -687,7 +704,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
     : getStatusClass(booking?.status);
 
   return (
-    <TableCell className="border-r p-0 align-top">
+    <TableCell className={`border-r p-0 align-top ${isPast ? "bg-muted/50" : isToday ? "bg-primary/5" : ""}`}>
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverAnchor asChild>
           <div
@@ -697,7 +714,7 @@ function BookingCell({ booking, dateStr, workerId, workerName, restDays, isNoSho
               onPointerDown();
             }}
             onMouseEnter={onPointerEnter}
-            className={`relative h-full w-full min-h-[28px] cursor-pointer p-1 flex items-center justify-center text-xs font-medium transition-all ${cellClass} ${selected ? "ring-2 ring-inset ring-primary" : "hover:ring-2 hover:ring-inset hover:ring-primary/50"}`}
+            className={`relative h-full w-full min-h-[28px] cursor-pointer p-1 flex items-center justify-center text-xs font-medium transition-all ${cellClass} ${isPast ? "opacity-70" : ""} ${selected ? "ring-2 ring-inset ring-primary" : "hover:ring-2 hover:ring-inset hover:ring-primary/50"}`}
           >
             {restDays != null && restDays > 0 && (
               <span
