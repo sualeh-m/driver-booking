@@ -392,14 +392,14 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           <TableBody>
             {data.workers.map((worker, wi) => (
               <TableRow key={worker.id}>
-                <TableCell className="border-r py-0.5 font-medium sticky left-0 bg-background">
+                <TableCell className="border-r py-0.5 font-medium sticky left-0 bg-background" style={{ backgroundColor: roleCellBg(worker.jobRole) }}>
                   <button
                     type="button"
                     className="-mx-1 block w-full rounded px-1 py-0.5 text-left leading-tight hover:bg-muted"
                     onClick={() => setProfileFor({ id: worker.id, fullName: worker.fullName, workerType: worker.workerType, note: worker.note ?? null })}
                     title="View or edit worker"
                   >
-                    <span className="text-xs font-medium" style={{ color: roleNameColor(worker.jobRole) }}>{worker.fullName}</span>
+                    <span className="text-xs">{worker.fullName}</span>
                     {worker.jobRole && <span className="text-[11px] text-muted-foreground"> · {worker.jobRole}</span>}
                   </button>
                 </TableCell>
@@ -603,22 +603,23 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   );
 }
 
-// Worker-name text colours by job role — a system independent of the status
-// cell colours. Soft, muted, mid-tone shades that stay readable on a light
-// background. Unknown/null roles fall back to the default text colour.
-const ROLE_NAME_COLORS: Record<string, string> = {
-  "HGV 1": "#4f7a5b",       // green
-  "HGV 2": "#3f7d7d",       // teal
-  "Trunker": "#8267a6",     // light purple
-  "Van": "#5b7fa6",         // soft blue
-  "Forklift": "#9c7b3c",    // muted amber
-  "Drivers Mate": "#6b7a8f", // soft grey-blue
-  "Warehouse": "#977b5d",   // soft brown/tan
-  "Other": "#71717a",       // grey
+// Worker-name CELL background shading by job role — a system independent of the
+// status cell colours. Soft, PALE, desaturated fills so the normal dark name
+// text stays clearly readable on top. Unknown/null roles fall back to the
+// default cell background.
+const ROLE_CELL_BG: Record<string, string> = {
+  "HGV 1": "#dfeae0",        // pale green
+  "HGV 2": "#d9e8e8",        // pale teal
+  "Trunker": "#e6e0ee",      // pale light purple
+  "Van": "#dde6f0",          // pale soft blue
+  "Forklift": "#efe6cf",     // pale muted amber
+  "Drivers Mate": "#e0e5ec", // pale grey-blue
+  "Warehouse": "#eae0d4",    // pale soft brown/tan
+  "Other": "#e6e6e9",        // pale grey
 };
-function roleNameColor(jobRole?: string | null): string | undefined {
+function roleCellBg(jobRole?: string | null): string | undefined {
   if (!jobRole) return undefined;
-  return ROLE_NAME_COLORS[jobRole];
+  return ROLE_CELL_BG[jobRole];
 }
 
 const NO_SHOW_OPTION = "__no_show__";
