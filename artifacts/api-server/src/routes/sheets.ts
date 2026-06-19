@@ -20,7 +20,7 @@ import {
   AddWorkerToSheetBody,
   RemoveWorkerFromSheetParams,
 } from "@workspace/api-zod";
-import { serializeSheet, serializeSheetContact } from "../lib/serialize";
+import { serializeSheet, serializeSheetContact, sheetDisplayName } from "../lib/serialize";
 import { requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -29,7 +29,7 @@ router.get("/sheets", async (_req, res): Promise<void> => {
   const sheets = await db
     .select()
     .from(sheetsTable)
-    .orderBy(sheetsTable.clientCompany, sheetsTable.name);
+    .orderBy(sheetsTable.clientCompany, sheetsTable.depot);
   res.json(sheets.map(serializeSheet));
 });
 
@@ -43,7 +43,7 @@ router.post("/sheets", async (req, res): Promise<void> => {
   const [sheet] = await db
     .insert(sheetsTable)
     .values({
-      name: parsed.data.name,
+      name: sheetDisplayName(parsed.data.clientCompany, parsed.data.depot),
       clientCompany: parsed.data.clientCompany,
       depot: parsed.data.depot ?? null,
       workerType: parsed.data.workerType,

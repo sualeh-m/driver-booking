@@ -186,9 +186,7 @@ export const ListSheetsResponse = zod.array(ListSheetsResponseItem)
 
 
 
-
 export const CreateSheetBody = zod.object({
-  "name": zod.string().min(1),
   "clientCompany": zod.string().min(1),
   "depot": zod.string().optional(),
   "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.')

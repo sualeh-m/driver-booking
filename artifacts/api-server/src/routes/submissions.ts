@@ -28,7 +28,14 @@ function submissionSelect() {
     submittedDate: submissionsTable.submittedDate,
     outcome: submissionsTable.outcome,
     sheetId: submissionsTable.sheetId,
-    sheetName: sheetsTable.name,
+    // Derive the sheet name as "Client — Depot" (matching sheetDisplayName)
+    // rather than the legacy stored sheets.name, so it displays consistently.
+    sheetName: sql<string | null>`(
+      CASE WHEN ${sheetsTable.id} IS NULL THEN NULL
+      WHEN ${sheetsTable.depot} IS NOT NULL AND btrim(${sheetsTable.depot}) <> ''
+        THEN ${sheetsTable.clientCompany} || ' — ' || ${sheetsTable.depot}
+      ELSE ${sheetsTable.clientCompany} END
+    )`,
     requirementId: submissionsTable.requirementId,
     requirementReqDate: shiftRequirementsTable.reqDate,
     requirementJobRole: shiftRequirementsTable.jobRole,

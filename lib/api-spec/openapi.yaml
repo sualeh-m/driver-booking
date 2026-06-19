@@ -1416,9 +1416,8 @@ components:
 
     SheetInput:
       type: object
-      required: [name, clientCompany, workerType]
+      required: [clientCompany, workerType]
       properties:
-        name: { type: string, minLength: 1 }
         clientCompany: { type: string, minLength: 1 }
         depot: { type: string }
         workerType: { $ref: "#/components/schemas/SheetWorkerType" }

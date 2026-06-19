@@ -106,7 +106,7 @@ export function Submissions() {
                   <SelectItem value={ALL_SHEETS}>All sheets</SelectItem>
                   {sheets?.map((s) => (
                     <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name} — {s.clientCompany}
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

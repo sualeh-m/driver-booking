@@ -22,10 +22,17 @@ export function serializeUser(u: User) {
   };
 }
 
+// A sheet's display name is ALWAYS derived from client company + depot
+// ("Client — Depot"), never user-entered. Deriving on read means existing
+// sheets display consistently and any client/depot edit updates the name.
+export function sheetDisplayName(clientCompany: string, depot: string | null | undefined): string {
+  return depot && depot.trim() ? `${clientCompany} — ${depot}` : clientCompany;
+}
+
 export function serializeSheet(s: Sheet) {
   return {
     id: s.id,
-    name: s.name,
+    name: sheetDisplayName(s.clientCompany, s.depot),
     clientCompany: s.clientCompany,
     depot: s.depot,
     workerType: s.workerType,

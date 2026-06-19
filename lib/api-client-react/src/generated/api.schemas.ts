@@ -166,8 +166,6 @@ export interface Sheet {
 
 export interface SheetInput {
   /** @minLength 1 */
-  name: string;
-  /** @minLength 1 */
   clientCompany: string;
   depot?: string;
   workerType: SheetWorkerType;

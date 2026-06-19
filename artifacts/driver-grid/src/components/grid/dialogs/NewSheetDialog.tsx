@@ -11,7 +11,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
-  name: z.string().min(1, "Sheet name is required"),
   clientCompany: z.string().min(1, "Client company is required"),
   depot: z.string().optional(),
   workerType: z.enum(["HGV", "Warehouse", "Both"]),
@@ -25,7 +24,6 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
       clientCompany: "",
       depot: "",
       workerType: "HGV",
@@ -34,7 +32,6 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     createSheet.mutate({ data: {
-      name: values.name,
       clientCompany: values.clientCompany,
       depot: values.depot || undefined,
       workerType: values.workerType,
@@ -59,23 +56,10 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Sheet</DialogTitle>
-          <DialogDescription>Create a booking sheet for a client depot.</DialogDescription>
+          <DialogDescription>Create a booking sheet for a client depot. The sheet name is generated automatically as "Client — Depot".</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sheet Name *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Mon-Fri Days" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="clientCompany"

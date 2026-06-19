@@ -78,7 +78,7 @@ export function Grid() {
             <SelectContent>
               {sheets?.map((s) => (
                 <SelectItem key={s.id} value={s.id.toString()}>
-                  {s.name} — {s.clientCompany}{s.depot ? ` (${s.depot})` : ""} · {s.workerType}
+                  {s.name} · {s.workerType}
                 </SelectItem>
               ))}
             </SelectContent>
