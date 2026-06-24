@@ -22,6 +22,7 @@ import {
 import { serializeBooking } from "../lib/serialize";
 import { getUserId } from "../lib/auth";
 import { evaluateRestRule } from "../lib/restCheck";
+import { findCrossSheetWorkingConflict } from "../lib/crossSheet";
 import { parseCsv } from "../lib/csv";
 
 const router: IRouter = Router();
@@ -351,6 +352,25 @@ router.post("/import", async (req, res): Promise<void> => {
           .insert(workerSheetsTable)
           .values({ sheetId, workerId: worker.id })
           .onConflictDoNothing();
+
+        // Cross-sheet hard block — the same invariant the single/batch booking
+        // endpoints enforce must hold on the import path too: a worker is one
+        // person across all sheets, so never silently move/overwrite a working
+        // booking that lives on another sheet. The per-worker advisory lock
+        // (held to commit) makes the check + upsert atomic against concurrent
+        // booking writes for the same worker.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${worker.id})`);
+        const conflict = await findCrossSheetWorkingConflict(
+          tx,
+          worker.id,
+          shiftDate,
+          sheetId,
+        );
+        if (conflict) {
+          throw new Error(
+            `${conflict.workerName} is already working elsewhere that day (${conflict.sheetName} · ${conflict.status}); remove that booking first`,
+          );
+        }
 
         const [existing] = await tx
           .select()

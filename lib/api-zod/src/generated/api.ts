@@ -720,8 +720,14 @@ export const UpsertBookingsBatchResponse = zod.object({
   "shiftDate": zod.string(),
   "workerName": zod.string(),
   "consecutiveDays": zod.number()
+})),
+  "conflicts": zod.array(zod.object({
+  "workerId": zod.number(),
+  "shiftDate": zod.string(),
+  "workerName": zod.string(),
+  "consecutiveDays": zod.number()
 }))
-}).describe('Outcome of a drag-fill apply, split per cell. applied = saved; warnings = HGV cells at the warn threshold not yet saved (resubmit with acknowledgeRestWarning to save them); blocked = HGV cells at the block threshold that cannot be saved.')
+}).describe('Outcome of a drag-fill apply, split per cell. applied = saved; warnings = HGV cells at the warn threshold not yet saved (resubmit with acknowledgeRestWarning to save them); blocked = HGV cells at the block threshold that cannot be saved; conflicts = cells skipped because the worker is already working (Confirmed\/Pre-Booked) on another sheet that day (a hard cross-sheet double-booking block).')
 
 
 /**

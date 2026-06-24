@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, bookingsTable, auditLogTable, workersTable } from "@workspace/db";
 import {
   UpsertBookingBody,
@@ -12,6 +12,7 @@ import { getUserId } from "../lib/auth";
 import { evaluateRestRule, evaluateRestBatchForWorker } from "../lib/restCheck";
 import { clearNoShowsForDate } from "../lib/noShow";
 import { applyBookingTx, describeBooking } from "../lib/applyBooking";
+import { findCrossSheetWorkingConflict, type CrossSheetConflict } from "../lib/crossSheet";
 
 const router: IRouter = Router();
 
@@ -55,11 +56,30 @@ router.put("/bookings", async (req, res): Promise<void> => {
     }
   }
 
-  const result = await db.transaction((tx) =>
-    applyBookingTx(tx, { workerId, sheetId, shiftDate, status, startTime, note }, userId),
-  );
+  // Cross-sheet double-booking — a HARD block (a worker is one person across
+  // all sheets). If they already have a working booking on ANOTHER sheet that
+  // day, refuse to write rather than silently move/overwrite it. The check and
+  // the write must be atomic: a per-worker advisory lock (held until commit)
+  // serializes concurrent writers so no other session can slip a working
+  // booking onto another sheet between the check and the apply.
+  let conflict: CrossSheetConflict | null = null;
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${workerId})`);
+    conflict = await findCrossSheetWorkingConflict(tx, workerId, shiftDate, sheetId);
+    if (conflict) return null;
+    return applyBookingTx(tx, { workerId, sheetId, shiftDate, status, startTime, note }, userId);
+  });
 
-  res.json(serializeBooking(result));
+  if (conflict) {
+    const c: CrossSheetConflict = conflict;
+    res.status(422).json({
+      code: "CROSS_SHEET_CONFLICT",
+      error: `${c.workerName} is already working elsewhere that day (${c.sheetName} · ${c.status}). Remove that booking first.`,
+    });
+    return;
+  }
+
+  res.json(serializeBooking(result!));
 });
 
 router.put("/bookings/batch", async (req, res): Promise<void> => {
@@ -98,8 +118,16 @@ router.put("/bookings/batch", async (req, res): Promise<void> => {
   const applied: ResultCell[] = [];
   const warnings: ResultCell[] = [];
   const blocked: ResultCell[] = [];
+  const conflicts: ResultCell[] = [];
 
   await db.transaction(async (tx) => {
+    // Serialize concurrent writers per worker (same lock the single PUT takes),
+    // so the per-cell cross-sheet conflict check and the write stay atomic.
+    // Acquire in ascending worker-id order to avoid deadlocks between batches.
+    for (const wid of [...datesByWorker.keys()].sort((a, b) => a - b)) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${wid})`);
+    }
+
     for (const [workerId, dates] of datesByWorker) {
       const { workerName, perDate } = await evaluateRestBatchForWorker(
         tx,
@@ -115,6 +143,18 @@ router.put("/bookings/batch", async (req, res): Promise<void> => {
         const decision = perDate.get(shiftDate);
         const consecutiveDays = decision?.consecutiveDays ?? 0;
         const cell: ResultCell = { workerId, shiftDate, workerName, consecutiveDays };
+
+        // Cross-sheet double-booking is a HARD block and takes precedence over
+        // any rest decision: never move/overwrite a working booking that lives
+        // on another sheet. Note we do NOT remove a conflict date from the rest
+        // accumulation above — that date is a genuine working day for the worker
+        // (on the other sheet, already in the cross-sheet rest window), so it
+        // must keep counting toward later cells' consecutive-day runs.
+        const conflict = await findCrossSheetWorkingConflict(tx, workerId, shiftDate, sheetId);
+        if (conflict) {
+          conflicts.push(cell);
+          continue;
+        }
 
         if (decision?.decision === "block") {
           blocked.push(cell);
@@ -135,7 +175,7 @@ router.put("/bookings/batch", async (req, res): Promise<void> => {
     }
   });
 
-  res.json({ applied, warnings, blocked });
+  res.json({ applied, warnings, blocked, conflicts });
 });
 
 router.delete("/bookings/:id", async (req, res): Promise<void> => {

@@ -72,6 +72,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
     applied: BatchBookingResult["applied"];
     warnings: BatchBookingResult["warnings"];
     blocked: BatchBookingResult["blocked"];
+    conflicts: BatchBookingResult["conflicts"];
   } | null>(null);
 
   const invalidate = () => {
@@ -141,16 +142,21 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   const summarizeBatch = (result: BatchBookingResult) => {
     const savedN = result.applied.length;
     const blockedN = result.blocked.length;
-    if (savedN === 0 && blockedN > 0) {
+    const conflictN = result.conflicts.length;
+    if (savedN === 0 && (blockedN > 0 || conflictN > 0)) {
+      const reasons: string[] = [];
+      if (blockedN > 0) reasons.push(`${blockedN} at the HGV 7-day rest limit`);
+      if (conflictN > 0) reasons.push(`${conflictN} already working on another sheet`);
       toast({
         title: "Nothing saved",
-        description: `${blockedN} cell${blockedN === 1 ? "" : "s"} blocked at the HGV 7-day rest limit.`,
+        description: reasons.join(" · "),
         variant: "destructive",
       });
       return;
     }
     const parts = [`${savedN} cell${savedN === 1 ? "" : "s"} updated`];
     if (blockedN > 0) parts.push(`${blockedN} blocked (HGV 7-day rest limit)`);
+    if (conflictN > 0) parts.push(`${conflictN} skipped (already working elsewhere)`);
     toast({ title: "Drag-fill applied", description: parts.join(" · ") });
   };
 
@@ -174,7 +180,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           invalidate();
           setBatch(null);
           if (result.warnings.length > 0) {
-            setBatchWarn({ status, startTime, note, applied: result.applied, warnings: result.warnings, blocked: result.blocked });
+            setBatchWarn({ status, startTime, note, applied: result.applied, warnings: result.warnings, blocked: result.blocked, conflicts: result.conflicts });
           } else {
             setBatchWarn(null);
             summarizeBatch(result);
@@ -207,6 +213,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
             applied: [...prior.applied, ...result.applied],
             warnings: [],
             blocked: [...prior.blocked, ...result.blocked],
+            conflicts: [...prior.conflicts, ...result.conflicts],
           });
         },
         onError: batchError,
@@ -243,6 +250,9 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           } else if (body?.code === "REST_BLOCK") {
             setRestWarning(null);
             toast({ title: "Booking blocked", description: message, variant: "destructive" });
+          } else if (body?.code === "CROSS_SHEET_CONFLICT") {
+            setRestWarning(null);
+            toast({ title: "Already working elsewhere", description: message, variant: "destructive" });
           } else {
             toast({ title: "Failed to save booking", description: message, variant: "destructive" });
           }
@@ -571,7 +581,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { if (batchWarn) summarizeBatch({ applied: batchWarn.applied, warnings: [], blocked: batchWarn.blocked }); }}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { if (batchWarn) summarizeBatch({ applied: batchWarn.applied, warnings: [], blocked: batchWarn.blocked, conflicts: batchWarn.conflicts }); }}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmBatchWarn}>
               Book anyway
             </AlertDialogAction>

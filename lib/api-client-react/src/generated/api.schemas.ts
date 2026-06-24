@@ -420,12 +420,13 @@ export interface BatchBookingResultCell {
 }
 
 /**
- * Outcome of a drag-fill apply, split per cell. applied = saved; warnings = HGV cells at the warn threshold not yet saved (resubmit with acknowledgeRestWarning to save them); blocked = HGV cells at the block threshold that cannot be saved.
+ * Outcome of a drag-fill apply, split per cell. applied = saved; warnings = HGV cells at the warn threshold not yet saved (resubmit with acknowledgeRestWarning to save them); blocked = HGV cells at the block threshold that cannot be saved; conflicts = cells skipped because the worker is already working (Confirmed/Pre-Booked) on another sheet that day (a hard cross-sheet double-booking block).
  */
 export interface BatchBookingResult {
   applied: BatchBookingResultCell[];
   warnings: BatchBookingResultCell[];
   blocked: BatchBookingResultCell[];
+  conflicts: BatchBookingResultCell[];
 }
 
 /**

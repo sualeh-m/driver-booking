@@ -96,7 +96,7 @@ export function GridToolbar({ sheet, start, end, bookings, workers, onSheetDelet
         </div>
       </TooltipProvider>
 
-      <AddWorkerDialog open={addWorkerOpen} onOpenChange={setAddWorkerOpen} sheet={sheet} start={startStr} end={endStr} />
+      <AddWorkerDialog open={addWorkerOpen} onOpenChange={setAddWorkerOpen} sheet={sheet} start={startStr} end={endStr} existingWorkerIds={workers?.map((w) => w.id) ?? []} />
       <NewSheetDialog open={newSheetOpen} onOpenChange={setNewSheetOpen} />
       {sheet && <SheetSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} sheet={sheet} onDeleted={onSheetDeleted} />}
       <EmailClientDialog open={emailClientOpen} onOpenChange={setEmailClientOpen} sheetId={sheet?.id ?? null} />

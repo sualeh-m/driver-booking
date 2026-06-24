@@ -7,3 +7,4 @@
 - [drizzle-kit push ignores CHECK constraints](drizzle-push-check-constraints.md) — push reports "No changes" for changed check()s; apply the ALTER + data migrations as manual SQL (dev + hand prod SQL to user).
 - [Auth + admin deletes](auth-and-admin-deletes.md) — email/pw + roles; attach requireAdmin PER-ROUTE (use leaks); sheet-delete must hand-delete bookings (RESTRICT); delete-leaver ≠ Restore (stays 'left').
 - [Batch grid edit + per-cell rest rule](batch-edit-rest-rule.md) — drag-fill must equal single-cell: one shared write helper, per-cell rest accumulation (block breaks streak), warn-ack resubmits ONLY warned cells.
+- [Cross-sheet booking hard block](cross-sheet-booking-block.md) — block a working booking on another sheet that day; enforce on ALL write paths (incl. import); conflict dates still count for rest; per-worker advisory lock for atomicity.

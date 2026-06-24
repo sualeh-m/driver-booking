@@ -1681,12 +1681,14 @@ components:
 
     BatchBookingResult:
       type: object
-      required: [applied, warnings, blocked]
+      required: [applied, warnings, blocked, conflicts]
       description: >-
         Outcome of a drag-fill apply, split per cell. applied = saved;
         warnings = HGV cells at the warn threshold not yet saved (resubmit with
         acknowledgeRestWarning to save them); blocked = HGV cells at the block
-        threshold that cannot be saved.
+        threshold that cannot be saved; conflicts = cells skipped because the
+        worker is already working (Confirmed/Pre-Booked) on another sheet that
+        day (a hard cross-sheet double-booking block).
       properties:
         applied:
           type: array
@@ -1695,6 +1697,9 @@ components:
           type: array
           items: { $ref: "#/components/schemas/BatchBookingResultCell" }
         blocked:
+          type: array
+          items: { $ref: "#/components/schemas/BatchBookingResultCell" }
+        conflicts:
           type: array
           items: { $ref: "#/components/schemas/BatchBookingResultCell" }
 
