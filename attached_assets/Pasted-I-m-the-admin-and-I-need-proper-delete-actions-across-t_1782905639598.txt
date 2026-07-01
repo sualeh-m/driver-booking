@@ -1,0 +1,17 @@
+I'm the admin and I need proper "delete" actions across the app, separate from "mark as leaver". Marking someone as a leaver is for real people who left (kept in reports); deleting is for removing records that shouldn't exist at all (test entries, mistakes) — deleted things must NOT appear in any reports.
+Add admin-only delete actions (standard users must never see or be able to do these — enforce on the server, not just hidden buttons) in these places:
+
+WORKER: Delete a worker entirely. If the worker has bookings, submissions, or other history, ALLOW the delete but first show a clear warning stating exactly what will also be removed (e.g. "This will permanently delete this worker and their 14 bookings, 2 submissions, and leaver record"). Count and show the real numbers so I know the impact before confirming.
+SHEET: Delete a whole sheet (this already exists as admin-only — keep it, and make sure it follows the same confirmation pattern below).
+LEAVER RECORD: In the Leavers view, delete a leaver RECORD — this removes the leaver/retirement entry (and should return the worker to active/not-a-leaver, OR fully remove per context — make it clear which). This is separate from deleting the whole worker. Label it clearly so it's obvious it's removing the leaver record, not the person's whole history.
+SUBMISSION: Delete an individual submission record.
+BOOKING: Allow deleting/clearing a booking (this is likely already possible via clearing a cell — just confirm a booking can be removed).
+
+For ALL of these delete actions:
+
+Admin only, enforced server-side.
+Require the type-DELETE confirmation safeguard (type the word DELETE exactly to enable the confirm button), same as the Mark as Leaver flow.
+The confirmation must clearly state what is being deleted and any knock-on data that will be removed with it.
+Deleted records must not appear in KPI reports.
+
+Keep everything else exactly as it is. When done, verify each delete works, is admin-only, requires typing DELETE, and shows what it will remove. Tell me the result of each.

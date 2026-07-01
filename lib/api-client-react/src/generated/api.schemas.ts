@@ -13,6 +13,23 @@ export interface Error {
   error: string;
 }
 
+export interface WorkerDeleteImpact {
+  bookings: number;
+  submissions: number;
+  events: number;
+  workerSheets: number;
+  messages: number;
+  hasLeaverRecord: boolean;
+}
+
+export interface SheetDeleteImpact {
+  bookings: number;
+  workers: number;
+  contacts: number;
+  requirements: number;
+  submissions: number;
+}
+
 export type Status = typeof Status[keyof typeof Status];
 
 

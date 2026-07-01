@@ -1,6 +1,15 @@
 import { Router, type IRouter } from "express";
 import { and, count, eq, or, ilike, sql } from "drizzle-orm";
-import { db, workersTable, eventsTable, workerSheetsTable } from "@workspace/db";
+import {
+  db,
+  workersTable,
+  eventsTable,
+  workerSheetsTable,
+  bookingsTable,
+  submissionsTable,
+  leaversTable,
+  messagesTable,
+} from "@workspace/db";
 import { isRestRuleJobRole } from "@workspace/rest-rules";
 import {
   CreateWorkerBody,
@@ -10,8 +19,11 @@ import {
   GetWorkerParams,
   UpdateWorkerParams,
   UpdateWorkerBody,
+  GetWorkerDeleteImpactParams,
+  DeleteWorkerParams,
 } from "@workspace/api-zod";
 import { serializeWorker } from "../lib/serialize";
+import { requireAdmin } from "../lib/auth";
 
 // Normalise an optional free-text field: trim, and treat empty as null so we
 // never store blank strings.
@@ -199,6 +211,81 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
     res.status(500).json({ error: "Failed to update worker" });
   }
 });
+
+// Admin only. Report how many related records deleting this worker would also
+// remove, so the confirmation dialog can state the real impact. Every listed
+// table FK-cascades on worker delete, so these counts are exactly what is purged.
+// requireAdmin is attached per-route so the admin gate does not leak onto the
+// other routes in this router.
+router.get(
+  "/workers/:id/delete-impact",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = GetWorkerDeleteImpactParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const id = params.data.id;
+
+    const [worker] = await db
+      .select({ id: workersTable.id })
+      .from(workersTable)
+      .where(eq(workersTable.id, id));
+    if (!worker) {
+      res.status(404).json({ error: "Worker not found" });
+      return;
+    }
+
+    const [[bookings], [submissions], [events], [workerSheets], [messages], [leavers]] =
+      await Promise.all([
+        db.select({ n: count() }).from(bookingsTable).where(eq(bookingsTable.workerId, id)),
+        db.select({ n: count() }).from(submissionsTable).where(eq(submissionsTable.workerId, id)),
+        db.select({ n: count() }).from(eventsTable).where(eq(eventsTable.workerId, id)),
+        db.select({ n: count() }).from(workerSheetsTable).where(eq(workerSheetsTable.workerId, id)),
+        db.select({ n: count() }).from(messagesTable).where(eq(messagesTable.workerId, id)),
+        db.select({ n: count() }).from(leaversTable).where(eq(leaversTable.workerId, id)),
+      ]);
+
+    res.json({
+      bookings: bookings.n,
+      submissions: submissions.n,
+      events: events.n,
+      workerSheets: workerSheets.n,
+      messages: messages.n,
+      hasLeaverRecord: leavers.n > 0,
+    });
+  },
+);
+
+// Admin only. Permanently delete a worker and everything referencing them
+// (bookings, submissions, events, worker-sheet links, messages, leaver records
+// all FK-cascade; audit_log.booking_id is set null). This is DISTINCT from
+// "mark as leaver": the worker and their history are erased entirely, so they no
+// longer appear in any KPI report. requireAdmin is attached per-route.
+router.delete(
+  "/workers/:id",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = DeleteWorkerParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const deleted = await db
+      .delete(workersTable)
+      .where(eq(workersTable.id, params.data.id))
+      .returning({ id: workersTable.id });
+
+    if (deleted.length === 0) {
+      res.status(404).json({ error: "Worker not found" });
+      return;
+    }
+
+    res.status(204).end();
+  },
+);
 
 router.post("/workers", async (req, res): Promise<void> => {
   const parsed = CreateWorkerBody.safeParse(req.body);

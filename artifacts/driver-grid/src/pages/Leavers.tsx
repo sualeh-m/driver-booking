@@ -13,19 +13,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
+import { ConfirmDeleteDialog } from "@/components/grid/dialogs/ConfirmDeleteDialog";
 
 export const LEAVER_REASON_LABELS: Record<LeaverReason, string> = {
   low_rates: "Low Rates",
@@ -90,6 +81,7 @@ export function Leavers() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListLeaversQueryKey() });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/people"] });
           setDeleteTarget(null);
           toast({ title: `Leaver record for ${fullName} deleted` });
         },
@@ -203,28 +195,26 @@ export function Leavers() {
         />
       )}
 
-      <AlertDialog open={deleteTarget != null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete leaver record for {deleteTarget?.fullName}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes their leaver record from this list. The worker stays off the
-              booking grid (this is not the same as Restore, which brings them back). This cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDeleteLeaver}
-              disabled={deleteLeaver.isPending}
-            >
-              {deleteLeaver.isPending ? "Deleting..." : "Delete record"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deleteTarget != null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={`Delete leaver record for ${deleteTarget?.fullName ?? ""}?`}
+        description="This removes only the leaver record — it is not the same as Restore."
+        impact={
+          <>
+            The leaver record for{" "}
+            <span className="font-semibold">{deleteTarget?.fullName}</span> is
+            permanently removed from the Leavers list. The worker stays marked as
+            left and off the booking grid — use{" "}
+            <span className="font-semibold">Restore</span> instead if you want
+            them back. Their worker, booking and event history is kept. This
+            cannot be undone.
+          </>
+        }
+        confirmLabel="Delete record"
+        pending={deleteLeaver.isPending}
+        onConfirm={handleDeleteLeaver}
+      />
     </div>
   );
 }

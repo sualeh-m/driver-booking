@@ -63,6 +63,7 @@ import type {
   SheetContact,
   SheetContactInput,
   SheetContactUpdate,
+  SheetDeleteImpact,
   SheetInput,
   Submission,
   SubmissionInput,
@@ -70,6 +71,7 @@ import type {
   UpdateUserInput,
   User,
   Worker,
+  WorkerDeleteImpact,
   WorkerInput,
   WorkerUpdateInput
 } from './api.schemas';
@@ -1033,6 +1035,83 @@ export const useDeleteSheet = <TError = ErrorType<Error>,
       return useMutation(getDeleteSheetMutationOptions(options));
     }
 
+export const getGetSheetDeleteImpactUrl = (sheetId: number,) => {
+
+
+
+
+  return `/api/sheets/${sheetId}/delete-impact`
+}
+
+/**
+ * @summary Counts of related records that deleting this sheet would also remove (admin only)
+ */
+export const getSheetDeleteImpact = async (sheetId: number, options?: RequestInit): Promise<SheetDeleteImpact> => {
+
+  return customFetch<SheetDeleteImpact>(getGetSheetDeleteImpactUrl(sheetId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSheetDeleteImpactQueryKey = (sheetId: number,) => {
+    return [
+    `/api/sheets/${sheetId}/delete-impact`
+    ] as const;
+    }
+
+
+export const getGetSheetDeleteImpactQueryOptions = <TData = Awaited<ReturnType<typeof getSheetDeleteImpact>>, TError = ErrorType<Error>>(sheetId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSheetDeleteImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSheetDeleteImpactQueryKey(sheetId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSheetDeleteImpact>>> = ({ signal }) => getSheetDeleteImpact(sheetId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(sheetId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSheetDeleteImpact>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSheetDeleteImpactQueryResult = NonNullable<Awaited<ReturnType<typeof getSheetDeleteImpact>>>
+export type GetSheetDeleteImpactQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Counts of related records that deleting this sheet would also remove (admin only)
+ */
+
+export function useGetSheetDeleteImpact<TData = Awaited<ReturnType<typeof getSheetDeleteImpact>>, TError = ErrorType<Error>>(
+ sheetId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSheetDeleteImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSheetDeleteImpactQueryOptions(sheetId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getListSheetContactsUrl = (sheetId: number,) => {
 
 
@@ -1781,6 +1860,153 @@ export const useUpdateWorker = <TError = ErrorType<Error>,
       return useMutation(getUpdateWorkerMutationOptions(options));
     }
 
+export const getDeleteWorkerUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}`
+}
+
+/**
+ * @summary Permanently delete a worker and all of their data (admin only)
+ */
+export const deleteWorker = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteWorkerUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWorkerMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorker>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWorker>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteWorker'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorker>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWorker(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWorkerMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorker>>>
+
+    export type DeleteWorkerMutationError = ErrorType<Error>
+
+    /**
+ * @summary Permanently delete a worker and all of their data (admin only)
+ */
+export const useDeleteWorker = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorker>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWorker>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteWorkerMutationOptions(options));
+    }
+
+export const getGetWorkerDeleteImpactUrl = (id: number,) => {
+
+
+
+
+  return `/api/workers/${id}/delete-impact`
+}
+
+/**
+ * @summary Counts of related records that deleting this worker would also remove (admin only)
+ */
+export const getWorkerDeleteImpact = async (id: number, options?: RequestInit): Promise<WorkerDeleteImpact> => {
+
+  return customFetch<WorkerDeleteImpact>(getGetWorkerDeleteImpactUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkerDeleteImpactQueryKey = (id: number,) => {
+    return [
+    `/api/workers/${id}/delete-impact`
+    ] as const;
+    }
+
+
+export const getGetWorkerDeleteImpactQueryOptions = <TData = Awaited<ReturnType<typeof getWorkerDeleteImpact>>, TError = ErrorType<Error>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerDeleteImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkerDeleteImpactQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkerDeleteImpact>>> = ({ signal }) => getWorkerDeleteImpact(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkerDeleteImpact>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkerDeleteImpactQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkerDeleteImpact>>>
+export type GetWorkerDeleteImpactQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Counts of related records that deleting this worker would also remove (admin only)
+ */
+
+export function useGetWorkerDeleteImpact<TData = Awaited<ReturnType<typeof getWorkerDeleteImpact>>, TError = ErrorType<Error>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkerDeleteImpact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkerDeleteImpactQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getListLeaversUrl = () => {
 
 
@@ -2451,6 +2677,76 @@ export const useUpdateSubmissionOutcome = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getUpdateSubmissionOutcomeMutationOptions(options));
+    }
+
+export const getDeleteSubmissionUrl = (id: number,) => {
+
+
+
+
+  return `/api/submissions/${id}`
+}
+
+/**
+ * @summary Permanently delete a submission record (admin only)
+ */
+export const deleteSubmission = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSubmissionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSubmissionMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmission>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSubmission>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSubmission>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSubmission(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSubmission>>>
+
+    export type DeleteSubmissionMutationError = ErrorType<Error>
+
+    /**
+ * @summary Permanently delete a submission record (admin only)
+ */
+export const useDeleteSubmission = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmission>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSubmission>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSubmissionMutationOptions(options));
     }
 
 export const getAddWorkerToSheetUrl = (sheetId: number,) => {

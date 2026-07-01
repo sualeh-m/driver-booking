@@ -12,8 +12,9 @@ import {
   CreateSubmissionBody,
   UpdateSubmissionOutcomeParams,
   UpdateSubmissionOutcomeBody,
+  DeleteSubmissionParams,
 } from "@workspace/api-zod";
-import { getUserId } from "../lib/auth";
+import { getUserId, requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -214,5 +215,33 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
   }
   res.json(serializeRow(row));
 });
+
+// Admin only. Permanently delete a single submission record. Nothing references
+// a submission, so this is a clean row delete; the record then disappears from
+// every KPI report. requireAdmin is attached per-route so the admin gate does
+// not leak onto the other routes in this router.
+router.delete(
+  "/submissions/:id",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = DeleteSubmissionParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const deleted = await db
+      .delete(submissionsTable)
+      .where(eq(submissionsTable.id, params.data.id))
+      .returning({ id: submissionsTable.id });
+
+    if (deleted.length === 0) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    res.status(204).end();
+  },
+);
 
 export default router;

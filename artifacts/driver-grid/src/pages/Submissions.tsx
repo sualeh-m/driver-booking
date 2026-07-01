@@ -3,11 +3,15 @@ import {
   useListSubmissions,
   useListSheets,
   useUpdateSubmissionOutcome,
+  useDeleteSubmission,
+  useGetCurrentUser,
   getListSubmissionsQueryKey,
+  getGetCurrentUserQueryKey,
   type SubmissionOutcome,
   type ListSubmissionsParams,
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
+import { TrashIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { RecordSubmissionDialog } from "@/components/grid/dialogs/RecordSubmissionDialog";
 import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
+import { ConfirmDeleteDialog } from "@/components/grid/dialogs/ConfirmDeleteDialog";
 
 export const SUBMISSION_OUTCOMES: SubmissionOutcome[] = ["submitted", "passed", "rejected"];
 
@@ -44,6 +49,12 @@ export function Submissions() {
   const [to, setTo] = useState<string>("");
   const [recordOpen, setRecordOpen] = useState(false);
   const [profileFor, setProfileFor] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; workerName: string } | null>(null);
+
+  const { data: currentUser } = useGetCurrentUser({
+    query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
+  });
+  const isAdmin = currentUser?.role === "admin";
 
   const { data: sheets } = useListSheets();
 
@@ -60,6 +71,25 @@ export function Submissions() {
   });
 
   const update = useUpdateSubmissionOutcome();
+  const deleteSubmission = useDeleteSubmission();
+
+  const handleDeleteSubmission = () => {
+    if (!deleteTarget) return;
+    const { id, workerName } = deleteTarget;
+    deleteSubmission.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/submissions"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/people"] });
+          setDeleteTarget(null);
+          toast({ title: `Submission for ${workerName} deleted` });
+        },
+        onError: () =>
+          toast({ title: "Could not delete submission", variant: "destructive" }),
+      },
+    );
+  };
 
   const handleOutcomeChange = (id: number, outcome: SubmissionOutcome) => {
     update.mutate(
@@ -137,18 +167,19 @@ export function Submissions() {
                 <TableHead>Requirement</TableHead>
                 <TableHead>Submitted vs needed</TableHead>
                 <TableHead className="w-44">Outcome</TableHead>
+                {isAdmin && <TableHead className="w-12 text-right">Delete</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 7 : 6} className="py-10 text-center text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : !submissions?.length ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 7 : 6} className="py-10 text-center text-muted-foreground">
                     No submissions match these filters.
                   </TableCell>
                 </TableRow>
@@ -219,6 +250,21 @@ export function Submissions() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          title="Delete submission"
+                          aria-label="Delete submission"
+                          onClick={() => setDeleteTarget({ id: s.id, workerName: s.workerName })}
+                          disabled={deleteSubmission.isPending}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -243,6 +289,24 @@ export function Submissions() {
           }
         />
       )}
+
+      <ConfirmDeleteDialog
+        open={deleteTarget != null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Delete this submission?"
+        description="This permanently removes the submission record."
+        impact={
+          <>
+            The submission for{" "}
+            <span className="font-semibold">{deleteTarget?.workerName}</span> is
+            permanently removed and will no longer count in any KPI report
+            (submitted / passed / pass-rate). This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete submission"
+        pending={deleteSubmission.isPending}
+        onConfirm={handleDeleteSubmission}
+      />
     </div>
   );
 }

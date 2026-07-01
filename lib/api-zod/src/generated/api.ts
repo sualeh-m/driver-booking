@@ -202,6 +202,22 @@ export const DeleteSheetParams = zod.object({
 
 
 /**
+ * @summary Counts of related records that deleting this sheet would also remove (admin only)
+ */
+export const GetSheetDeleteImpactParams = zod.object({
+  "sheetId": zod.coerce.number()
+})
+
+export const GetSheetDeleteImpactResponse = zod.object({
+  "bookings": zod.number(),
+  "workers": zod.number(),
+  "contacts": zod.number(),
+  "requirements": zod.number(),
+  "submissions": zod.number()
+})
+
+
+/**
  * @summary List client contacts for a sheet
  */
 export const ListSheetContactsParams = zod.object({
@@ -396,6 +412,31 @@ export const UpdateWorkerResponse = zod.object({
 
 
 /**
+ * @summary Permanently delete a worker and all of their data (admin only)
+ */
+export const DeleteWorkerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Counts of related records that deleting this worker would also remove (admin only)
+ */
+export const GetWorkerDeleteImpactParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetWorkerDeleteImpactResponse = zod.object({
+  "bookings": zod.number(),
+  "submissions": zod.number(),
+  "events": zod.number(),
+  "workerSheets": zod.number(),
+  "messages": zod.number(),
+  "hasLeaverRecord": zod.boolean()
+})
+
+
+/**
  * @summary List workers who have left, with reason and length of service
  */
 export const ListLeaversResponseItem = zod.object({
@@ -582,6 +623,14 @@ export const UpdateSubmissionOutcomeResponse = zod.object({
   "requirementJobRole": zod.string().nullish(),
   "requirementQuantityNeeded": zod.number().nullish().describe('How many workers this requirement needed (null when not linked to a requirement).'),
   "requirementSubmittedCount": zod.number().nullish().describe('Total submissions recorded against this requirement (null when not linked).')
+})
+
+
+/**
+ * @summary Permanently delete a submission record (admin only)
+ */
+export const DeleteSubmissionParams = zod.object({
+  "id": zod.coerce.number()
 })
 
 

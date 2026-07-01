@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import {
   db,
   sheetsTable,
@@ -7,10 +7,13 @@ import {
   workersTable,
   workerSheetsTable,
   bookingsTable,
+  shiftRequirementsTable,
+  submissionsTable,
 } from "@workspace/db";
 import {
   CreateSheetBody,
   DeleteSheetParams,
+  GetSheetDeleteImpactParams,
   AddSheetContactParams,
   AddSheetContactBody,
   UpdateSheetContactParams,
@@ -89,6 +92,50 @@ router.delete(
     }
 
     res.status(204).end();
+  },
+);
+
+// Admin only. Report how many related records deleting this sheet would also
+// remove (bookings are hand-deleted, contacts/worker-links/requirements cascade;
+// submissions have their sheet_id set null but are counted so the impact is
+// clear), so the confirmation dialog can state the real impact. requireAdmin is
+// attached per-route so the admin gate does not leak onto other routes here.
+router.get(
+  "/sheets/:sheetId/delete-impact",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = GetSheetDeleteImpactParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const sheetId = params.data.sheetId;
+
+    const [existing] = await db
+      .select({ id: sheetsTable.id })
+      .from(sheetsTable)
+      .where(eq(sheetsTable.id, sheetId));
+    if (!existing) {
+      res.status(404).json({ error: "Sheet not found" });
+      return;
+    }
+
+    const [[bookings], [workers], [contacts], [requirements], [submissions]] =
+      await Promise.all([
+        db.select({ n: count() }).from(bookingsTable).where(eq(bookingsTable.sheetId, sheetId)),
+        db.select({ n: count() }).from(workerSheetsTable).where(eq(workerSheetsTable.sheetId, sheetId)),
+        db.select({ n: count() }).from(sheetContactsTable).where(eq(sheetContactsTable.sheetId, sheetId)),
+        db.select({ n: count() }).from(shiftRequirementsTable).where(eq(shiftRequirementsTable.sheetId, sheetId)),
+        db.select({ n: count() }).from(submissionsTable).where(eq(submissionsTable.sheetId, sheetId)),
+      ]);
+
+    res.json({
+      bookings: bookings.n,
+      workers: workers.n,
+      contacts: contacts.n,
+      requirements: requirements.n,
+      submissions: submissions.n,
+    });
   },
 );
 

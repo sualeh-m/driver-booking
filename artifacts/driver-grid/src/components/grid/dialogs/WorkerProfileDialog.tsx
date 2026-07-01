@@ -33,12 +33,20 @@ import {
   JobRole,
   useGetWorker,
   useUpdateWorker,
+  useDeleteWorker,
+  useGetWorkerDeleteImpact,
+  useGetCurrentUser,
   getGetWorkerQueryKey,
+  getGetWorkerDeleteImpactQueryKey,
+  getGetCurrentUserQueryKey,
   getGetDashboardSummaryQueryKey,
+  getListLeaversQueryKey,
+  getListSubmissionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { MarkLeaverDialog } from "./MarkLeaverDialog";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
 const JOB_ROLES = Object.values(JobRole);
 
@@ -88,12 +96,59 @@ export function WorkerProfileDialog({
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [leaverOpen, setLeaverOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const workerQuery = useGetWorker(workerId, {
     query: { enabled: open, queryKey: getGetWorkerQueryKey(workerId) },
   });
   const worker = workerQuery.data;
   const updateWorker = useUpdateWorker();
+
+  const { data: currentUser } = useGetCurrentUser({
+    query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
+  });
+  const isAdmin = currentUser?.role === "admin";
+  const deleteWorker = useDeleteWorker();
+  const { data: deleteImpact } = useGetWorkerDeleteImpact(workerId, {
+    query: {
+      enabled: deleteOpen && isAdmin,
+      queryKey: getGetWorkerDeleteImpactQueryKey(workerId),
+    },
+  });
+
+  function handleDeleteWorker() {
+    deleteWorker.mutate(
+      { id: workerId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/grid"] });
+          queryClient.invalidateQueries({ queryKey: getListLeaversQueryKey() });
+          queryClient.invalidateQueries({
+            queryKey: getListSubmissionsQueryKey(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: getGetDashboardSummaryQueryKey(),
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/operational"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/people"] });
+          setDeleteOpen(false);
+          onOpenChange(false);
+          onSaved?.();
+          toast({
+            title: `${worker?.fullName ?? "Worker"} permanently deleted`,
+          });
+        },
+        onError: (err: unknown) => {
+          const body = (err as { data?: { error?: string } } | undefined)?.data;
+          toast({
+            title: "Could not delete worker",
+            description: body?.error ?? "Please try again.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  }
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -316,6 +371,16 @@ export function WorkerProfileDialog({
                     Mark as Leaver
                   </Button>
                 )}
+                {isAdmin && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
               <Button type="button" onClick={() => setEditing(true)}>
                 Edit
@@ -341,6 +406,35 @@ export function WorkerProfileDialog({
           });
           onSaved?.();
         }}
+      />
+    )}
+
+    {worker && (
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Permanently delete ${worker.fullName}?`}
+        description="This erases the worker entirely — it is NOT the same as marking them as a leaver."
+        impact={
+          <>
+            This permanently removes{" "}
+            <span className="font-semibold">{worker.fullName}</span> and all of
+            their data:
+            <ul className="mt-1 list-disc pl-5">
+              <li>{deleteImpact?.bookings ?? 0} booking{(deleteImpact?.bookings ?? 0) === 1 ? "" : "s"}</li>
+              <li>{deleteImpact?.submissions ?? 0} submission{(deleteImpact?.submissions ?? 0) === 1 ? "" : "s"}</li>
+              <li>{deleteImpact?.events ?? 0} event{(deleteImpact?.events ?? 0) === 1 ? "" : "s"} (no-shows, CPC / test failures)</li>
+              <li>{deleteImpact?.workerSheets ?? 0} sheet link{(deleteImpact?.workerSheets ?? 0) === 1 ? "" : "s"}</li>
+              {deleteImpact?.hasLeaverRecord && <li>their leaver record</li>}
+            </ul>
+            They will disappear from every KPI report. To keep their history for
+            reporting, use <span className="font-semibold">Mark as Leaver</span>{" "}
+            instead. This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete worker"
+        pending={deleteWorker.isPending}
+        onConfirm={handleDeleteWorker}
       />
     )}
     </>

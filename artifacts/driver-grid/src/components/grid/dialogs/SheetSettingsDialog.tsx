@@ -1,15 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +12,11 @@ import {
   useUpdateSheetContact,
   useRemoveSheetContact,
   useDeleteSheet,
+  useGetSheetDeleteImpact,
   useGetCurrentUser,
   getListSheetContactsQueryKey,
   getListSheetsQueryKey,
+  getGetSheetDeleteImpactQueryKey,
   getGetCurrentUserQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,6 +34,12 @@ export function SheetSettingsDialog({ open, onOpenChange, sheet, onDeleted }: { 
   });
   const isAdmin = currentUser?.role === "admin";
   const deleteSheet = useDeleteSheet();
+  const { data: impact } = useGetSheetDeleteImpact(sheet.id, {
+    query: {
+      enabled: confirmDelete && isAdmin,
+      queryKey: getGetSheetDeleteImpactQueryKey(sheet.id),
+    },
+  });
 
   const handleDeleteSheet = () => {
     deleteSheet.mutate(
@@ -48,6 +47,8 @@ export function SheetSettingsDialog({ open, onOpenChange, sheet, onDeleted }: { 
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListSheetsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/operational"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/people"] });
           setConfirmDelete(false);
           onOpenChange(false);
           onDeleted?.();
@@ -176,27 +177,35 @@ export function SheetSettingsDialog({ open, onOpenChange, sheet, onDeleted }: { 
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </div>
 
-        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete sheet "{sheet.name}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This permanently deletes the sheet and every booking on it. Workers, leavers and
-                their event history are kept. This cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDeleteSheet}
-                disabled={deleteSheet.isPending}
-              >
-                {deleteSheet.isPending ? "Deleting..." : "Delete sheet"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDeleteDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title={`Delete sheet "${sheet.name}"?`}
+          description="This permanently deletes the sheet and everything scoped to it."
+          impact={
+            <>
+              Deleting this sheet also removes:
+              <ul className="mt-1 list-disc pl-5">
+                <li>{impact?.bookings ?? 0} booking{(impact?.bookings ?? 0) === 1 ? "" : "s"}</li>
+                <li>{impact?.workers ?? 0} worker link{(impact?.workers ?? 0) === 1 ? "" : "s"} to this sheet</li>
+                <li>{impact?.contacts ?? 0} client contact{(impact?.contacts ?? 0) === 1 ? "" : "s"}</li>
+                <li>{impact?.requirements ?? 0} shift requirement{(impact?.requirements ?? 0) === 1 ? "" : "s"}</li>
+              </ul>
+              {(impact?.submissions ?? 0) > 0 && (
+                <div className="mt-1">
+                  {impact?.submissions} submission{impact?.submissions === 1 ? "" : "s"} will be
+                  unlinked from this sheet (the submissions themselves are kept).
+                </div>
+              )}
+              <div className="mt-1">
+                Workers, leavers and their event history are kept. This cannot be undone.
+              </div>
+            </>
+          }
+          confirmLabel="Delete sheet"
+          pending={deleteSheet.isPending}
+          onConfirm={handleDeleteSheet}
+        />
       </DialogContent>
     </Dialog>
   );

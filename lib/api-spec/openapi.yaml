@@ -344,6 +344,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /sheets/{sheetId}/delete-impact:
+    get:
+      operationId: getSheetDeleteImpact
+      tags: [sheets]
+      summary: Counts of related records that deleting this sheet would also remove (admin only)
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Impact counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SheetDeleteImpact"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /sheets/{sheetId}/contacts:
     get:
       operationId: listSheetContacts
@@ -592,6 +623,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteWorker
+      tags: [workers]
+      summary: Permanently delete a worker and all of their data (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /workers/{id}/delete-impact:
+    get:
+      operationId: getWorkerDeleteImpact
+      tags: [workers]
+      summary: Counts of related records that deleting this worker would also remove (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Impact counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkerDeleteImpact"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /leavers:
     get:
@@ -822,6 +909,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Submission"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteSubmission
+      tags: [submissions]
+      summary: Permanently delete a submission record (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Not found
           content:
@@ -1294,6 +1406,27 @@ components:
           type: string
       required:
         - error
+
+    WorkerDeleteImpact:
+      type: object
+      required: [bookings, submissions, events, workerSheets, messages, hasLeaverRecord]
+      properties:
+        bookings: { type: integer }
+        submissions: { type: integer }
+        events: { type: integer }
+        workerSheets: { type: integer }
+        messages: { type: integer }
+        hasLeaverRecord: { type: boolean }
+
+    SheetDeleteImpact:
+      type: object
+      required: [bookings, workers, contacts, requirements, submissions]
+      properties:
+        bookings: { type: integer }
+        workers: { type: integer }
+        contacts: { type: integer }
+        requirements: { type: integer }
+        submissions: { type: integer }
 
     Status:
       type: string
