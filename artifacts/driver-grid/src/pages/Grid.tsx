@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths, addDays, subDays } from "date-fns";
 import { useListSheets, useGetGrid, getGetGridQueryKey, useGetDashboardSummary } from "@workspace/api-client-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ChevronsUpDownIcon, CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { GridToolbar } from "@/components/grid/GridToolbar";
 import { BookingGrid } from "@/components/grid/BookingGrid";
 import { DashboardStrip } from "@/components/grid/DashboardStrip";
@@ -16,6 +18,7 @@ export function Grid() {
 
   const { data: sheets } = useListSheets();
   const [selectedSheetId, setSelectedSheetId] = useState<number | null>(null);
+  const [sheetPickerOpen, setSheetPickerOpen] = useState(false);
 
   // Auto-select first sheet
   if (sheets && sheets.length > 0 && selectedSheetId === null) {
@@ -68,21 +71,51 @@ export function Grid() {
 
       <div className="flex items-center justify-between border-b bg-card p-4">
         <div className="flex items-center gap-4">
-          <Select
-            value={selectedSheetId?.toString() ?? ""}
-            onValueChange={(val) => setSelectedSheetId(Number(val))}
-          >
-            <SelectTrigger className="w-[300px] font-semibold">
-              <SelectValue placeholder="Select Sheet" />
-            </SelectTrigger>
-            <SelectContent>
-              {sheets?.map((s) => (
-                <SelectItem key={s.id} value={s.id.toString()}>
-                  {s.name} · {s.workerType}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={sheetPickerOpen} onOpenChange={setSheetPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={sheetPickerOpen}
+                className="w-[300px] justify-between font-semibold"
+              >
+                <span className="truncate">
+                  {selectedSheet ? `${selectedSheet.name} · ${selectedSheet.workerType}` : "Select Sheet"}
+                </span>
+                <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search sheets…" />
+                <CommandList>
+                  <CommandEmpty>No sheets found.</CommandEmpty>
+                  <CommandGroup>
+                    {sheets?.map((s) => (
+                      <CommandItem
+                        key={s.id}
+                        value={`${s.name} ${s.workerType}`}
+                        onSelect={() => {
+                          setSelectedSheetId(s.id);
+                          setSheetPickerOpen(false);
+                        }}
+                      >
+                        <CheckIcon
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedSheetId === s.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <span className="truncate">
+                          {s.name} · {s.workerType}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
           <div className="flex items-center gap-2 rounded-md border p-1 bg-muted/50">
             {(["Day", "Week", "Month"] as const).map((mode) => (
