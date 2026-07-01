@@ -7,8 +7,13 @@
  */
 import type { SubmissionOutcome } from './submissionOutcome';
 
+/**
+ * Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker.
+ */
 export interface SubmissionInput {
-  workerId: number;
+  workerId?: number;
+  candidateName?: string;
+  candidatePhone?: string;
   submittedDate: string;
   outcome: SubmissionOutcome;
   requirementId?: number;

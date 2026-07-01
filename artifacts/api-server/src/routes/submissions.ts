@@ -25,7 +25,10 @@ function submissionSelect() {
   return {
     id: submissionsTable.id,
     workerId: submissionsTable.workerId,
-    workerName: workersTable.fullName,
+    // Display name: the existing worker's full name, or the standalone candidate
+    // name for a candidate submission (workerId null).
+    workerName: sql<string>`coalesce(${workersTable.fullName}, ${submissionsTable.candidateName})`,
+    candidatePhone: submissionsTable.candidatePhone,
     submittedDate: submissionsTable.submittedDate,
     outcome: submissionsTable.outcome,
     sheetId: submissionsTable.sheetId,
@@ -53,8 +56,9 @@ function submissionSelect() {
 
 type SubmissionRow = {
   id: number;
-  workerId: number;
+  workerId: number | null;
   workerName: string;
+  candidatePhone: string | null;
   submittedDate: string;
   outcome: string;
   sheetId: number | null;
@@ -71,6 +75,7 @@ function serializeRow(r: SubmissionRow) {
     id: r.id,
     workerId: r.workerId,
     workerName: r.workerName,
+    candidatePhone: r.candidatePhone,
     submittedDate: r.submittedDate,
     outcome: r.outcome,
     sheetId: r.sheetId,
@@ -134,17 +139,40 @@ router.post("/submissions", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { workerId, submittedDate, outcome, requirementId, sheetId } =
-    parsed.data;
+  const {
+    workerId,
+    candidateName,
+    candidatePhone,
+    submittedDate,
+    outcome,
+    requirementId,
+    sheetId,
+  } = parsed.data;
   const userId = getUserId(req);
 
-  const [worker] = await db
-    .select({ id: workersTable.id })
-    .from(workersTable)
-    .where(eq(workersTable.id, workerId));
-  if (!worker) {
-    res.status(400).json({ error: "Worker not found" });
+  // A submission is EITHER for an existing worker OR a brand-new candidate not in
+  // the worker list. Recording a candidate here must NEVER create a bookable
+  // worker — they exist only as this submission record.
+  const trimmedCandidate = candidateName?.trim();
+  const hasWorker = workerId != null;
+  const hasCandidate = trimmedCandidate != null && trimmedCandidate !== "";
+  if (hasWorker === hasCandidate) {
+    res.status(400).json({
+      error:
+        "Provide exactly one of: an existing worker, or a new candidate name.",
+    });
     return;
+  }
+
+  if (hasWorker) {
+    const [worker] = await db
+      .select({ id: workersTable.id })
+      .from(workersTable)
+      .where(eq(workersTable.id, workerId));
+    if (!worker) {
+      res.status(400).json({ error: "Worker not found" });
+      return;
+    }
   }
 
   // A submission linked to a requirement always belongs to that requirement's
@@ -167,7 +195,9 @@ router.post("/submissions", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(submissionsTable)
     .values({
-      workerId,
+      workerId: hasWorker ? workerId : null,
+      candidateName: hasWorker ? null : trimmedCandidate,
+      candidatePhone: hasWorker ? null : candidatePhone?.trim() || null,
       submittedDate,
       outcome,
       requirementId: requirementId ?? null,

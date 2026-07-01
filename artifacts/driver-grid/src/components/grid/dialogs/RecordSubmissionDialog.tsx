@@ -34,7 +34,10 @@ export function RecordSubmissionDialog({
   const { data: workers } = useListWorkers();
   const { data: sheets } = useListSheets();
 
+  const [mode, setMode] = useState<"existing" | "new">("existing");
   const [workerId, setWorkerId] = useState<string>("");
+  const [candidateName, setCandidateName] = useState<string>("");
+  const [candidatePhone, setCandidatePhone] = useState<string>("");
   const [submittedDate, setSubmittedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [outcome, setOutcome] = useState<SubmissionOutcome>("submitted");
   const [sheetId, setSheetId] = useState<string>(defaultSheetId ? String(defaultSheetId) : NONE);
@@ -60,8 +63,12 @@ export function RecordSubmissionDialog({
   const create = useCreateSubmission();
 
   const handleConfirm = () => {
-    if (!workerId) {
+    if (mode === "existing" && !workerId) {
       toast({ title: "Pick a worker", variant: "destructive" });
+      return;
+    }
+    if (mode === "new" && !candidateName.trim()) {
+      toast({ title: "Enter the person's name", variant: "destructive" });
       return;
     }
     if (!submittedDate) {
@@ -71,7 +78,12 @@ export function RecordSubmissionDialog({
     create.mutate(
       {
         data: {
-          workerId: Number(workerId),
+          ...(mode === "existing"
+            ? { workerId: Number(workerId) }
+            : {
+                candidateName: candidateName.trim(),
+                candidatePhone: candidatePhone.trim() || undefined,
+              }),
           submittedDate,
           outcome,
           sheetId: sheetId !== NONE ? Number(sheetId) : undefined,
@@ -83,7 +95,10 @@ export function RecordSubmissionDialog({
           queryClient.invalidateQueries({ queryKey: ["/api/submissions"] });
           toast({ title: "Submission recorded" });
           onOpenChange(false);
+          setMode("existing");
           setWorkerId("");
+          setCandidateName("");
+          setCandidatePhone("");
           setRequirementId(NONE);
           setOutcome("submitted");
         },
@@ -103,27 +118,79 @@ export function RecordSubmissionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3 pt-1">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Worker</label>
-            <Select value={workerId} onValueChange={setWorkerId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select worker" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeWorkers.map((w) => (
-                  <SelectItem key={w.id} value={String(w.id)}>
-                    {w.fullName} · {w.workerType}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-1 pt-1">
+          <label className="text-xs font-medium text-muted-foreground">Who are you submitting?</label>
+          <div className="inline-flex rounded-md border p-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "existing" ? "default" : "ghost"}
+              className="h-7"
+              onClick={() => setMode("existing")}
+            >
+              Existing worker
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "new" ? "default" : "ghost"}
+              className="h-7"
+              onClick={() => setMode("new")}
+            >
+              New person
+            </Button>
           </div>
+          {mode === "new" && (
+            <p className="text-xs text-muted-foreground">
+              A new person is recorded on this submission only — they are NOT added to the worker
+              list and will not appear on the grid.
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {mode === "existing" ? (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Worker</label>
+              <Select value={workerId} onValueChange={setWorkerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select worker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeWorkers.map((w) => (
+                    <SelectItem key={w.id} value={String(w.id)}>
+                      {w.fullName} · {w.workerType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Name</label>
+              <Input
+                value={candidateName}
+                onChange={(e) => setCandidateName(e.target.value)}
+                placeholder="Full name"
+              />
+            </div>
+          )}
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Date submitted</label>
             <Input type="date" value={submittedDate} onChange={(e) => setSubmittedDate(e.target.value)} />
           </div>
         </div>
+
+        {mode === "new" && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Phone (optional)</label>
+            <Input
+              value={candidatePhone}
+              onChange={(e) => setCandidatePhone(e.target.value)}
+              placeholder="Contact number"
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">

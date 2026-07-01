@@ -187,14 +187,28 @@ export function Submissions() {
                 submissions.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">
-                      <button
-                        type="button"
-                        className="rounded text-left hover:underline"
-                        onClick={() => setProfileFor(s.workerId)}
-                        title="View or edit worker"
-                      >
-                        {s.workerName}
-                      </button>
+                      {s.workerId != null ? (
+                        <button
+                          type="button"
+                          className="rounded text-left hover:underline"
+                          onClick={() => setProfileFor(s.workerId!)}
+                          title="View or edit worker"
+                        >
+                          {s.workerName}
+                        </button>
+                      ) : (
+                        <div>
+                          <span>{s.workerName}</span>
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Candidate
+                          </span>
+                          {s.candidatePhone && (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              {s.candidatePhone}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       {format(new Date(s.submittedDate), "d MMM yyyy")}

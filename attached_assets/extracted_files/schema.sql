@@ -108,14 +108,24 @@ CREATE INDEX idx_requirements_sheet_date ON shift_requirements (sheet_id, req_da
 --    submitted = put forward to client; passed = accepted / cleared vetting.
 CREATE TABLE submissions (
     id              SERIAL PRIMARY KEY,
-    worker_id       INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+    -- A submission is EITHER for an existing worker OR a brand-new candidate not
+    -- yet in the worker list (candidate_name set). A candidate submission never
+    -- creates a bookable worker.
+    worker_id       INTEGER REFERENCES workers(id) ON DELETE CASCADE,
+    candidate_name  TEXT,
+    candidate_phone TEXT,
     requirement_id  INTEGER REFERENCES shift_requirements(id) ON DELETE SET NULL,
     sheet_id        INTEGER REFERENCES sheets(id) ON DELETE SET NULL,
     submitted_date  DATE NOT NULL,
     outcome         TEXT NOT NULL DEFAULT 'submitted'
                     CHECK (outcome IN ('submitted','passed','rejected')),
     created_by      INTEGER REFERENCES users(id),
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Exactly one identity source: an existing worker OR a standalone candidate.
+    CONSTRAINT submissions_identity CHECK (
+        (worker_id IS NOT NULL AND candidate_name IS NULL)
+        OR (worker_id IS NULL AND candidate_name IS NOT NULL)
+    )
 );
 
 CREATE INDEX idx_submissions_date ON submissions (submitted_date);

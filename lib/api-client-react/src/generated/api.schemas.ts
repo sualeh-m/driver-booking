@@ -343,8 +343,18 @@ export interface Requirement {
 
 export interface Submission {
   id: number;
-  workerId: number;
+  /**
+     * The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.
+     * @nullable
+     */
+  workerId?: number | null;
+  /** Display name — the existing worker's full name, or the candidate's name for a candidate submission. */
   workerName: string;
+  /**
+     * Optional phone for a candidate submission (null for existing-worker submissions).
+     * @nullable
+     */
+  candidatePhone?: string | null;
   submittedDate: string;
   outcome: SubmissionOutcome;
   /** @nullable */
@@ -369,8 +379,13 @@ export interface Submission {
   requirementSubmittedCount?: number | null;
 }
 
+/**
+ * Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker.
+ */
 export interface SubmissionInput {
-  workerId: number;
+  workerId?: number;
+  candidateName?: string;
+  candidatePhone?: string;
   submittedDate: string;
   outcome: SubmissionOutcome;
   requirementId?: number;

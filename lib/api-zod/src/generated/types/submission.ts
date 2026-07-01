@@ -9,8 +9,18 @@ import type { SubmissionOutcome } from './submissionOutcome';
 
 export interface Submission {
   id: number;
-  workerId: number;
+  /**
+     * The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.
+     * @nullable
+     */
+  workerId?: number | null;
+  /** Display name — the existing worker's full name, or the candidate's name for a candidate submission. */
   workerName: string;
+  /**
+     * Optional phone for a candidate submission (null for existing-worker submissions).
+     * @nullable
+     */
+  candidatePhone?: string | null;
   submittedDate: string;
   outcome: SubmissionOutcome;
   /** @nullable */

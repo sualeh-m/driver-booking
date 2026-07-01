@@ -18,9 +18,14 @@ export const submissionsTable = pgTable(
   "submissions",
   {
     id: serial("id").primaryKey(),
-    workerId: integer("worker_id")
-      .notNull()
-      .references(() => workersTable.id, { onDelete: "cascade" }),
+    // Nullable: a submission is EITHER for an existing worker (workerId set) OR a
+    // brand-new candidate not yet in the worker list (candidateName set). A
+    // candidate submission never creates a bookable worker.
+    workerId: integer("worker_id").references(() => workersTable.id, {
+      onDelete: "cascade",
+    }),
+    candidateName: text("candidate_name"),
+    candidatePhone: text("candidate_phone"),
     requirementId: integer("requirement_id").references(
       () => shiftRequirementsTable.id,
       { onDelete: "set null" },
@@ -40,6 +45,12 @@ export const submissionsTable = pgTable(
     check(
       "submissions_outcome",
       sql`${t.outcome} IN ('submitted','passed','rejected')`,
+    ),
+    // Exactly one identity source: an existing worker OR a standalone candidate
+    // name. Never both, never neither.
+    check(
+      "submissions_identity",
+      sql`(${t.workerId} IS NOT NULL AND ${t.candidateName} IS NULL) OR (${t.workerId} IS NULL AND ${t.candidateName} IS NOT NULL)`,
     ),
   ],
 );

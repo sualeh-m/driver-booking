@@ -557,8 +557,9 @@ export const ListSubmissionsQueryParams = zod.object({
 
 export const ListSubmissionsResponseItem = zod.object({
   "id": zod.number(),
-  "workerId": zod.number(),
-  "workerName": zod.string(),
+  "workerId": zod.number().nullish().describe('The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.'),
+  "workerName": zod.string().describe('Display name — the existing worker\'s full name, or the candidate\'s name for a candidate submission.'),
+  "candidatePhone": zod.string().nullish().describe('Optional phone for a candidate submission (null for existing-worker submissions).'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "sheetId": zod.number().nullish(),
@@ -576,17 +577,20 @@ export const ListSubmissionsResponse = zod.array(ListSubmissionsResponseItem)
  * @summary Record a worker submission (put forward to a client)
  */
 export const CreateSubmissionBody = zod.object({
-  "workerId": zod.number(),
+  "workerId": zod.number().optional(),
+  "candidateName": zod.string().optional(),
+  "candidatePhone": zod.string().optional(),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "requirementId": zod.number().optional(),
   "sheetId": zod.number().optional()
-})
+}).describe('Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker.')
 
 export const CreateSubmissionResponse = zod.object({
   "id": zod.number(),
-  "workerId": zod.number(),
-  "workerName": zod.string(),
+  "workerId": zod.number().nullish().describe('The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.'),
+  "workerName": zod.string().describe('Display name — the existing worker\'s full name, or the candidate\'s name for a candidate submission.'),
+  "candidatePhone": zod.string().nullish().describe('Optional phone for a candidate submission (null for existing-worker submissions).'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "sheetId": zod.number().nullish(),
@@ -612,8 +616,9 @@ export const UpdateSubmissionOutcomeBody = zod.object({
 
 export const UpdateSubmissionOutcomeResponse = zod.object({
   "id": zod.number(),
-  "workerId": zod.number(),
-  "workerName": zod.string(),
+  "workerId": zod.number().nullish().describe('The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.'),
+  "workerName": zod.string().describe('Display name — the existing worker\'s full name, or the candidate\'s name for a candidate submission.'),
+  "candidatePhone": zod.string().nullish().describe('Optional phone for a candidate submission (null for existing-worker submissions).'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "sheetId": zod.number().nullish(),
