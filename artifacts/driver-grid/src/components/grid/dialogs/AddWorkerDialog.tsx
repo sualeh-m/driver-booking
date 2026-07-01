@@ -37,43 +37,48 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-type Mode = "new" | "existing";
-
 export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existingWorkerIds = [] }: { open: boolean, onOpenChange: (o: boolean) => void, sheet: Sheet | null, start: string, end: string, existingWorkerIds?: number[] }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const createWorker = useCreateWorker();
   const addWorkerToSheet = useAddWorkerToSheet();
 
-  const [mode, setMode] = useState<Mode>("new");
-  const [search, setSearch] = useState("");
-
+  // A single combined flow: the Full Name field doubles as a live search box for
+  // existing workers. Typing shows matches to pick from (link, no duplicate);
+  // if none is the person you mean, keep typing and fill the rest to create new.
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), notes: "" },
   });
 
-  // Reset both modes whenever the dialog opens (it's reused across sheets).
+  // Once the user has explicitly picked or dismissed the suggestions we stop
+  // showing the live dropdown, so it doesn't reappear while they finish the
+  // rest of the form for a genuinely new worker.
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+
+  // Reset whenever the dialog opens (it's reused across sheets).
   useEffect(() => {
     if (open) {
-      setMode("new");
-      setSearch("");
+      setSuggestionsDismissed(false);
       form.reset({ fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), notes: "" });
     }
   }, [open, sheet, form]);
 
-  // Existing-worker search. Only runs in "existing" mode while the dialog is
-  // open. An empty search lists everyone (handy on small teams).
-  const trimmedSearch = search.trim();
+  // Live existing-worker search driven by the Full Name field.
+  const nameValue = form.watch("fullName");
+  const trimmedSearch = nameValue.trim();
   const searchParams = trimmedSearch ? { search: trimmedSearch } : undefined;
+  const searchEnabled = open && !suggestionsDismissed && trimmedSearch.length > 0;
   const { data: searchResults, isFetching: searchFetching } = useListWorkers(searchParams, {
     query: {
-      enabled: open && mode === "existing",
+      enabled: searchEnabled,
       queryKey: getListWorkersQueryKey(searchParams),
     },
   });
 
   const existingSet = new Set(existingWorkerIds);
+  const matches = searchEnabled ? (searchResults ?? []) : [];
+  const showSuggestions = searchEnabled && (searchFetching || matches.length > 0);
 
   const pending = createWorker.isPending || addWorkerToSheet.isPending;
 
@@ -115,149 +120,138 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
         <DialogHeader>
           <DialogTitle>Add Worker</DialogTitle>
           <DialogDescription>
-            {sheet ? `Add a worker to ${sheet.name}.` : "Select a sheet first."}
+            {sheet
+              ? `Start typing a name to link an existing worker, or fill in the form to add a new one to ${sheet.name}.`
+              : "Select a sheet first."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
-          <Button
-            type="button"
-            variant={mode === "new" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setMode("new")}
-          >
-            Create new
-          </Button>
-          <Button
-            type="button"
-            variant={mode === "existing" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setMode("existing")}
-          >
-            Add existing
-          </Button>
-        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name *</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Start typing a name…"
+                      autoComplete="off"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Typing again re-opens the live suggestions.
+                        if (suggestionsDismissed) setSuggestionsDismissed(false);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
 
-        {mode === "new" ? (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Tom Bradley" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="07700 900000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="jobRole"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Job Role</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {JOB_ROLES.map((role) => (
-                          <SelectItem key={role} value={role}>{role}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Standing Note</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="e.g. Prefers early starts. No nights." rows={2} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button type="submit" disabled={pending || !sheet}>
-                  {pending ? "Adding..." : "Add Worker"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        ) : (
-          <div className="space-y-3 pt-2">
-            <Input
-              placeholder="Search by name, phone, or role"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              autoFocus
-            />
-            <div className="max-h-72 overflow-auto rounded-md border">
-              {searchFetching && (!searchResults || searchResults.length === 0) ? (
-                <p className="p-3 text-sm text-muted-foreground">Searching…</p>
-              ) : !searchResults || searchResults.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground">No workers found.</p>
-              ) : (
-                <ul className="divide-y">
-                  {searchResults.map((w) => {
-                    const onSheet = existingSet.has(w.id);
-                    return (
-                      <li key={w.id} className="flex items-center justify-between gap-2 p-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{w.fullName}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {[w.jobRole, w.phone].filter(Boolean).join(" · ") || "—"}
-                          </p>
-                        </div>
-                        {onSheet ? (
-                          <span className="shrink-0 text-xs text-muted-foreground">On this sheet</span>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={pending || !sheet}
-                            onClick={() => link(w.id, w.fullName)}
-                          >
-                            Add
-                          </Button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                  {showSuggestions && (
+                    <div className="mt-1 max-h-56 overflow-auto rounded-md border bg-popover shadow-sm">
+                      <div className="flex items-center justify-between px-2 py-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          Existing workers matching “{trimmedSearch}”
+                        </span>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                          onClick={() => setSuggestionsDismissed(true)}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                      {searchFetching && matches.length === 0 ? (
+                        <p className="px-2 pb-2 text-sm text-muted-foreground">Searching…</p>
+                      ) : (
+                        <ul className="divide-y border-t">
+                          {matches.map((w) => {
+                            const onSheet = existingSet.has(w.id);
+                            return (
+                              <li key={w.id}>
+                                <button
+                                  type="button"
+                                  disabled={onSheet || pending || !sheet}
+                                  onClick={() => link(w.id, w.fullName)}
+                                  className="flex w-full items-center justify-between gap-2 px-2 py-2 text-left hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+                                >
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-sm font-medium">{w.fullName}</span>
+                                    <span className="block truncate text-xs text-muted-foreground">
+                                      {[w.phone, w.jobRole].filter(Boolean).join(" · ") || "No phone / role"}
+                                    </span>
+                                  </span>
+                                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                    {onSheet ? "On this sheet" : "Add"}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </FormItem>
               )}
-            </div>
-            <div className="flex justify-end pt-1">
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input placeholder="07700 900000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="jobRole"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Job Role</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {JOB_ROLES.map((role) => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Standing Note</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="e.g. Prefers early starts. No nights." rows={2} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={pending || !sheet}>
+                {pending ? "Adding..." : "Add Worker"}
+              </Button>
             </div>
-          </div>
-        )}
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
