@@ -40,7 +40,7 @@ export function isWorkingStatus(status: string | null | undefined): boolean {
  * applies to these roles wherever they appear — including on a "Both" sheet —
  * and never to Van / Forklift / Drivers Mate / Warehouse / Other.
  */
-export const REST_RULE_JOB_ROLES = ["HGV 1", "HGV 2", "Trunker"] as const;
+export const REST_RULE_JOB_ROLES = ["HGV 1", "HGV 2", "Trunker", "Coach"] as const;
 export type RestRuleJobRole = (typeof REST_RULE_JOB_ROLES)[number];
 
 const REST_RULE_JOB_ROLE_SET: ReadonlySet<string> = new Set(REST_RULE_JOB_ROLES);

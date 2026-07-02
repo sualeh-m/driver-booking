@@ -1485,8 +1485,8 @@ components:
       type: string
       description: >-
         A worker's job role. The rest-day rule applies only to the HGV-type
-        roles (HGV 1, HGV 2, Trunker).
-      enum: ["HGV 1", "HGV 2", "Trunker", "Van", "Forklift", "Drivers Mate", "Warehouse", "Other"]
+        roles (HGV 1, HGV 2, Trunker, Coach).
+      enum: ["HGV 1", "HGV 2", "Trunker", "Coach", "Van", "Warehouse", "Forklift", "Drivers Mate", "Other"]
 
     EventType:
       type: string

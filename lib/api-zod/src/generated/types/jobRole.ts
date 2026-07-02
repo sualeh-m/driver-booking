@@ -7,7 +7,7 @@
  */
 
 /**
- * A worker's job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker).
+ * A worker's job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Coach).
  */
 export type JobRole = typeof JobRole[keyof typeof JobRole];
 
@@ -16,9 +16,10 @@ export const JobRole = {
   HGV_1: 'HGV 1',
   HGV_2: 'HGV 2',
   Trunker: 'Trunker',
+  Coach: 'Coach',
   Van: 'Van',
+  Warehouse: 'Warehouse',
   Forklift: 'Forklift',
   Drivers_Mate: 'Drivers Mate',
-  Warehouse: 'Warehouse',
   Other: 'Other',
 } as const;

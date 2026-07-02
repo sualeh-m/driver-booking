@@ -638,6 +638,7 @@ const ROLE_CELL_BG: Record<string, string> = {
   "HGV 1": "#dfeae0",        // pale green
   "HGV 2": "#d9e8e8",        // pale teal
   "Trunker": "#e6e0ee",      // pale light purple
+  "Coach": "#eedfe6",        // pale dusty rose
   "Van": "#dde6f0",          // pale soft blue
   "Forklift": "#efe6cf",     // pale muted amber
   "Drivers Mate": "#e0e5ec", // pale grey-blue

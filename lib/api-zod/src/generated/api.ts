@@ -338,7 +338,7 @@ export const ListWorkersResponse = zod.array(ListWorkersResponseItem)
 export const CreateWorkerBody = zod.object({
   "fullName": zod.string().min(1),
   "phone": zod.string().optional(),
-  "jobRole": zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Van', 'Forklift', 'Drivers Mate', 'Warehouse', 'Other']).optional().describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker).'),
+  "jobRole": zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Coach', 'Van', 'Warehouse', 'Forklift', 'Drivers Mate', 'Other']).optional().describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Coach).'),
   "startDate": zod.string().optional(),
   "vincereId": zod.string().optional()
 })
@@ -418,7 +418,7 @@ export const UpdateWorkerParams = zod.object({
 export const UpdateWorkerBody = zod.object({
   "fullName": zod.string().min(1),
   "phone": zod.string().nullish(),
-  "jobRole": zod.union([zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Van', 'Forklift', 'Drivers Mate', 'Warehouse', 'Other']).describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker).'),zod.null()]).optional(),
+  "jobRole": zod.union([zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Coach', 'Van', 'Warehouse', 'Forklift', 'Drivers Mate', 'Other']).describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Coach).'),zod.null()]).optional(),
   "note": zod.string().nullish(),
   "sheetId": zod.number().optional()
 })
