@@ -3,7 +3,7 @@
 - [Orval query-options require queryKey](orval-query-options.md) — setting `enabled` on a generated query hook also needs `queryKey: get<Op>QueryKey(...)` or typecheck fails (TS2741).
 - [Preview/send dialogs (POST mutations)](preview-mutation-dialogs.md) — effect-driven reset+refetch on open/scope-change, never render-time conditions, or stale cross-sheet data leaks.
 - [No-show auto-flag reversal](no-show-autoflag-reversal.md) — no flag-origin column; reverse Do Not Book only when removal crosses no-show count from ≥5 down to <5, else it's a manual flag.
-- [KPI report two-set scoping](kpi-report-scoping.md) — /reports filters by depot/client + worker type via TWO sheet-id sets: worker-centric metrics use the link set, sheet-centric use the type-scoped set.
+- [KPI report scoping (untyped sheets)](kpi-report-scoping.md) — sheets carry no worker type; /reports type filter lives on the WORKER; requirements can't be type-filtered (accepted fill-rate asymmetry).
 - [drizzle-kit push ignores CHECK constraints](drizzle-push-check-constraints.md) — push reports "No changes" for changed check()s; apply the ALTER + data migrations as manual SQL (dev + hand prod SQL to user).
 - [Auth + admin deletes](auth-and-admin-deletes.md) — email/pw + roles; requireAdmin PER-ROUTE (use leaks); hard-delete≠leaver (must drop from KPI via reports query invalidation); shared type-DELETE ConfirmDeleteDialog + /delete-impact endpoints; sheet-delete hand-deletes bookings (RESTRICT); delete-leaver≠Restore (stays 'left').
 - [Batch grid edit + per-cell rest rule](batch-edit-rest-rule.md) — drag-fill must equal single-cell: one shared write helper, per-cell rest accumulation (block breaks streak), warn-ack resubmits ONLY warned cells.

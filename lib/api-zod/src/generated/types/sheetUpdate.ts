@@ -5,14 +5,12 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
-import type { SheetWorkerType } from './sheetWorkerType';
 
 /**
- * Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it. workerType may only widen to 'Both'.
+ * Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it.
  */
 export interface SheetUpdate {
   /** @minLength 1 */
   clientCompany?: string;
   depot?: string;
-  workerType?: SheetWorkerType;
 }

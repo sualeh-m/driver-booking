@@ -25,11 +25,10 @@ import { CustomJobTitleInput } from "./CustomJobTitleInput";
 
 const JOB_ROLES = Object.values(JobRole);
 
-// Sensible default role for a new worker, by the sheet's worker type. A
-// Warehouse sheet defaults to the Warehouse role; HGV and Both default to the
-// first HGV role (the user can change it).
-function defaultRoleForSheet(sheet: Sheet | null): string {
-  return sheet?.workerType === "Warehouse" ? "Warehouse" : "HGV 1";
+// Sensible default role for a new worker. Sheets carry no worker type, so
+// every sheet defaults to the first HGV role (the user can change it).
+function defaultRoleForSheet(_sheet: Sheet | null): string {
+  return "HGV 1";
 }
 
 const formSchema = z

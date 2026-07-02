@@ -35,7 +35,6 @@ export function serializeSheet(s: Sheet) {
     name: sheetDisplayName(s.clientCompany, s.depot),
     clientCompany: s.clientCompany,
     depot: s.depot,
-    workerType: s.workerType,
     createdAt: iso(s.createdAt),
   };
 }

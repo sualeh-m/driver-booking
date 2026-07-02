@@ -18,15 +18,14 @@ CREATE TABLE users (
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2. Sheets — a booking schedule for one depot + worker type.
---    Was "contracts". One sheet = one depot, one worker type, one client.
+-- 2. Sheets — a booking schedule for one client depot.
+--    Was "contracts". One sheet = one depot, one client. Sheets carry NO
+--    worker type: any worker of any job role can be added to any sheet.
 CREATE TABLE sheets (
     id              SERIAL PRIMARY KEY,
-    name            TEXT NOT NULL,                 -- display name, e.g. "Martin Brower Hemel - HGV"
+    name            TEXT NOT NULL,                 -- display name, e.g. "Martin Brower — Hemel"
     client_company  TEXT NOT NULL,                 -- the client, e.g. Martin Brower
     depot           TEXT,                          -- location / depot
-    worker_type     TEXT NOT NULL
-                    CHECK (worker_type IN ('HGV','Warehouse','Both')),  -- 'Both' = sheet runs HGV and warehouse work
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

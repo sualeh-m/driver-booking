@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateSheet, getListSheetsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 const formSchema = z.object({
   clientCompany: z.string().min(1, "Client company is required"),
   depot: z.string().optional(),
-  workerType: z.enum(["HGV", "Warehouse", "Both"]),
 });
 
 export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (o: boolean) => void }) {
@@ -26,7 +24,6 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
     defaultValues: {
       clientCompany: "",
       depot: "",
-      workerType: "HGV",
     },
   });
 
@@ -34,7 +31,6 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
     createSheet.mutate({ data: {
       clientCompany: values.clientCompany,
       depot: values.depot || undefined,
-      workerType: values.workerType,
     } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListSheetsQueryKey() });
@@ -82,28 +78,6 @@ export function NewSheetDialog({ open, onOpenChange }: { open: boolean, onOpenCh
                   <FormControl>
                     <Input placeholder="Daventry" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="workerType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Worker Type *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="HGV">HGV</SelectItem>
-                      <SelectItem value="Warehouse">Warehouse</SelectItem>
-                      <SelectItem value="Both">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

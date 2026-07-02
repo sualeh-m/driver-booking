@@ -13,7 +13,7 @@ tags:
   - name: auth
     description: Internal login and current user
   - name: sheets
-    description: Booking sheets (depot + worker type + client)
+    description: Booking sheets (client depot)
   - name: workers
     description: Worker records (local cache of Vincere)
   - name: grid
@@ -322,9 +322,8 @@ paths:
       operationId: updateSheet
       tags: [sheets]
       summary: >-
-        Update a sheet's client company, depot and/or worker type. The sheet
-        name is re-derived as "Client — Depot". Worker type can only WIDEN
-        (HGV→Both, Warehouse→Both); narrowing is rejected.
+        Update a sheet's client company and/or depot. The sheet
+        name is re-derived as "Client — Depot".
       parameters:
         - name: sheetId
           in: path
@@ -345,7 +344,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Sheet"
         "400":
-          description: Invalid request (including narrowing the worker type)
+          description: Invalid request
           content:
             application/json:
               schema:
@@ -1490,13 +1489,6 @@ components:
       type: string
       enum: [HGV, Warehouse]
 
-    SheetWorkerType:
-      type: string
-      description: >-
-        Worker type for a sheet. 'Both' means the sheet runs HGV and warehouse
-        work together. Workers themselves are only ever HGV or Warehouse.
-      enum: [HGV, Warehouse, Both]
-
     JobRole:
       type: string
       description: >-
@@ -1592,32 +1584,29 @@ components:
 
     Sheet:
       type: object
-      required: [id, name, clientCompany, workerType, createdAt]
+      required: [id, name, clientCompany, createdAt]
       properties:
         id: { type: integer }
         name: { type: string }
         clientCompany: { type: string }
         depot: { type: ["string", "null"] }
-        workerType: { $ref: "#/components/schemas/SheetWorkerType" }
         createdAt: { type: string }
 
     SheetInput:
       type: object
-      required: [clientCompany, workerType]
+      required: [clientCompany]
       properties:
         clientCompany: { type: string, minLength: 1 }
         depot: { type: string }
-        workerType: { $ref: "#/components/schemas/SheetWorkerType" }
 
     SheetUpdate:
       type: object
       description: >-
         Partial sheet update. Omitted fields are left unchanged. depot may be
-        an empty string to clear it. workerType may only widen to 'Both'.
+        an empty string to clear it.
       properties:
         clientCompany: { type: string, minLength: 1 }
         depot: { type: string }
-        workerType: { $ref: "#/components/schemas/SheetWorkerType" }
 
     SheetContact:
       type: object

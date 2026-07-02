@@ -975,7 +975,7 @@ export const getUpdateSheetUrl = (sheetId: number,) => {
 }
 
 /**
- * @summary Update a sheet's client company, depot and/or worker type. The sheet name is re-derived as "Client — Depot". Worker type can only WIDEN (HGV→Both, Warehouse→Both); narrowing is rejected.
+ * @summary Update a sheet's client company and/or depot. The sheet name is re-derived as "Client — Depot".
  */
 export const updateSheet = async (sheetId: number,
     sheetUpdate: SheetUpdate, options?: RequestInit): Promise<Sheet> => {
@@ -1025,7 +1025,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateSheetMutationError = ErrorType<Error>
 
     /**
- * @summary Update a sheet's client company, depot and/or worker type. The sheet name is re-derived as "Client — Depot". Worker type can only WIDEN (HGV→Both, Warehouse→Both); narrowing is rejected.
+ * @summary Update a sheet's client company and/or depot. The sheet name is re-derived as "Client — Depot".
  */
 export const useUpdateSheet = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSheet>>, TError,{sheetId: number;data: BodyType<SheetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}

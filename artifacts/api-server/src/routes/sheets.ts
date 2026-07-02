@@ -51,17 +51,14 @@ router.post("/sheets", async (req, res): Promise<void> => {
       name: sheetDisplayName(parsed.data.clientCompany, parsed.data.depot),
       clientCompany: parsed.data.clientCompany,
       depot: parsed.data.depot ?? null,
-      workerType: parsed.data.workerType,
     })
     .returning();
 
   res.status(201).json(serializeSheet(sheet));
 });
 
-// Update a sheet's client company, depot and/or worker type. The sheet name is
-// re-derived as "Client — Depot" whenever client/depot change. The worker type
-// may only WIDEN (HGV→Both, Warehouse→Both) — narrowing would strand workers or
-// bookings that no longer fit the sheet, so it is rejected server-side.
+// Update a sheet's client company and/or depot. The sheet name is re-derived
+// as "Client — Depot" whenever client/depot change.
 router.patch("/sheets/:sheetId", async (req, res): Promise<void> => {
   const params = UpdateSheetParams.safeParse(req.params);
   if (!params.success) {
@@ -83,18 +80,7 @@ router.patch("/sheets/:sheetId", async (req, res): Promise<void> => {
     return;
   }
 
-  const { clientCompany, depot, workerType } = parsed.data;
-
-  if (
-    workerType !== undefined &&
-    workerType !== existing.workerType &&
-    workerType !== "Both"
-  ) {
-    res.status(400).json({
-      error: `Worker type can only be widened to "Both" (currently "${existing.workerType}")`,
-    });
-    return;
-  }
+  const { clientCompany, depot } = parsed.data;
 
   const nextClient =
     clientCompany !== undefined ? clientCompany.trim() : existing.clientCompany;
@@ -111,7 +97,6 @@ router.patch("/sheets/:sheetId", async (req, res): Promise<void> => {
       clientCompany: nextClient,
       depot: nextDepot,
       name: sheetDisplayName(nextClient, nextDepot ?? undefined),
-      workerType: workerType ?? existing.workerType,
     })
     .where(eq(sheetsTable.id, params.data.sheetId))
     .returning();

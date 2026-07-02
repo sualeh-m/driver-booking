@@ -65,20 +65,17 @@ router.get("/reports/operational", async (req, res): Promise<void> => {
       .filter((n) => Number.isInteger(n)) ?? [];
   const restrictToSheets = selectedIds.length > 0;
 
-  // Resolve the depot/client-selected sheets and split by worker type.
-  // depotClientSheetIds: all selected sheets (any worker type) — used for the
-  //   active-workers depot/client link.
-  // scopedSheetIds: those that also match the worker-type filter — used for the
-  //   sheet-scoped metrics (requirements, filled, no-shows) so fill rate stays coherent.
+  // Resolve the depot/client-selected sheets. Sheets carry NO worker type, so
+  // the worker-type filter is applied per-metric via the WORKER's own type:
+  // filled bookings and no-show events join workers on worker_type.
+  // Requirements have no worker attached, so they always cover the full
+  // depot/client selection regardless of the worker-type filter.
   const sheetRows = await db
-    .select({ id: sheetsTable.id, workerType: sheetsTable.workerType })
+    .select({ id: sheetsTable.id })
     .from(sheetsTable)
     .where(restrictToSheets ? inArray(sheetsTable.id, selectedIds) : undefined);
 
   const depotClientSheetIds = sheetRows.map((s) => s.id);
-  const scopedSheetIds = workerType
-    ? sheetRows.filter((s) => s.workerType === workerType).map((s) => s.id)
-    : depotClientSheetIds;
 
   // Active workers matching the filters.
   // - all depots/clients selected: every active worker of the type.
@@ -109,9 +106,9 @@ router.get("/reports/operational", async (req, res): Promise<void> => {
     return row?.value ?? 0;
   })();
 
-  // Requirements received: sum of quantity_needed in range over the scoped sheets.
+  // Requirements received: sum of quantity_needed in range over the selected sheets.
   const requirementsPromise = (async (): Promise<number> => {
-    if (scopedSheetIds.length === 0) return 0;
+    if (depotClientSheetIds.length === 0) return 0;
     const [row] = await db
       .select({
         total: sql<number>`coalesce(sum(${shiftRequirementsTable.quantityNeeded}), 0)::int`,
@@ -119,7 +116,7 @@ router.get("/reports/operational", async (req, res): Promise<void> => {
       .from(shiftRequirementsTable)
       .where(
         and(
-          inArray(shiftRequirementsTable.sheetId, scopedSheetIds),
+          inArray(shiftRequirementsTable.sheetId, depotClientSheetIds),
           gte(shiftRequirementsTable.reqDate, start),
           lte(shiftRequirementsTable.reqDate, end),
         ),
@@ -127,37 +124,53 @@ router.get("/reports/operational", async (req, res): Promise<void> => {
     return row?.total ?? 0;
   })();
 
-  // Filled: bookings with a filled status in range over the scoped sheets.
+  // Filled: bookings with a filled status in range over the selected sheets,
+  // filtered by the booked WORKER's own type when a worker-type filter is set.
   const filledPromise = (async (): Promise<number> => {
-    if (scopedSheetIds.length === 0) return 0;
+    if (depotClientSheetIds.length === 0) return 0;
+    const conds = [
+      inArray(bookingsTable.sheetId, depotClientSheetIds),
+      inArray(bookingsTable.status, [...FILLED_STATUSES]),
+      gte(bookingsTable.shiftDate, start),
+      lte(bookingsTable.shiftDate, end),
+    ];
+    if (workerType) {
+      const [row] = await db
+        .select({ value: count() })
+        .from(bookingsTable)
+        .innerJoin(workersTable, eq(bookingsTable.workerId, workersTable.id))
+        .where(and(...conds, eq(workersTable.workerType, workerType)));
+      return row?.value ?? 0;
+    }
     const [row] = await db
       .select({ value: count() })
       .from(bookingsTable)
-      .where(
-        and(
-          inArray(bookingsTable.sheetId, scopedSheetIds),
-          inArray(bookingsTable.status, [...FILLED_STATUSES]),
-          gte(bookingsTable.shiftDate, start),
-          lte(bookingsTable.shiftDate, end),
-        ),
-      );
+      .where(and(...conds));
     return row?.value ?? 0;
   })();
 
-  // No-shows: no_show events in range over the scoped sheets.
+  // No-shows: no_show events in range over the selected sheets, filtered by
+  // the WORKER's own type when a worker-type filter is set.
   const noShowsPromise = (async (): Promise<number> => {
-    if (scopedSheetIds.length === 0) return 0;
+    if (depotClientSheetIds.length === 0) return 0;
+    const conds = [
+      inArray(eventsTable.sheetId, depotClientSheetIds),
+      eq(eventsTable.eventType, "no_show"),
+      gte(eventsTable.eventDate, start),
+      lte(eventsTable.eventDate, end),
+    ];
+    if (workerType) {
+      const [row] = await db
+        .select({ value: count() })
+        .from(eventsTable)
+        .innerJoin(workersTable, eq(eventsTable.workerId, workersTable.id))
+        .where(and(...conds, eq(workersTable.workerType, workerType)));
+      return row?.value ?? 0;
+    }
     const [row] = await db
       .select({ value: count() })
       .from(eventsTable)
-      .where(
-        and(
-          inArray(eventsTable.sheetId, scopedSheetIds),
-          eq(eventsTable.eventType, "no_show"),
-          gte(eventsTable.eventDate, start),
-          lte(eventsTable.eventDate, end),
-        ),
-      );
+      .where(and(...conds));
     return row?.value ?? 0;
   })();
 

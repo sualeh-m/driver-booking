@@ -369,15 +369,12 @@ router.post("/import", async (req, res): Promise<void> => {
               phone: phone || null,
               jobRole: jobRole || null,
               customJobTitle,
-              // Workers are only ever HGV/Warehouse. On a "Both" sheet derive
-              // the worker type from the row's job role (HGV-type roles → HGV,
-              // otherwise Warehouse); single-type sheets keep their own type.
-              workerType:
-                sheet.workerType === "Both"
-                  ? isRestRuleJobRole(jobRole || null)
-                    ? "HGV"
-                    : "Warehouse"
-                  : sheet.workerType,
+              // Workers are only ever HGV/Warehouse, derived from the row's
+              // job role (HGV-type roles → HGV, otherwise Warehouse). Sheets
+              // carry no worker type.
+              workerType: isRestRuleJobRole(jobRole || null)
+                ? "HGV"
+                : "Warehouse",
             })
             .returning();
           // Remember the title in the suggestion list too.

@@ -51,18 +51,6 @@ export const WorkerType = {
 } as const;
 
 /**
- * Worker type for a sheet. 'Both' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.
- */
-export type SheetWorkerType = typeof SheetWorkerType[keyof typeof SheetWorkerType];
-
-
-export const SheetWorkerType = {
-  HGV: 'HGV',
-  Warehouse: 'Warehouse',
-  Both: 'Both',
-} as const;
-
-/**
  * A worker's job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Coach).
  */
 export type JobRole = typeof JobRole[keyof typeof JobRole];
@@ -178,7 +166,6 @@ export interface Sheet {
   clientCompany: string;
   /** @nullable */
   depot?: string | null;
-  workerType: SheetWorkerType;
   createdAt: string;
 }
 
@@ -186,17 +173,15 @@ export interface SheetInput {
   /** @minLength 1 */
   clientCompany: string;
   depot?: string;
-  workerType: SheetWorkerType;
 }
 
 /**
- * Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it. workerType may only widen to 'Both'.
+ * Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it.
  */
 export interface SheetUpdate {
   /** @minLength 1 */
   clientCompany?: string;
   depot?: string;
-  workerType?: SheetWorkerType;
 }
 
 export interface SheetContact {

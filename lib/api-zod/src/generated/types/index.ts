@@ -67,7 +67,6 @@ export * from './sheetContactUpdate';
 export * from './sheetDeleteImpact';
 export * from './sheetInput';
 export * from './sheetUpdate';
-export * from './sheetWorkerType';
 export * from './status';
 export * from './statusCount';
 export * from './submission';

@@ -174,7 +174,6 @@ export const ListSheetsResponseItem = zod.object({
   "name": zod.string(),
   "clientCompany": zod.string(),
   "depot": zod.string().nullish(),
-  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.'),
   "createdAt": zod.string()
 })
 export const ListSheetsResponse = zod.array(ListSheetsResponseItem)
@@ -188,13 +187,12 @@ export const ListSheetsResponse = zod.array(ListSheetsResponseItem)
 
 export const CreateSheetBody = zod.object({
   "clientCompany": zod.string().min(1),
-  "depot": zod.string().optional(),
-  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.')
+  "depot": zod.string().optional()
 })
 
 
 /**
- * @summary Update a sheet's client company, depot and/or worker type. The sheet name is re-derived as "Client — Depot". Worker type can only WIDEN (HGV→Both, Warehouse→Both); narrowing is rejected.
+ * @summary Update a sheet's client company and/or depot. The sheet name is re-derived as "Client — Depot".
  */
 export const UpdateSheetParams = zod.object({
   "sheetId": zod.coerce.number()
@@ -205,16 +203,14 @@ export const UpdateSheetParams = zod.object({
 
 export const UpdateSheetBody = zod.object({
   "clientCompany": zod.string().min(1).optional(),
-  "depot": zod.string().optional(),
-  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).optional().describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.')
-}).describe('Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it. workerType may only widen to \'Both\'.')
+  "depot": zod.string().optional()
+}).describe('Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it.')
 
 export const UpdateSheetResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "clientCompany": zod.string(),
   "depot": zod.string().nullish(),
-  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.'),
   "createdAt": zod.string()
 })
 

@@ -5,7 +5,6 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
-import type { SheetWorkerType } from './sheetWorkerType';
 
 export interface Sheet {
   id: number;
@@ -13,6 +12,5 @@ export interface Sheet {
   clientCompany: string;
   /** @nullable */
   depot?: string | null;
-  workerType: SheetWorkerType;
   createdAt: string;
 }

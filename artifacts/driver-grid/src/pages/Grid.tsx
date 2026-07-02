@@ -80,7 +80,7 @@ export function Grid() {
                 className="w-[300px] justify-between font-semibold"
               >
                 <span className="truncate">
-                  {selectedSheet ? `${selectedSheet.name} · ${selectedSheet.workerType}` : "Select Sheet"}
+                  {selectedSheet ? selectedSheet.name : "Select Sheet"}
                 </span>
                 <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -94,7 +94,7 @@ export function Grid() {
                     {sheets?.map((s) => (
                       <CommandItem
                         key={s.id}
-                        value={`${s.name} ${s.workerType}`}
+                        value={s.name}
                         onSelect={() => {
                           setSelectedSheetId(s.id);
                           setSheetPickerOpen(false);
@@ -107,7 +107,7 @@ export function Grid() {
                           )}
                         />
                         <span className="truncate">
-                          {s.name} · {s.workerType}
+                          {s.name}
                         </span>
                       </CommandItem>
                     ))}
