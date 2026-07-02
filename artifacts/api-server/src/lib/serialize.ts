@@ -57,6 +57,7 @@ export function serializeWorker(w: Worker) {
     fullName: w.fullName,
     phone: w.phone,
     jobRole: w.jobRole,
+    customJobTitle: w.customJobTitle,
     workerType: w.workerType,
     startDate: w.startDate,
     status: w.status,

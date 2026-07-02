@@ -13,6 +13,9 @@ export const workersTable = pgTable(
     fullName: text("full_name").notNull(),
     phone: text("phone"),
     jobRole: text("job_role"),
+    // Free-text job title, REQUIRED when jobRole = 'Other' (enforced in the
+    // API layer), always null for the fixed roles.
+    customJobTitle: text("custom_job_title"),
     workerType: text("worker_type").notNull(),
     startDate: date("start_date", { mode: "string" }),
     status: text("status").notNull().default("active"),

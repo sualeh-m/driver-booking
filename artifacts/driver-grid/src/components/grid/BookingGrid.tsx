@@ -425,7 +425,14 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
                     title="View or edit worker"
                   >
                     <span className="text-xs">{worker.fullName}</span>
-                    {worker.jobRole && <span className="text-[11px] text-muted-foreground"> · {worker.jobRole}</span>}
+                    {worker.jobRole && (
+                      <span className="text-[11px] text-muted-foreground">
+                        {" · "}
+                        {worker.jobRole === "Other" && worker.customJobTitle
+                          ? worker.customJobTitle
+                          : worker.jobRole}
+                      </span>
+                    )}
                   </button>
                 </TableCell>
                 <TableCell className="w-[160px] whitespace-nowrap border-r py-0.5 text-[11px] text-muted-foreground">{worker.phone || "-"}</TableCell>

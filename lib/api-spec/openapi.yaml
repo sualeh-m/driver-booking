@@ -517,6 +517,22 @@ paths:
         "204":
           description: Removed
 
+  /job-titles:
+    get:
+      operationId: listJobTitles
+      tags: [workers]
+      summary: >-
+        Remembered custom job titles for the "Other" role, alphabetical. The
+        client filters these live as the user types.
+      responses:
+        "200":
+          description: Saved custom job titles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
   /workers:
     get:
       operationId: listWorkers
@@ -1636,6 +1652,7 @@ components:
         fullName: { type: string }
         phone: { type: ["string", "null"] }
         jobRole: { type: ["string", "null"] }
+        customJobTitle: { type: ["string", "null"] }
         workerType: { $ref: "#/components/schemas/WorkerType" }
         startDate: { type: ["string", "null"] }
         status: { type: string }
@@ -1649,6 +1666,11 @@ components:
         fullName: { type: string, minLength: 1 }
         phone: { type: string }
         jobRole: { $ref: "#/components/schemas/JobRole" }
+        customJobTitle:
+          type: string
+          description: >-
+            Free-text job title. REQUIRED (non-blank) when jobRole is "Other";
+            ignored (forced null) for any other role.
         startDate: { type: string }
         vincereId: { type: string }
 
@@ -1662,6 +1684,11 @@ components:
           anyOf:
             - $ref: "#/components/schemas/JobRole"
             - type: "null"
+        customJobTitle:
+          type: ["string", "null"]
+          description: >-
+            Free-text job title. REQUIRED (non-blank) when jobRole is "Other";
+            ignored (forced null) for any other role.
         note: { type: ["string", "null"] }
         sheetId: { type: integer }
 
@@ -1681,6 +1708,7 @@ components:
         fullName: { type: string }
         phone: { type: ["string", "null"] }
         jobRole: { type: ["string", "null"] }
+        customJobTitle: { type: ["string", "null"] }
         workerType: { $ref: "#/components/schemas/WorkerType" }
         startDate: { type: ["string", "null"] }
         status: { type: string }

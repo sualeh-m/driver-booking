@@ -24,6 +24,7 @@ import { getUserId } from "../lib/auth";
 import { evaluateRestRule } from "../lib/restCheck";
 import { findCrossSheetWorkingConflict } from "../lib/crossSheet";
 import { parseCsv } from "../lib/csv";
+import { resolveCustomJobTitle, rememberJobTitle } from "../lib/jobTitles";
 
 const router: IRouter = Router();
 
@@ -85,6 +86,7 @@ router.get("/grid", async (req, res): Promise<void> => {
       fullName: workersTable.fullName,
       phone: workersTable.phone,
       jobRole: workersTable.jobRole,
+      customJobTitle: workersTable.customJobTitle,
       workerType: workersTable.workerType,
       startDate: workersTable.startDate,
       status: workersTable.status,
@@ -114,6 +116,9 @@ router.get("/grid", async (req, res): Promise<void> => {
         when 'Other' then 9
         else 10
       end`,
+      // Within the "Other" group, sort alphabetically by custom title first
+      // (Postgres ASC puts NULLs last, so untitled Others trail the titled).
+      sql`case when ${workersTable.jobRole} = 'Other' then lower(${workersTable.customJobTitle}) end`,
       workersTable.fullName,
     );
 
@@ -216,6 +221,7 @@ router.get("/grid", async (req, res): Promise<void> => {
       fullName: w.fullName,
       phone: w.phone,
       jobRole: w.jobRole,
+      customJobTitle: w.customJobTitle,
       workerType: w.workerType,
       startDate: w.startDate,
       status: w.status,
@@ -307,9 +313,24 @@ router.post("/import", async (req, res): Promise<void> => {
     const startTime =
       idxTime !== -1 ? normalizeTime(row[idxTime] ?? "") : null;
     const phone = idxPhone !== -1 ? (row[idxPhone] ?? "").trim() : "";
-    const jobRole = normalizeCsvJobRole(
-      idxRole !== -1 ? (row[idxRole] ?? "").trim() : "",
-    );
+    const rawRole = idxRole !== -1 ? (row[idxRole] ?? "").trim() : "";
+    const jobRole = normalizeCsvJobRole(rawRole);
+    // An unrecognised role becomes "Other" — keep the raw text as the custom
+    // job title so the import never loses what the sheet actually said. A cell
+    // that literally says "Other" has no real title to keep, and "Other"
+    // requires one (same rule as the create/edit endpoints), so reject the row.
+    if (jobRole === JobRole.Other && rawRole.toLowerCase() === "other") {
+      errors.push(
+        `Line ${lineNo}: job_role "Other" needs an actual job title — put the real role text (e.g. "Recovery Driver") in the column instead`,
+      );
+      continue;
+    }
+    const resolvedTitle = resolveCustomJobTitle(jobRole, rawRole);
+    if (!resolvedTitle.ok) {
+      errors.push(`Line ${lineNo}: ${resolvedTitle.error}`);
+      continue;
+    }
+    const customJobTitle = resolvedTitle.value;
 
     try {
       await db.transaction(async (tx) => {
@@ -347,6 +368,7 @@ router.post("/import", async (req, res): Promise<void> => {
               fullName,
               phone: phone || null,
               jobRole: jobRole || null,
+              customJobTitle,
               // Workers are only ever HGV/Warehouse. On a "Both" sheet derive
               // the worker type from the row's job role (HGV-type roles → HGV,
               // otherwise Warehouse); single-type sheets keep their own type.
@@ -358,6 +380,8 @@ router.post("/import", async (req, res): Promise<void> => {
                   : sheet.workerType,
             })
             .returning();
+          // Remember the title in the suggestion list too.
+          await rememberJobTitle(tx, customJobTitle);
           workersCreated++;
         } else {
           workersMatched++;

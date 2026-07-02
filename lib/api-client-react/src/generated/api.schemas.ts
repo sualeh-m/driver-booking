@@ -228,6 +228,8 @@ export interface Worker {
   phone?: string | null;
   /** @nullable */
   jobRole?: string | null;
+  /** @nullable */
+  customJobTitle?: string | null;
   workerType: WorkerType;
   /** @nullable */
   startDate?: string | null;
@@ -241,6 +243,8 @@ export interface WorkerInput {
   fullName: string;
   phone?: string;
   jobRole?: JobRole;
+  /** Free-text job title. REQUIRED (non-blank) when jobRole is "Other"; ignored (forced null) for any other role. */
+  customJobTitle?: string;
   startDate?: string;
   vincereId?: string;
 }
@@ -251,6 +255,11 @@ export interface WorkerUpdateInput {
   /** @nullable */
   phone?: string | null;
   jobRole?: JobRole | null;
+  /**
+     * Free-text job title. REQUIRED (non-blank) when jobRole is "Other"; ignored (forced null) for any other role.
+     * @nullable
+     */
+  customJobTitle?: string | null;
   /** @nullable */
   note?: string | null;
   sheetId?: number;
@@ -270,6 +279,8 @@ export interface GridWorker {
   phone?: string | null;
   /** @nullable */
   jobRole?: string | null;
+  /** @nullable */
+  customJobTitle?: string | null;
   workerType: WorkerType;
   /** @nullable */
   startDate?: string | null;

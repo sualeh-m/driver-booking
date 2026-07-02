@@ -24,6 +24,7 @@ import {
 } from "@workspace/api-zod";
 import { serializeWorker } from "../lib/serialize";
 import { requireAdmin } from "../lib/auth";
+import { resolveCustomJobTitle, rememberJobTitle } from "../lib/jobTitles";
 
 // Normalise an optional free-text field: trim, and treat empty as null so we
 // never store blank strings.
@@ -169,6 +170,14 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
   const { fullName, phone, jobRole, note, sheetId } = parsed.data;
   const cleanedJobRole = cleanText(jobRole);
 
+  // "Other" requires a custom title; any other role forces it null so a role
+  // change away from Other never leaves a stale title behind.
+  const title = resolveCustomJobTitle(cleanedJobRole, parsed.data.customJobTitle);
+  if (!title.ok) {
+    res.status(400).json({ error: title.error });
+    return;
+  }
+
   try {
     const worker = await db.transaction(async (tx) => {
       const [updated] = await tx
@@ -177,12 +186,16 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
           fullName: fullName.trim(),
           phone: cleanText(phone),
           jobRole: cleanedJobRole,
+          customJobTitle: title.value,
           workerType: workerTypeForJobRole(cleanedJobRole),
         })
         .where(eq(workersTable.id, params.data.id))
         .returning();
 
       if (!updated) return null;
+
+      // Save the typed title into the suggestion list (case-insensitive dedupe).
+      await rememberJobTitle(tx, title.value);
 
       // Standing notes live per worker+sheet. Only touch the link the editor
       // is looking at; if the worker isn't linked to that sheet this is a no-op.
@@ -295,17 +308,33 @@ router.post("/workers", async (req, res): Promise<void> => {
   }
 
   const jobRole = parsed.data.jobRole ?? null;
-  const [worker] = await db
-    .insert(workersTable)
-    .values({
-      fullName: parsed.data.fullName,
-      phone: parsed.data.phone ?? null,
-      jobRole,
-      workerType: workerTypeForJobRole(jobRole),
-      startDate: parsed.data.startDate ?? null,
-      vincereId: parsed.data.vincereId ?? null,
-    })
-    .returning();
+
+  // "Other" requires a custom title; any other role forces it null.
+  const title = resolveCustomJobTitle(jobRole, parsed.data.customJobTitle);
+  if (!title.ok) {
+    res.status(400).json({ error: title.error });
+    return;
+  }
+
+  const worker = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(workersTable)
+      .values({
+        fullName: parsed.data.fullName,
+        phone: parsed.data.phone ?? null,
+        jobRole,
+        customJobTitle: title.value,
+        workerType: workerTypeForJobRole(jobRole),
+        startDate: parsed.data.startDate ?? null,
+        vincereId: parsed.data.vincereId ?? null,
+      })
+      .returning();
+
+    // Save the typed title into the suggestion list (case-insensitive dedupe).
+    await rememberJobTitle(tx, title.value);
+
+    return created;
+  });
 
   res.status(201).json(serializeWorker(worker));
 });

@@ -49,6 +49,7 @@ CREATE TABLE workers (
     full_name    TEXT NOT NULL,
     phone        TEXT,                 -- for Twilio confirmations
     job_role     TEXT,                 -- e.g. HGV 1, HGV 2, Picker
+    custom_job_title TEXT,             -- free-text title, required when job_role='Other'
     worker_type  TEXT NOT NULL
                  CHECK (worker_type IN ('HGV','Warehouse')),
     start_date   DATE,                 -- joined company — feeds retention buckets
@@ -57,6 +58,15 @@ CREATE TABLE workers (
     do_not_book  BOOLEAN NOT NULL DEFAULT false, -- flagged unbookable (manual or auto after 5 no-shows)
     synced_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 4b. Remembered custom job titles for the "Other" role — the suggestion list
+--     offered whenever someone types a custom title. Deduped case-insensitively.
+CREATE TABLE custom_job_titles (
+    id          SERIAL PRIMARY KEY,
+    title       TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX custom_job_titles_title_lower ON custom_job_titles (lower(title));
 
 -- 5. Worker–Sheet links — a worker can sit on multiple sheets.
 --    Holds the per-sheet standing note (the old "Notes" column).

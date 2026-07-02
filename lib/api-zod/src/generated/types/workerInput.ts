@@ -12,6 +12,8 @@ export interface WorkerInput {
   fullName: string;
   phone?: string;
   jobRole?: JobRole;
+  /** Free-text job title. REQUIRED (non-blank) when jobRole is "Other"; ignored (forced null) for any other role. */
+  customJobTitle?: string;
   startDate?: string;
   vincereId?: string;
 }

@@ -308,6 +308,13 @@ export const RemoveSheetContactParams = zod.object({
 
 
 /**
+ * @summary Remembered custom job titles for the "Other" role, alphabetical. The client filters these live as the user types.
+ */
+export const ListJobTitlesResponseItem = zod.string()
+export const ListJobTitlesResponse = zod.array(ListJobTitlesResponseItem)
+
+
+/**
  * @summary List or search workers (local table)
  */
 export const ListWorkersQueryParams = zod.object({
@@ -320,6 +327,7 @@ export const ListWorkersResponseItem = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
@@ -339,6 +347,7 @@ export const CreateWorkerBody = zod.object({
   "fullName": zod.string().min(1),
   "phone": zod.string().optional(),
   "jobRole": zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Coach', 'Van', 'Warehouse', 'Forklift', 'Drivers Mate', 'Other']).optional().describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Coach).'),
+  "customJobTitle": zod.string().optional().describe('Free-text job title. REQUIRED (non-blank) when jobRole is \"Other\"; ignored (forced null) for any other role.'),
   "startDate": zod.string().optional(),
   "vincereId": zod.string().optional()
 })
@@ -376,6 +385,7 @@ export const SetWorkerDoNotBookResponse = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
@@ -397,6 +407,7 @@ export const GetWorkerResponse = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
@@ -419,6 +430,7 @@ export const UpdateWorkerBody = zod.object({
   "fullName": zod.string().min(1),
   "phone": zod.string().nullish(),
   "jobRole": zod.union([zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Coach', 'Van', 'Warehouse', 'Forklift', 'Drivers Mate', 'Other']).describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Coach).'),zod.null()]).optional(),
+  "customJobTitle": zod.string().nullish().describe('Free-text job title. REQUIRED (non-blank) when jobRole is \"Other\"; ignored (forced null) for any other role.'),
   "note": zod.string().nullish(),
   "sheetId": zod.number().optional()
 })
@@ -429,6 +441,7 @@ export const UpdateWorkerResponse = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
@@ -506,6 +519,7 @@ export const MarkWorkerAsLeaverResponse = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
@@ -527,6 +541,7 @@ export const RestoreWorkerResponse = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),
@@ -703,6 +718,7 @@ export const GetGridResponse = zod.object({
   "fullName": zod.string(),
   "phone": zod.string().nullish(),
   "jobRole": zod.string().nullish(),
+  "customJobTitle": zod.string().nullish(),
   "workerType": zod.enum(['HGV', 'Warehouse']),
   "startDate": zod.string().nullish(),
   "status": zod.string(),

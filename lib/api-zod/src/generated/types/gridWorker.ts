@@ -16,6 +16,8 @@ export interface GridWorker {
   phone?: string | null;
   /** @nullable */
   jobRole?: string | null;
+  /** @nullable */
+  customJobTitle?: string | null;
   workerType: WorkerType;
   /** @nullable */
   startDate?: string | null;

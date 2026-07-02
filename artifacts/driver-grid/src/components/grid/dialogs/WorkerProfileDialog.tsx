@@ -42,11 +42,13 @@ import {
   getGetDashboardSummaryQueryKey,
   getListLeaversQueryKey,
   getListSubmissionsQueryKey,
+  getListJobTitlesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { MarkLeaverDialog } from "./MarkLeaverDialog";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { CustomJobTitleInput } from "./CustomJobTitleInput";
 
 const JOB_ROLES = Object.values(JobRole);
 
@@ -62,12 +64,23 @@ function seedJobRole(
   return workerType === "HGV" ? "HGV 1" : "Warehouse";
 }
 
-const formSchema = z.object({
-  fullName: z.string().min(1, "Name is required"),
-  phone: z.string().optional(),
-  jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
-  note: z.string().optional(),
-});
+const formSchema = z
+  .object({
+    fullName: z.string().min(1, "Name is required"),
+    phone: z.string().optional(),
+    jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
+    customJobTitle: z.string().optional(),
+    note: z.string().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.jobRole === JobRole.Other && !v.customJobTitle?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customJobTitle"],
+        message: 'Job title is required when the role is "Other"',
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -156,6 +169,7 @@ export function WorkerProfileDialog({
       fullName: "",
       phone: "",
       jobRole: "HGV 1",
+      customJobTitle: "",
       note: "",
     },
   });
@@ -167,6 +181,7 @@ export function WorkerProfileDialog({
         fullName: worker.fullName,
         phone: worker.phone ?? "",
         jobRole: seedJobRole(worker.jobRole, worker.workerType),
+        customJobTitle: worker.customJobTitle ?? "",
         note: note ?? "",
       });
     }
@@ -185,6 +200,10 @@ export function WorkerProfileDialog({
           fullName: values.fullName,
           phone: values.phone?.trim() ? values.phone : null,
           jobRole: values.jobRole as (typeof JOB_ROLES)[number],
+          customJobTitle:
+            values.jobRole === JobRole.Other
+              ? (values.customJobTitle?.trim() ?? null)
+              : null,
           ...(sheetId !== undefined
             ? { sheetId, note: values.note?.trim() ? values.note : null }
             : {}),
@@ -198,6 +217,10 @@ export function WorkerProfileDialog({
           queryClient.invalidateQueries({ queryKey: ["/api/grid"] });
           queryClient.invalidateQueries({
             queryKey: getGetDashboardSummaryQueryKey(),
+          });
+          // A new custom title may now exist in the suggestion list.
+          queryClient.invalidateQueries({
+            queryKey: getListJobTitlesQueryKey(),
           });
           onSaved?.();
           toast({ title: `${updated.fullName} updated` });
@@ -285,6 +308,25 @@ export function WorkerProfileDialog({
                   </FormItem>
                 )}
               />
+              {form.watch("jobRole") === JobRole.Other && (
+                <FormField
+                  control={form.control}
+                  name="customJobTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Title *</FormLabel>
+                      <FormControl>
+                        <CustomJobTitleInput
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               {sheetId !== undefined && (
                 <FormField
                   control={form.control}
@@ -334,7 +376,11 @@ export function WorkerProfileDialog({
               <dt className="text-muted-foreground">Phone</dt>
               <dd className="col-span-2">{worker.phone || "—"}</dd>
               <dt className="text-muted-foreground">Job role</dt>
-              <dd className="col-span-2">{worker.jobRole || "—"}</dd>
+              <dd className="col-span-2">
+                {worker.jobRole === "Other" && worker.customJobTitle
+                  ? `${worker.customJobTitle} (Other)`
+                  : worker.jobRole || "—"}
+              </dd>
               <dt className="text-muted-foreground">Worker type</dt>
               <dd className="col-span-2">{worker.workerType}</dd>
               {sheetId !== undefined && (

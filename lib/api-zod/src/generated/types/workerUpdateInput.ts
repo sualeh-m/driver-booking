@@ -13,6 +13,11 @@ export interface WorkerUpdateInput {
   /** @nullable */
   phone?: string | null;
   jobRole?: JobRole | null;
+  /**
+     * Free-text job title. REQUIRED (non-blank) when jobRole is "Other"; ignored (forced null) for any other role.
+     * @nullable
+     */
+  customJobTitle?: string | null;
   /** @nullable */
   note?: string | null;
   sheetId?: number;

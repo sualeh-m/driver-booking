@@ -1480,6 +1480,83 @@ export const useRemoveSheetContact = <TError = ErrorType<unknown>,
       return useMutation(getRemoveSheetContactMutationOptions(options));
     }
 
+export const getListJobTitlesUrl = () => {
+
+
+
+
+  return `/api/job-titles`
+}
+
+/**
+ * @summary Remembered custom job titles for the "Other" role, alphabetical. The client filters these live as the user types.
+ */
+export const listJobTitles = async ( options?: RequestInit): Promise<string[]> => {
+
+  return customFetch<string[]>(getListJobTitlesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJobTitlesQueryKey = () => {
+    return [
+    `/api/job-titles`
+    ] as const;
+    }
+
+
+export const getListJobTitlesQueryOptions = <TData = Awaited<ReturnType<typeof listJobTitles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJobTitles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJobTitlesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJobTitles>>> = ({ signal }) => listJobTitles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJobTitles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJobTitlesQueryResult = NonNullable<Awaited<ReturnType<typeof listJobTitles>>>
+export type ListJobTitlesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Remembered custom job titles for the "Other" role, alphabetical. The client filters these live as the user types.
+ */
+
+export function useListJobTitles<TData = Awaited<ReturnType<typeof listJobTitles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJobTitles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJobTitlesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getListWorkersUrl = (params?: ListWorkersParams,) => {
   const normalizedParams = new URLSearchParams();
 

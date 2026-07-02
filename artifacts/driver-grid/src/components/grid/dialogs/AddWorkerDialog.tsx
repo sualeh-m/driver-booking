@@ -17,9 +17,11 @@ import {
   getListWorkersQueryKey,
   getGetGridQueryKey,
   getGetDashboardSummaryQueryKey,
+  getListJobTitlesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { CustomJobTitleInput } from "./CustomJobTitleInput";
 
 const JOB_ROLES = Object.values(JobRole);
 
@@ -30,12 +32,23 @@ function defaultRoleForSheet(sheet: Sheet | null): string {
   return sheet?.workerType === "Warehouse" ? "Warehouse" : "HGV 1";
 }
 
-const formSchema = z.object({
-  fullName: z.string().min(1, "Name is required"),
-  phone: z.string().optional(),
-  jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
-  notes: z.string().optional(),
-});
+const formSchema = z
+  .object({
+    fullName: z.string().min(1, "Name is required"),
+    phone: z.string().optional(),
+    jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
+    customJobTitle: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.jobRole === JobRole.Other && !v.customJobTitle?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customJobTitle"],
+        message: 'Job title is required when the role is "Other"',
+      });
+    }
+  });
 
 export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existingWorkerIds = [] }: { open: boolean, onOpenChange: (o: boolean) => void, sheet: Sheet | null, start: string, end: string, existingWorkerIds?: number[] }) {
   const queryClient = useQueryClient();
@@ -48,7 +61,7 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
   // if none is the person you mean, keep typing and fill the rest to create new.
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), notes: "" },
+    defaultValues: { fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), customJobTitle: "", notes: "" },
   });
 
   // Once the user has explicitly picked or dismissed the suggestions we stop
@@ -60,7 +73,7 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
   useEffect(() => {
     if (open) {
       setSuggestionsDismissed(false);
-      form.reset({ fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), notes: "" });
+      form.reset({ fullName: "", phone: "", jobRole: defaultRoleForSheet(sheet), customJobTitle: "", notes: "" });
     }
   }, [open, sheet, form]);
 
@@ -105,8 +118,13 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
       fullName: values.fullName,
       phone: values.phone || undefined,
       jobRole: values.jobRole as (typeof JOB_ROLES)[number],
+      customJobTitle: values.jobRole === JobRole.Other ? values.customJobTitle?.trim() : undefined,
     } }, {
-      onSuccess: (worker) => link(worker.id, worker.fullName, values.notes),
+      onSuccess: (worker) => {
+        // A new custom title may now exist in the suggestion list.
+        queryClient.invalidateQueries({ queryKey: getListJobTitlesQueryKey() });
+        link(worker.id, worker.fullName, values.notes);
+      },
       onError: () => toast({ title: "Failed to create worker", variant: "destructive" }),
     });
   }
@@ -231,6 +249,25 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
                 </FormItem>
               )}
             />
+            {form.watch("jobRole") === JobRole.Other && (
+              <FormField
+                control={form.control}
+                name="customJobTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Job Title *</FormLabel>
+                    <FormControl>
+                      <CustomJobTitleInput
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="notes"
