@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StarIcon, TrashIcon } from "lucide-react";
-import type { Sheet } from "@workspace/api-client-react";
+import type { Sheet, SheetWorkerType } from "@workspace/api-client-react";
 import {
   useListSheetContacts,
   useAddSheetContact,
   useUpdateSheetContact,
   useRemoveSheetContact,
+  useUpdateSheet,
   useDeleteSheet,
   useGetSheetDeleteImpact,
   useGetCurrentUser,
@@ -28,6 +30,45 @@ export function SheetSettingsDialog({ open, onOpenChange, sheet, onDeleted }: { 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Sheet details (client, depot, worker type). Re-seeded from the sheet each
+  // time the dialog opens or the sheet changes so stale edits never leak.
+  const [clientCompany, setClientCompany] = useState(sheet.clientCompany);
+  const [depot, setDepot] = useState(sheet.depot ?? "");
+  const [workerType, setWorkerType] = useState<SheetWorkerType>(sheet.workerType);
+  useEffect(() => {
+    if (open) {
+      setClientCompany(sheet.clientCompany);
+      setDepot(sheet.depot ?? "");
+      setWorkerType(sheet.workerType);
+    }
+  }, [open, sheet.id, sheet.clientCompany, sheet.depot, sheet.workerType]);
+
+  const updateSheet = useUpdateSheet();
+  const detailsDirty =
+    clientCompany.trim() !== sheet.clientCompany ||
+    (depot.trim() || "") !== (sheet.depot ?? "") ||
+    workerType !== sheet.workerType;
+
+  const handleSaveDetails = () => {
+    if (!clientCompany.trim()) {
+      toast({ title: "Client name is required", variant: "destructive" });
+      return;
+    }
+    updateSheet.mutate(
+      {
+        sheetId: sheet.id,
+        data: { clientCompany: clientCompany.trim(), depot: depot.trim(), workerType },
+      },
+      {
+        onSuccess: (updated) => {
+          queryClient.invalidateQueries({ queryKey: getListSheetsQueryKey() });
+          toast({ title: `Sheet updated`, description: `${updated.name} · ${updated.workerType}` });
+        },
+        onError: () => toast({ title: "Could not update sheet", variant: "destructive" }),
+      },
+    );
+  };
 
   const { data: currentUser } = useGetCurrentUser({
     query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
@@ -109,7 +150,63 @@ export function SheetSettingsDialog({ open, onOpenChange, sheet, onDeleted }: { 
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          <div>
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Sheet Details</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Client name</label>
+                <Input
+                  value={clientCompany}
+                  onChange={(e) => setClientCompany(e.target.value)}
+                  placeholder="Client company"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Depot</label>
+                <Input
+                  value={depot}
+                  onChange={(e) => setDepot(e.target.value)}
+                  placeholder="Depot"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Worker type</label>
+              {sheet.workerType === "Both" ? (
+                <div className="flex h-9 items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                  Both — covers HGV and Warehouse (cannot be narrowed)
+                </div>
+              ) : (
+                <>
+                  <Select
+                    value={workerType}
+                    onValueChange={(v) => setWorkerType(v as SheetWorkerType)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={sheet.workerType}>{sheet.workerType}</SelectItem>
+                      <SelectItem value="Both">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    A sheet's worker type can only be widened to "Both" — it can't be
+                    narrowed back afterwards.
+                  </p>
+                </>
+              )}
+            </div>
+            <Button
+              size="sm"
+              onClick={handleSaveDetails}
+              disabled={!detailsDirty || updateSheet.isPending}
+            >
+              {updateSheet.isPending ? "Saving..." : "Save Details"}
+            </Button>
+          </div>
+
+          <div className="border-t pt-3">
             <h4 className="text-sm font-semibold mb-2">Client Contacts</h4>
             {isLoading ? (
               <div className="text-sm text-muted-foreground py-4">Loading contacts...</div>

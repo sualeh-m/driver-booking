@@ -194,6 +194,32 @@ export const CreateSheetBody = zod.object({
 
 
 /**
+ * @summary Update a sheet's client company, depot and/or worker type. The sheet name is re-derived as "Client — Depot". Worker type can only WIDEN (HGV→Both, Warehouse→Both); narrowing is rejected.
+ */
+export const UpdateSheetParams = zod.object({
+  "sheetId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateSheetBody = zod.object({
+  "clientCompany": zod.string().min(1).optional(),
+  "depot": zod.string().optional(),
+  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).optional().describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.')
+}).describe('Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it. workerType may only widen to \'Both\'.')
+
+export const UpdateSheetResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "clientCompany": zod.string(),
+  "depot": zod.string().nullish(),
+  "workerType": zod.enum(['HGV', 'Warehouse', 'Both']).describe('Worker type for a sheet. \'Both\' means the sheet runs HGV and warehouse work together. Workers themselves are only ever HGV or Warehouse.'),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary Delete a whole sheet and all of its bookings (admin only)
  */
 export const DeleteSheetParams = zod.object({

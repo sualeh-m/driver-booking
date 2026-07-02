@@ -65,6 +65,7 @@ import type {
   SheetContactUpdate,
   SheetDeleteImpact,
   SheetInput,
+  SheetUpdate,
   Submission,
   SubmissionInput,
   UpdateSubmissionOutcomeInput,
@@ -963,6 +964,78 @@ export const useCreateSheet = <TError = ErrorType<Error>,
         TContext
       > => {
       return useMutation(getCreateSheetMutationOptions(options));
+    }
+
+export const getUpdateSheetUrl = (sheetId: number,) => {
+
+
+
+
+  return `/api/sheets/${sheetId}`
+}
+
+/**
+ * @summary Update a sheet's client company, depot and/or worker type. The sheet name is re-derived as "Client — Depot". Worker type can only WIDEN (HGV→Both, Warehouse→Both); narrowing is rejected.
+ */
+export const updateSheet = async (sheetId: number,
+    sheetUpdate: SheetUpdate, options?: RequestInit): Promise<Sheet> => {
+
+  return customFetch<Sheet>(getUpdateSheetUrl(sheetId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sheetUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateSheetMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSheet>>, TError,{sheetId: number;data: BodyType<SheetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSheet>>, TError,{sheetId: number;data: BodyType<SheetUpdate>}, TContext> => {
+
+const mutationKey = ['updateSheet'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSheet>>, {sheetId: number;data: BodyType<SheetUpdate>}> = (props) => {
+          const {sheetId,data} = props ?? {};
+
+          return  updateSheet(sheetId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSheetMutationResult = NonNullable<Awaited<ReturnType<typeof updateSheet>>>
+    export type UpdateSheetMutationBody = BodyType<SheetUpdate>
+    export type UpdateSheetMutationError = ErrorType<Error>
+
+    /**
+ * @summary Update a sheet's client company, depot and/or worker type. The sheet name is re-derived as "Client — Depot". Worker type can only WIDEN (HGV→Both, Warehouse→Both); narrowing is rejected.
+ */
+export const useUpdateSheet = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSheet>>, TError,{sheetId: number;data: BodyType<SheetUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSheet>>,
+        TError,
+        {sheetId: number;data: BodyType<SheetUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSheetMutationOptions(options));
     }
 
 export const getDeleteSheetUrl = (sheetId: number,) => {

@@ -188,6 +188,16 @@ export interface SheetInput {
   workerType: SheetWorkerType;
 }
 
+/**
+ * Partial sheet update. Omitted fields are left unchanged. depot may be an empty string to clear it. workerType may only widen to 'Both'.
+ */
+export interface SheetUpdate {
+  /** @minLength 1 */
+  clientCompany?: string;
+  depot?: string;
+  workerType?: SheetWorkerType;
+}
+
 export interface SheetContact {
   id: number;
   sheetId: number;

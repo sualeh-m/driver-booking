@@ -318,6 +318,44 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   /sheets/{sheetId}:
+    patch:
+      operationId: updateSheet
+      tags: [sheets]
+      summary: >-
+        Update a sheet's client company, depot and/or worker type. The sheet
+        name is re-derived as "Client — Depot". Worker type can only WIDEN
+        (HGV→Both, Warehouse→Both); narrowing is rejected.
+      parameters:
+        - name: sheetId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SheetUpdate"
+      responses:
+        "200":
+          description: Updated sheet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sheet"
+        "400":
+          description: Invalid request (including narrowing the worker type)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       operationId: deleteSheet
       tags: [sheets]
@@ -1550,6 +1588,16 @@ components:
     SheetInput:
       type: object
       required: [clientCompany, workerType]
+      properties:
+        clientCompany: { type: string, minLength: 1 }
+        depot: { type: string }
+        workerType: { $ref: "#/components/schemas/SheetWorkerType" }
+
+    SheetUpdate:
+      type: object
+      description: >-
+        Partial sheet update. Omitted fields are left unchanged. depot may be
+        an empty string to clear it. workerType may only widen to 'Both'.
       properties:
         clientCompany: { type: string, minLength: 1 }
         depot: { type: string }

@@ -12,6 +12,8 @@ import {
 } from "@workspace/db";
 import {
   CreateSheetBody,
+  UpdateSheetParams,
+  UpdateSheetBody,
   DeleteSheetParams,
   GetSheetDeleteImpactParams,
   AddSheetContactParams,
@@ -54,6 +56,67 @@ router.post("/sheets", async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(serializeSheet(sheet));
+});
+
+// Update a sheet's client company, depot and/or worker type. The sheet name is
+// re-derived as "Client — Depot" whenever client/depot change. The worker type
+// may only WIDEN (HGV→Both, Warehouse→Both) — narrowing would strand workers or
+// bookings that no longer fit the sheet, so it is rejected server-side.
+router.patch("/sheets/:sheetId", async (req, res): Promise<void> => {
+  const params = UpdateSheetParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = UpdateSheetBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [existing] = await db
+    .select()
+    .from(sheetsTable)
+    .where(eq(sheetsTable.id, params.data.sheetId));
+  if (!existing) {
+    res.status(404).json({ error: "Sheet not found" });
+    return;
+  }
+
+  const { clientCompany, depot, workerType } = parsed.data;
+
+  if (
+    workerType !== undefined &&
+    workerType !== existing.workerType &&
+    workerType !== "Both"
+  ) {
+    res.status(400).json({
+      error: `Worker type can only be widened to "Both" (currently "${existing.workerType}")`,
+    });
+    return;
+  }
+
+  const nextClient =
+    clientCompany !== undefined ? clientCompany.trim() : existing.clientCompany;
+  if (nextClient === "") {
+    res.status(400).json({ error: "Client company cannot be blank" });
+    return;
+  }
+  const nextDepot =
+    depot !== undefined ? (depot.trim() === "" ? null : depot.trim()) : existing.depot;
+
+  const [updated] = await db
+    .update(sheetsTable)
+    .set({
+      clientCompany: nextClient,
+      depot: nextDepot,
+      name: sheetDisplayName(nextClient, nextDepot ?? undefined),
+      workerType: workerType ?? existing.workerType,
+    })
+    .where(eq(sheetsTable.id, params.data.sheetId))
+    .returning();
+
+  res.json(serializeSheet(updated));
 });
 
 // Admin only. Delete a whole sheet plus all of its bookings. bookings.sheet_id
