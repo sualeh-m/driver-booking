@@ -100,7 +100,20 @@ router.get("/grid", async (req, res): Promise<void> => {
         eq(workersTable.status, "active"),
       ),
     )
-    .orderBy(workersTable.fullName);
+    .orderBy(
+      sql`case ${workersTable.jobRole}
+        when 'HGV 1' then 1
+        when 'HGV 2' then 2
+        when 'Trunker' then 3
+        when 'Van' then 4
+        when 'Warehouse' then 5
+        when 'Forklift' then 6
+        when 'Drivers Mate' then 7
+        when 'Other' then 8
+        else 9
+      end`,
+      workersTable.fullName,
+    );
 
   const bookings = await db
     .select()
