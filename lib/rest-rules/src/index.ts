@@ -36,11 +36,11 @@ export function isWorkingStatus(status: string | null | undefined): boolean {
 
 /**
  * The job roles that count as "HGV-type" for the rest-day rule. The rule keys
- * off the worker's JOB ROLE (not their worker_type or the sheet type) so it
- * applies to these roles wherever they appear — including on a "Both" sheet —
- * and never to Van / Forklift / Drivers Mate / Warehouse / Other.
+ * off the worker's JOB ROLE (not their worker_type; sheets carry no type) so
+ * it applies to these roles on any sheet and never to Van / Forklift /
+ * Drivers Mate / Warehouse / Other.
  */
-export const REST_RULE_JOB_ROLES = ["HGV 1", "HGV 2", "Trunker", "Coach"] as const;
+export const REST_RULE_JOB_ROLES = ["HGV 1", "HGV 2", "Trunker", "Bus/Coach"] as const;
 export type RestRuleJobRole = (typeof REST_RULE_JOB_ROLES)[number];
 
 const REST_RULE_JOB_ROLE_SET: ReadonlySet<string> = new Set(REST_RULE_JOB_ROLES);

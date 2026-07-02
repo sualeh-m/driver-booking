@@ -57,7 +57,7 @@ function normalizeCsvJobRole(raw: string): (typeof JOB_ROLE_VALUES)[number] | nu
   if (/class\s*1|c1|hgv\s*1/.test(lower)) return JobRole.HGV_1;
   if (/class\s*2|c2|hgv\s*2/.test(lower)) return JobRole.HGV_2;
   if (lower.includes("trunk")) return JobRole.Trunker;
-  if (lower.includes("coach")) return JobRole.Coach;
+  if (lower.includes("coach") || lower.includes("bus")) return JobRole["Bus/Coach"];
   if (lower.includes("fork")) return JobRole.Forklift;
   if (lower.includes("mate")) return JobRole.Drivers_Mate;
   if (lower.includes("van")) return JobRole.Van;
@@ -108,7 +108,7 @@ router.get("/grid", async (req, res): Promise<void> => {
         when 'HGV 1' then 1
         when 'HGV 2' then 2
         when 'Trunker' then 3
-        when 'Coach' then 4
+        when 'Bus/Coach' then 4
         when 'Van' then 5
         when 'Warehouse' then 6
         when 'Forklift' then 7
