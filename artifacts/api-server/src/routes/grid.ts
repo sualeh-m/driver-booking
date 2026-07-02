@@ -24,6 +24,7 @@ import { getUserId } from "../lib/auth";
 import { evaluateRestRule } from "../lib/restCheck";
 import { findCrossSheetWorkingConflict } from "../lib/crossSheet";
 import { parseCsv } from "../lib/csv";
+import { formatName, formatUkMobile } from "../lib/format";
 import { resolveCustomJobTitle, rememberJobTitle } from "../lib/jobTitles";
 
 const router: IRouter = Router();
@@ -292,7 +293,8 @@ router.post("/import", async (req, res): Promise<void> => {
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     const lineNo = r + 1;
-    const fullName = (row[idxName] ?? "").trim();
+    const rawName = (row[idxName] ?? "").trim();
+    const fullName = rawName === "" ? "" : formatName(rawName);
     if (fullName === "") {
       errors.push(`Line ${lineNo}: missing full_name`);
       continue;
@@ -312,7 +314,8 @@ router.post("/import", async (req, res): Promise<void> => {
 
     const startTime =
       idxTime !== -1 ? normalizeTime(row[idxTime] ?? "") : null;
-    const phone = idxPhone !== -1 ? (row[idxPhone] ?? "").trim() : "";
+    const phone =
+      idxPhone !== -1 ? (formatUkMobile(row[idxPhone]) ?? "") : "";
     const rawRole = idxRole !== -1 ? (row[idxRole] ?? "").trim() : "";
     const jobRole = normalizeCsvJobRole(rawRole);
     // An unrecognised role becomes "Other" — keep the raw text as the custom

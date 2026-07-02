@@ -15,6 +15,7 @@ import {
   DeleteSubmissionParams,
 } from "@workspace/api-zod";
 import { getUserId, requireAdmin } from "../lib/auth";
+import { formatNameOrNull, formatUkMobile } from "../lib/format";
 
 const router: IRouter = Router();
 
@@ -153,7 +154,7 @@ router.post("/submissions", async (req, res): Promise<void> => {
   // A submission is EITHER for an existing worker OR a brand-new candidate not in
   // the worker list. Recording a candidate here must NEVER create a bookable
   // worker — they exist only as this submission record.
-  const trimmedCandidate = candidateName?.trim();
+  const trimmedCandidate = formatNameOrNull(candidateName) ?? undefined;
   const hasWorker = workerId != null;
   const hasCandidate = trimmedCandidate != null && trimmedCandidate !== "";
   if (hasWorker === hasCandidate) {
@@ -197,7 +198,7 @@ router.post("/submissions", async (req, res): Promise<void> => {
     .values({
       workerId: hasWorker ? workerId : null,
       candidateName: hasWorker ? null : trimmedCandidate,
-      candidatePhone: hasWorker ? null : candidatePhone?.trim() || null,
+      candidatePhone: hasWorker ? null : formatUkMobile(candidatePhone),
       submittedDate,
       outcome,
       requirementId: requirementId ?? null,

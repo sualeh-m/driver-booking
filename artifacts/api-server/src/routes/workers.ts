@@ -24,6 +24,7 @@ import {
 } from "@workspace/api-zod";
 import { serializeWorker } from "../lib/serialize";
 import { requireAdmin } from "../lib/auth";
+import { formatName, formatUkMobile } from "../lib/format";
 import { resolveCustomJobTitle, rememberJobTitle } from "../lib/jobTitles";
 
 // Normalise an optional free-text field: trim, and treat empty as null so we
@@ -183,8 +184,8 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
       const [updated] = await tx
         .update(workersTable)
         .set({
-          fullName: fullName.trim(),
-          phone: cleanText(phone),
+          fullName: formatName(fullName),
+          phone: formatUkMobile(phone),
           jobRole: cleanedJobRole,
           customJobTitle: title.value,
           workerType: workerTypeForJobRole(cleanedJobRole),
@@ -320,8 +321,8 @@ router.post("/workers", async (req, res): Promise<void> => {
     const [created] = await tx
       .insert(workersTable)
       .values({
-        fullName: parsed.data.fullName,
-        phone: parsed.data.phone ?? null,
+        fullName: formatName(parsed.data.fullName),
+        phone: formatUkMobile(parsed.data.phone),
         jobRole,
         customJobTitle: title.value,
         workerType: workerTypeForJobRole(jobRole),

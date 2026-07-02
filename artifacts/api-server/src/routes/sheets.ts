@@ -26,6 +26,7 @@ import {
   RemoveWorkerFromSheetParams,
 } from "@workspace/api-zod";
 import { serializeSheet, serializeSheetContact, sheetDisplayName } from "../lib/serialize";
+import { formatName, formatNameOrNull } from "../lib/format";
 import { requireAdmin } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -45,12 +46,15 @@ router.post("/sheets", async (req, res): Promise<void> => {
     return;
   }
 
+  const clientCompany = formatName(parsed.data.clientCompany);
+  const depot = formatNameOrNull(parsed.data.depot);
+
   const [sheet] = await db
     .insert(sheetsTable)
     .values({
-      name: sheetDisplayName(parsed.data.clientCompany, parsed.data.depot),
-      clientCompany: parsed.data.clientCompany,
-      depot: parsed.data.depot ?? null,
+      name: sheetDisplayName(clientCompany, depot ?? undefined),
+      clientCompany,
+      depot,
     })
     .returning();
 
@@ -83,13 +87,12 @@ router.patch("/sheets/:sheetId", async (req, res): Promise<void> => {
   const { clientCompany, depot } = parsed.data;
 
   const nextClient =
-    clientCompany !== undefined ? clientCompany.trim() : existing.clientCompany;
+    clientCompany !== undefined ? formatName(clientCompany) : existing.clientCompany;
   if (nextClient === "") {
     res.status(400).json({ error: "Client company cannot be blank" });
     return;
   }
-  const nextDepot =
-    depot !== undefined ? (depot.trim() === "" ? null : depot.trim()) : existing.depot;
+  const nextDepot = depot !== undefined ? formatNameOrNull(depot) : existing.depot;
 
   const [updated] = await db
     .update(sheetsTable)
