@@ -2,14 +2,16 @@
 // phone numbers, so stored data is uniform everywhere it appears.
 
 /**
- * Capitalise the first letter of each whitespace-separated word, leaving the
- * rest of the word exactly as typed (so a manual correction like "McDonald"
- * survives a later re-save). Also trims and collapses runs of whitespace.
+ * Force proper Title Case regardless of how the name was entered: lowercase the
+ * whole string first, then uppercase the first letter of each word. So "JOHN
+ * SMITH", "john smith" and "jOhN sMiTh" all become "John Smith". Also trims and
+ * collapses runs of whitespace.
  */
 export function formatName(raw: string): string {
   return raw
     .trim()
     .replace(/\s+/g, " ")
+    .toLowerCase()
     .split(" ")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
