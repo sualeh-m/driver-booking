@@ -29,10 +29,24 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronDownIcon,
+  DownloadIcon,
+  FileTextIcon,
+  TableIcon,
 } from "lucide-react";
+import {
+  exportReportCsv,
+  exportReportPdf,
+  type ReportExportModel,
+} from "@/lib/reportExport";
 
 type RangeMode = "weekly" | "monthly" | "custom";
 type WorkerTypeFilter = "All" | "HGV" | "Warehouse";
@@ -260,13 +274,92 @@ export function Reports() {
     },
   ];
 
+  // Snapshot the on-screen filters + fetched data into the export model —
+  // what you see is exactly what exports.
+  const exportReady =
+    rangeReady && data != null && people != null && !isFetching && !peopleFetching;
+
+  const buildExportModel = (): ReportExportModel | null => {
+    if (data == null || people == null) return null;
+    const coverage = isAllSelected
+      ? ["All depots / clients"]
+      : depotClientOptions
+          .filter((o) => effectiveSelected.includes(o.key))
+          .map((o) => (o.depot ? `${o.client} — ${o.depot}` : o.client));
+    return {
+      rangeLabel,
+      coverage: coverage.length ? coverage : ["None selected"],
+      workerType: workerType === "All" ? "All workers" : workerType,
+      operational: [
+        { label: "Active workers", value: String(data.activeWorkers) },
+        { label: "Requirements received", value: String(data.requirementsReceived) },
+        { label: "Filled", value: String(data.filled) },
+        {
+          label: "Fill rate",
+          value: data.fillRate == null ? "—" : `${data.fillRate}%`,
+        },
+        { label: "No-shows", value: String(data.noShows) },
+      ],
+      people: [
+        { label: "Submitted", value: String(people.submitted) },
+        { label: "Passed", value: String(people.passed) },
+        {
+          label: "Pass rate",
+          value: people.passRate == null ? "—" : `${people.passRate}%`,
+        },
+        { label: "Leavers", value: String(people.leavers) },
+        { label: "CPC failures (HGV only)", value: String(people.cpcFailures) },
+        { label: "Test failures (HGV only)", value: String(people.testFailures) },
+      ],
+      leaverReasons: (people.leaverReasons ?? []).map((r) => ({
+        label: LEAVER_REASON_LABELS[r.reason] ?? r.reason,
+        value: String(r.count),
+      })),
+      leaversTotal: String(people.leavers),
+      retention: [
+        ...(people.retention ?? []).map((b) => ({
+          label: RETENTION_BUCKET_LABELS[b.bucket] ?? b.bucket,
+          value: String(b.count),
+        })),
+        { label: "Not started (never booked)", value: String(people.notStarted) },
+      ],
+    };
+  };
+
+  const handleExport = (kind: "pdf" | "csv") => {
+    const model = buildExportModel();
+    if (!model) return;
+    if (kind === "pdf") exportReportPdf(model);
+    else exportReportCsv(model);
+  };
+
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold">KPI Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          Operational and people metrics. Filters apply to every metric below.
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">KPI Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            Operational and people metrics. Filters apply to every metric below.
+          </p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" disabled={!exportReady}>
+              <DownloadIcon className="mr-1.5 h-4 w-4" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleExport("pdf")}>
+              <FileTextIcon className="mr-2 h-4 w-4" />
+              Export as PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport("csv")}>
+              <TableIcon className="mr-2 h-4 w-4" />
+              Export as Excel (CSV)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Card className="mb-6">
