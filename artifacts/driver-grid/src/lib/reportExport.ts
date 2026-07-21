@@ -1,6 +1,9 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import { LOGO_DATA_URL, LOGO_WIDTH_PX, LOGO_HEIGHT_PX } from "./reportLogo";
+
+const LOGO_ASPECT = LOGO_WIDTH_PX / LOGO_HEIGHT_PX;
 
 // Everything the export needs, captured from the Reports page's CURRENT
 // filter state and already-fetched metric data — what you see is what exports.
@@ -31,48 +34,106 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 // ---------------------------------------------------------------------------
-// CSV (opens cleanly in Excel) — title/filters at the top, then each section.
+// Excel (.xlsx) — branded workbook with the company logo in the header,
+// then title/filters and each metric section. exceljs is imported lazily so
+// it only loads when an export is actually requested.
 // ---------------------------------------------------------------------------
-export function exportReportCsv(model: ReportExportModel) {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const row = (...cells: string[]) => cells.map(esc).join(",");
-  const lines: string[] = [];
-
-  lines.push(row("ShiftControl — KPI Report"));
-  lines.push(row("Coverage", model.coverage.join("; ")));
-  lines.push(row("Date range", model.rangeLabel));
-  lines.push(row("Worker type", model.workerType));
-  lines.push(row("Report generated", generatedAt()));
-  lines.push("");
-
-  lines.push(row("OPERATIONAL"));
-  lines.push(row("Metric", "Value"));
-  for (const m of model.operational) lines.push(row(m.label, m.value));
-  lines.push("");
-
-  lines.push(row("PEOPLE"));
-  lines.push(row("Metric", "Value"));
-  for (const m of model.people) lines.push(row(m.label, m.value));
-  lines.push("");
-
-  lines.push(row(`LEAVER REASONS (total ${model.leaversTotal})`));
-  lines.push(row("Reason", "Count"));
-  for (const m of model.leaverReasons) lines.push(row(m.label, m.value));
-  lines.push("");
-
-  lines.push(row("RETENTION BY LENGTH OF SERVICE (current snapshot)"));
-  lines.push(row("Length of service", "Workers"));
-  for (const m of model.retention) lines.push(row(m.label, m.value));
-
-  // BOM so Excel opens it as UTF-8 (em dashes in sheet names etc.).
-  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
-    type: "text/csv;charset=utf-8",
+export async function exportReportExcel(model: ReportExportModel) {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("KPI Report", {
+    properties: { defaultRowHeight: 16 },
   });
-  downloadBlob(blob, `kpi-report-${fileStamp()}.csv`);
+  ws.getColumn(1).width = 44;
+  ws.getColumn(2).width = 20;
+
+  // Logo top-left, sized for a header (~220px wide), proportions preserved.
+  const logoDisplayW = 220;
+  const logoDisplayH = Math.round(logoDisplayW / LOGO_ASPECT);
+  const imgId = wb.addImage({ base64: LOGO_DATA_URL, extension: "jpeg" });
+  ws.addImage(imgId, {
+    tl: { col: 0, row: 0 },
+    ext: { width: logoDisplayW, height: logoDisplayH },
+    editAs: "oneCell",
+  });
+  // Reserve rows for the logo so content starts below it.
+  const logoRows = Math.ceil(logoDisplayH / 20) + 1;
+  let r = logoRows + 1;
+
+  const navy = "FF1E3A5F";
+  const lightFill = "FFEBEFF5";
+
+  const titleRow = ws.getRow(r++);
+  titleRow.getCell(1).value = "ShiftControl — KPI Report";
+  titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: navy } };
+
+  const meta: [string, string][] = [
+    ["Coverage", model.coverage.join("; ")],
+    ["Date range", model.rangeLabel],
+    ["Worker type", model.workerType],
+    ["Report generated", generatedAt()],
+  ];
+  for (const [k, v] of meta) {
+    const row = ws.getRow(r++);
+    row.getCell(1).value = k;
+    row.getCell(1).font = { bold: true, color: { argb: navy } };
+    row.getCell(2).value = v;
+  }
+  r++;
+
+  const section = (
+    title: string,
+    head: [string, string],
+    rows: { label: string; value: string }[],
+  ) => {
+    const titleRow = ws.getRow(r++);
+    titleRow.getCell(1).value = title;
+    titleRow.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    for (const c of [1, 2]) {
+      titleRow.getCell(c).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: navy },
+      };
+    }
+    const headRow = ws.getRow(r++);
+    head.forEach((h, i) => {
+      const cell = headRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true, color: { argb: navy } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: lightFill } };
+    });
+    for (const m of rows) {
+      const row = ws.getRow(r++);
+      row.getCell(1).value = m.label;
+      row.getCell(2).value = m.value;
+      row.getCell(2).alignment = { horizontal: "right" };
+    }
+    r++;
+  };
+
+  section("OPERATIONAL", ["Metric", "Value"], model.operational);
+  section("PEOPLE", ["Metric", "Value"], model.people);
+  section(
+    `LEAVER REASONS (total ${model.leaversTotal})`,
+    ["Reason", "Count"],
+    model.leaverReasons,
+  );
+  section(
+    "RETENTION BY LENGTH OF SERVICE (current snapshot)",
+    ["Length of service", "Workers"],
+    model.retention,
+  );
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  downloadBlob(blob, `kpi-report-${fileStamp()}.xlsx`);
 }
 
 // ---------------------------------------------------------------------------
-// PDF — polished, client-ready document with a logo placeholder.
+// PDF — polished, client-ready document with the company logo top-right.
 // ---------------------------------------------------------------------------
 export function exportReportPdf(model: ReportExportModel) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -81,17 +142,17 @@ export function exportReportPdf(model: ReportExportModel) {
   const brand: [number, number, number] = [30, 58, 95]; // deep navy
   const light: [number, number, number] = [120, 128, 140];
 
-  // Logo placeholder box (top-right) — swap for a real logo later.
-  const logoW = 110;
-  const logoH = 44;
-  doc.setDrawColor(200, 205, 212);
-  doc.setLineWidth(1);
-  doc.roundedRect(pageW - margin - logoW, margin - 8, logoW, logoH, 4, 4);
-  doc.setFontSize(9);
-  doc.setTextColor(...light);
-  doc.text("Company logo", pageW - margin - logoW / 2, margin - 8 + logoH / 2 + 3, {
-    align: "center",
-  });
+  // Company logo (top-right), proportions preserved.
+  const logoW = 132;
+  const logoH = logoW / LOGO_ASPECT;
+  doc.addImage(
+    LOGO_DATA_URL,
+    "JPEG",
+    pageW - margin - logoW,
+    margin - 8,
+    logoW,
+    logoH,
+  );
 
   // Title block.
   doc.setTextColor(...brand);

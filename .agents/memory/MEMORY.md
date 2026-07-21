@@ -9,3 +9,4 @@
 - [Batch grid edit + per-cell rest rule](batch-edit-rest-rule.md) — drag-fill must equal single-cell: one shared write helper, per-cell rest accumulation (block breaks streak), warn-ack resubmits ONLY warned cells.
 - [Submission candidates](submission-candidates.md) — a submission is worker XOR candidate (nullable worker_id + candidate_name/phone + CHECK); candidates never create a worker, excluded from worker-scoped KPIs, coalesce for display name.
 - [Cross-sheet booking hard block](cross-sheet-booking-block.md) — block a working booking on another sheet that day; enforce on ALL write paths (incl. import); conflict dates still count for rest; per-worker advisory lock for atomicity.
+- [Report export branding](report-export-branding.md) — CSV can't hold images → real .xlsx via lazy exceljs; logo baked as sRGB base64 module (CMYK JPEGs render wrong).

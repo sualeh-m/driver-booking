@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "zMVaiOYUQnVfdZpV5T6QR"
+uri = "file://exports/kpi-report-sample.pdf"
+type = "pdf"
+title = "Sample KPI Report (PDF, with logo)"
+
+[[outputs]]
+id = "4iG8oCEgCi_PmSoyfoqME"
+uri = "file://exports/kpi-report-sample.xlsx"
+type = "table"
+title = "Sample KPI Report (Excel, with logo)"

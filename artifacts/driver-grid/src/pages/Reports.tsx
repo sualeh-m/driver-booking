@@ -43,10 +43,11 @@ import {
   TableIcon,
 } from "lucide-react";
 import {
-  exportReportCsv,
+  exportReportExcel,
   exportReportPdf,
   type ReportExportModel,
 } from "@/lib/reportExport";
+import { useToast } from "@/hooks/use-toast";
 
 type RangeMode = "weekly" | "monthly" | "custom";
 type WorkerTypeFilter = "All" | "HGV" | "Warehouse";
@@ -73,6 +74,7 @@ const RETENTION_BUCKET_LABELS: Record<string, string> = {
 
 export function Reports() {
   const { data: sheets } = useListSheets();
+  const { toast } = useToast();
 
   const [mode, setMode] = useState<RangeMode>("weekly");
   const [refDate, setRefDate] = useState<Date>(new Date());
@@ -326,11 +328,26 @@ export function Reports() {
     };
   };
 
-  const handleExport = (kind: "pdf" | "csv") => {
+  const handleExport = (kind: "pdf" | "excel") => {
     const model = buildExportModel();
     if (!model) return;
-    if (kind === "pdf") exportReportPdf(model);
-    else exportReportCsv(model);
+    try {
+      if (kind === "pdf") exportReportPdf(model);
+      else
+        void exportReportExcel(model).catch(() => {
+          toast({
+            title: "Export failed",
+            description: "Couldn't generate the Excel file. Please try again.",
+            variant: "destructive",
+          });
+        });
+    } catch {
+      toast({
+        title: "Export failed",
+        description: "Couldn't generate the export. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -354,9 +371,9 @@ export function Reports() {
               <FileTextIcon className="mr-2 h-4 w-4" />
               Export as PDF
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport("csv")}>
+            <DropdownMenuItem onClick={() => handleExport("excel")}>
               <TableIcon className="mr-2 h-4 w-4" />
-              Export as Excel (CSV)
+              Export as Excel
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
