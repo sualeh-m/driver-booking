@@ -22,6 +22,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { CustomJobTitleInput } from "./CustomJobTitleInput";
+import { isValidUkMobile, UK_MOBILE_ERROR } from "@/lib/ukMobile";
 
 const JOB_ROLES = Object.values(JobRole);
 
@@ -34,7 +35,10 @@ function defaultRoleForSheet(_sheet: Sheet | null): string {
 const formSchema = z
   .object({
     fullName: z.string().min(1, "Name is required"),
-    phone: z.string().optional(),
+    phone: z
+      .string()
+      .min(1, "Mobile number is required")
+      .refine(isValidUkMobile, UK_MOBILE_ERROR),
     jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
     customJobTitle: z.string().optional(),
     notes: z.string().optional(),
@@ -115,7 +119,7 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
     if (!sheet) return;
     createWorker.mutate({ data: {
       fullName: values.fullName,
-      phone: values.phone || undefined,
+      phone: values.phone,
       jobRole: values.jobRole as (typeof JOB_ROLES)[number],
       customJobTitle: values.jobRole === JobRole.Other ? values.customJobTitle?.trim() : undefined,
     } }, {
@@ -218,7 +222,7 @@ export function AddWorkerDialog({ open, onOpenChange, sheet, start, end, existin
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel>Mobile Number *</FormLabel>
                   <FormControl>
                     <Input placeholder="07700 900000" {...field} />
                   </FormControl>

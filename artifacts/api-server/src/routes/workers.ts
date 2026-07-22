@@ -24,7 +24,7 @@ import {
 } from "@workspace/api-zod";
 import { serializeWorker } from "../lib/serialize";
 import { requireAdmin } from "../lib/auth";
-import { formatName, formatUkMobile } from "../lib/format";
+import { formatName, strictUkMobile, UK_MOBILE_ERROR } from "../lib/format";
 import { resolveCustomJobTitle, rememberJobTitle } from "../lib/jobTitles";
 
 // Normalise an optional free-text field: trim, and treat empty as null so we
@@ -169,6 +169,14 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
   }
 
   const { fullName, phone, jobRole, note, sheetId } = parsed.data;
+
+  // Worker mobile numbers are mandatory and must be a valid UK mobile.
+  const formattedPhone = strictUkMobile(phone);
+  if (formattedPhone === null) {
+    res.status(400).json({ error: UK_MOBILE_ERROR });
+    return;
+  }
+
   const cleanedJobRole = cleanText(jobRole);
 
   // "Other" requires a custom title; any other role forces it null so a role
@@ -185,7 +193,7 @@ router.patch("/workers/:id", async (req, res): Promise<void> => {
         .update(workersTable)
         .set({
           fullName: formatName(fullName),
-          phone: formatUkMobile(phone),
+          phone: formattedPhone,
           jobRole: cleanedJobRole,
           customJobTitle: title.value,
           workerType: workerTypeForJobRole(cleanedJobRole),
@@ -308,6 +316,13 @@ router.post("/workers", async (req, res): Promise<void> => {
     return;
   }
 
+  // Worker mobile numbers are mandatory and must be a valid UK mobile.
+  const formattedPhone = strictUkMobile(parsed.data.phone);
+  if (formattedPhone === null) {
+    res.status(400).json({ error: UK_MOBILE_ERROR });
+    return;
+  }
+
   const jobRole = parsed.data.jobRole ?? null;
 
   // "Other" requires a custom title; any other role forces it null.
@@ -322,7 +337,7 @@ router.post("/workers", async (req, res): Promise<void> => {
       .insert(workersTable)
       .values({
         fullName: formatName(parsed.data.fullName),
-        phone: formatUkMobile(parsed.data.phone),
+        phone: formattedPhone,
         jobRole,
         customJobTitle: title.value,
         workerType: workerTypeForJobRole(jobRole),

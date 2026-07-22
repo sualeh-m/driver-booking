@@ -10,7 +10,11 @@ import type { JobRole } from './jobRole';
 export interface WorkerInput {
   /** @minLength 1 */
   fullName: string;
-  phone?: string;
+  /**
+     * UK mobile, mandatory. Must normalise to 07XXXXXXXXX (11 digits); accepts 7XXXXXXXXX (leading 0 added) and +44/44 prefixes.
+     * @minLength 1
+     */
+  phone: string;
   jobRole?: JobRole;
   /** Free-text job title. REQUIRED (non-blank) when jobRole is "Other"; ignored (forced null) for any other role. */
   customJobTitle?: string;

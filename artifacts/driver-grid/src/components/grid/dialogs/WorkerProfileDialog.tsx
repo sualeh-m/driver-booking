@@ -49,6 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MarkLeaverDialog } from "./MarkLeaverDialog";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { CustomJobTitleInput } from "./CustomJobTitleInput";
+import { isValidUkMobile, UK_MOBILE_ERROR } from "@/lib/ukMobile";
 
 const JOB_ROLES = Object.values(JobRole);
 
@@ -67,7 +68,10 @@ function seedJobRole(
 const formSchema = z
   .object({
     fullName: z.string().min(1, "Name is required"),
-    phone: z.string().optional(),
+    phone: z
+      .string()
+      .min(1, "Mobile number is required")
+      .refine(isValidUkMobile, UK_MOBILE_ERROR),
     jobRole: z.enum(JOB_ROLES as [string, ...string[]]),
     customJobTitle: z.string().optional(),
     note: z.string().optional(),
@@ -174,18 +178,21 @@ export function WorkerProfileDialog({
     },
   });
 
-  // Seed the form whenever we enter edit mode (from freshly-fetched data).
-  useEffect(() => {
-    if (editing && worker) {
-      form.reset({
-        fullName: worker.fullName,
-        phone: worker.phone ?? "",
-        jobRole: seedJobRole(worker.jobRole, worker.workerType),
-        customJobTitle: worker.customJobTitle ?? "",
-        note: note ?? "",
-      });
-    }
-  }, [editing, worker, note, form]);
+  // Seed the form BEFORE flipping into edit mode, so every field — including
+  // the Job Role <Select> — already holds the worker's current value on its
+  // very first render. (Seeding via an effect AFTER the edit form mounted left
+  // the Radix Select showing its placeholder instead of the current role.)
+  function startEditing() {
+    if (!worker) return;
+    form.reset({
+      fullName: worker.fullName,
+      phone: worker.phone ?? "",
+      jobRole: seedJobRole(worker.jobRole, worker.workerType),
+      customJobTitle: worker.customJobTitle ?? "",
+      note: note ?? "",
+    });
+    setEditing(true);
+  }
 
   // Reset to view mode each time the dialog opens.
   useEffect(() => {
@@ -198,7 +205,7 @@ export function WorkerProfileDialog({
         id: workerId,
         data: {
           fullName: values.fullName,
-          phone: values.phone?.trim() ? values.phone : null,
+          phone: values.phone,
           jobRole: values.jobRole as (typeof JOB_ROLES)[number],
           customJobTitle:
             values.jobRole === JobRole.Other
@@ -278,7 +285,7 @@ export function WorkerProfileDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>Mobile Number *</FormLabel>
                     <FormControl>
                       <Input placeholder="07700 900000" {...field} />
                     </FormControl>
@@ -428,7 +435,7 @@ export function WorkerProfileDialog({
                   </Button>
                 )}
               </div>
-              <Button type="button" onClick={() => setEditing(true)}>
+              <Button type="button" onClick={startEditing}>
                 Edit
               </Button>
             </DialogFooter>

@@ -1650,10 +1650,15 @@ components:
 
     WorkerInput:
       type: object
-      required: [fullName]
+      required: [fullName, phone]
       properties:
         fullName: { type: string, minLength: 1 }
-        phone: { type: string }
+        phone:
+          type: string
+          minLength: 1
+          description: >-
+            UK mobile, mandatory. Must normalise to 07XXXXXXXXX (11 digits);
+            accepts 7XXXXXXXXX (leading 0 added) and +44/44 prefixes.
         jobRole: { $ref: "#/components/schemas/JobRole" }
         customJobTitle:
           type: string
@@ -1665,10 +1670,15 @@ components:
 
     WorkerUpdateInput:
       type: object
-      required: [fullName]
+      required: [fullName, phone]
       properties:
         fullName: { type: string, minLength: 1 }
-        phone: { type: ["string", "null"] }
+        phone:
+          type: string
+          minLength: 1
+          description: >-
+            UK mobile, mandatory. Must normalise to 07XXXXXXXXX (11 digits);
+            accepts 7XXXXXXXXX (leading 0 added) and +44/44 prefixes.
         jobRole:
           anyOf:
             - $ref: "#/components/schemas/JobRole"
