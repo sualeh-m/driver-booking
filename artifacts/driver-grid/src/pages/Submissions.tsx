@@ -225,7 +225,7 @@ export function Submissions() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="p-6">
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
@@ -276,16 +276,20 @@ export function Submissions() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Worker</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead>Sheet</TableHead>
-                <TableHead>Requirement</TableHead>
-                <TableHead>Submitted vs needed</TableHead>
-                <TableHead className="w-28">CPC</TableHead>
-                <TableHead className="w-28">Test</TableHead>
-                <TableHead className="w-44">Outcome</TableHead>
-                {isAdmin && <TableHead className="w-12 text-right">Delete</TableHead>}
+                <TableHead className="px-2">Worker</TableHead>
+                <TableHead className="px-2">Role</TableHead>
+                <TableHead className="px-2">Submitted</TableHead>
+                <TableHead className="px-2">Sheet</TableHead>
+                <TableHead className="px-2">Requirement</TableHead>
+                <TableHead className="px-2">
+                  Submitted
+                  <br />
+                  vs needed
+                </TableHead>
+                <TableHead className="w-[6.5rem] px-2">CPC</TableHead>
+                <TableHead className="w-[6.5rem] px-2">Test</TableHead>
+                <TableHead className="w-[8.5rem] px-2">Outcome</TableHead>
+                {isAdmin && <TableHead className="w-10 px-2 text-right">Delete</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -304,7 +308,7 @@ export function Submissions() {
               ) : (
                 submissions.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="px-2 text-sm font-medium">
                       {s.workerId != null ? (
                         <button
                           type="button"
@@ -328,18 +332,18 @@ export function Submissions() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="px-2 text-sm text-muted-foreground">
                       {s.jobRole === "Other" && s.customJobTitle
                         ? s.customJobTitle
                         : (s.jobRole ?? "—")}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="whitespace-nowrap px-2 text-sm">
                       {format(new Date(s.submittedDate), "d MMM yyyy")}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="px-2 text-sm text-muted-foreground">
                       {s.sheetName ?? "—"}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="px-2 text-sm text-muted-foreground">
                       {s.requirementId != null ? (
                         <span>
                           {(s.requirementJobRole ?? "Role")}
@@ -351,7 +355,7 @@ export function Submissions() {
                         "—"
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="px-2 text-sm">
                       {s.requirementId != null && s.requirementQuantityNeeded != null ? (
                         <Badge
                           variant={
@@ -366,14 +370,14 @@ export function Submissions() {
                         "—"
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="px-2">
                       <Select
                         value={s.cpcStatus}
                         onValueChange={(v) =>
                           handleStatusChange(s, "cpcStatus", v as CpcTestStatus)
                         }
                       >
-                        <SelectTrigger className="h-8 w-28" aria-label="CPC status">
+                        <SelectTrigger className="h-8 w-[6.25rem] px-2 text-xs" aria-label="CPC status">
                           <SelectValue>
                             <span className={CPC_TEST_STATUS_CLASS[s.cpcStatus]}>
                               {CPC_TEST_STATUS_LABELS[s.cpcStatus]}
@@ -389,14 +393,14 @@ export function Submissions() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="px-2">
                       <Select
                         value={s.testStatus}
                         onValueChange={(v) =>
                           handleStatusChange(s, "testStatus", v as CpcTestStatus)
                         }
                       >
-                        <SelectTrigger className="h-8 w-28" aria-label="Driving test status">
+                        <SelectTrigger className="h-8 w-[6.25rem] px-2 text-xs" aria-label="Driving test status">
                           <SelectValue>
                             <span className={CPC_TEST_STATUS_CLASS[s.testStatus]}>
                               {CPC_TEST_STATUS_LABELS[s.testStatus]}
@@ -412,12 +416,12 @@ export function Submissions() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="px-2">
                       <Select
                         value={s.outcome}
                         onValueChange={(v) => handleOutcomeChange(s, v as SubmissionOutcome)}
                       >
-                        <SelectTrigger className="h-8 w-40">
+                        <SelectTrigger className="h-8 w-[8.25rem] px-2">
                           <SelectValue>
                             <Badge variant={OUTCOME_VARIANT[s.outcome]}>
                               {SUBMISSION_OUTCOME_LABELS[s.outcome]}
@@ -434,7 +438,7 @@ export function Submissions() {
                       </Select>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="text-right">
+                      <TableCell className="px-2 text-right">
                         <Button
                           size="icon"
                           variant="ghost"
