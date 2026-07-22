@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { SubmissionOutcome } from "@workspace/api-client-react";
@@ -193,18 +194,19 @@ export function RecordSubmissionDialog({
           {mode === "existing" ? (
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Worker</label>
-              <Select value={workerId} onValueChange={handleWorkerPick}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select worker" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeWorkers.map((w) => (
-                    <SelectItem key={w.id} value={String(w.id)}>
-                      {w.fullName} · {w.workerType}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={workerId}
+                onChange={handleWorkerPick}
+                placeholder="Select worker"
+                searchPlaceholder="Type a name…"
+                emptyText="No matching workers."
+                ariaLabel="Worker"
+                options={activeWorkers.map((w) => ({
+                  value: String(w.id),
+                  label: w.fullName,
+                  description: [w.phone, w.workerType].filter(Boolean).join(" · "),
+                }))}
+              />
             </div>
           ) : (
             <div className="space-y-1">
@@ -266,24 +268,22 @@ export function RecordSubmissionDialog({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Sheet</label>
-            <Select
-              value={sheetId}
-              onValueChange={(v) => {
+            <SearchableSelect
+              value={sheetId === NONE ? "" : sheetId}
+              onChange={(v) => {
                 setSheetId(v);
                 setRequirementId(NONE);
               }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select sheet" />
-              </SelectTrigger>
-              <SelectContent>
-                {sheets?.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select sheet"
+              searchPlaceholder="Type client or depot…"
+              emptyText="No matching sheets."
+              ariaLabel="Sheet"
+              options={(sheets ?? []).map((s) => ({
+                value: String(s.id),
+                label: s.name,
+                keywords: [s.clientCompany, s.depot].filter(Boolean).join(" "),
+              }))}
+            />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Requirement (optional)</label>

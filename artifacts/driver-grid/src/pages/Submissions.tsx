@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -243,19 +244,23 @@ export function Submissions() {
           <div className="flex flex-wrap items-end gap-3 pt-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Sheet</label>
-              <Select value={sheetFilter} onValueChange={setSheetFilter}>
-                <SelectTrigger className="w-56">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_SHEETS}>All sheets</SelectItem>
-                  {sheets?.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={sheetFilter}
+                onChange={setSheetFilter}
+                placeholder="All sheets"
+                searchPlaceholder="Type client or depot…"
+                emptyText="No matching sheets."
+                ariaLabel="Sheet filter"
+                triggerClassName="w-56"
+                options={[
+                  { value: ALL_SHEETS, label: "All sheets" },
+                  ...(sheets ?? []).map((s) => ({
+                    value: String(s.id),
+                    label: s.name,
+                    keywords: [s.clientCompany, s.depot].filter(Boolean).join(" "),
+                  })),
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">From</label>

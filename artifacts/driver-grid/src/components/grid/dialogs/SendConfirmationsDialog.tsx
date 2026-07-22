@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -62,20 +62,26 @@ export function SendConfirmationsDialog({ open, onOpenChange, sheetId, workers }
         </Alert>
 
         <div className="flex items-center gap-4 py-2">
-          <Select value={selectedWorkerId} onValueChange={(val) => {
-            setSelectedWorkerId(val);
-            runPreview(val);
-          }}>
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Select Worker" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Workers (This Sheet)</SelectItem>
-              {workers?.map((w) => (
-                <SelectItem key={w.id} value={w.id.toString()}>{w.fullName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={selectedWorkerId}
+            onChange={(val) => {
+              setSelectedWorkerId(val);
+              runPreview(val);
+            }}
+            placeholder="Select Worker"
+            searchPlaceholder="Type a name…"
+            emptyText="No matching workers."
+            ariaLabel="Worker"
+            triggerClassName="w-[250px]"
+            options={[
+              { value: "all", label: "All Workers (This Sheet)" },
+              ...(workers ?? []).map((w) => ({
+                value: w.id.toString(),
+                label: w.fullName,
+                description: w.phone ?? undefined,
+              })),
+            ]}
+          />
           <Button variant="secondary" onClick={() => runPreview(selectedWorkerId)} disabled={previewConfirmations.isPending}>
             Refresh Preview
           </Button>
