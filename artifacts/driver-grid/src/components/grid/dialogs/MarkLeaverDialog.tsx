@@ -84,7 +84,7 @@ export function MarkLeaverDialog({
           onSaved?.();
           toast({
             title: `${workerName} marked as a leaver`,
-            description: "Removed from the booking grid. You can restore them from the Leavers view.",
+            description: "Removed from the scheduler. You can restore them from the Leavers view.",
           });
           onOpenChange(false);
         },
@@ -111,7 +111,7 @@ export function MarkLeaverDialog({
               </DialogTitle>
               <DialogDescription>
                 This is a serious action. {workerName} will be marked as having left
-                and removed from the bookable grid. They will move to the Leavers
+                and removed from the scheduler. They will move to the Leavers
                 view (and can still be restored from there).
               </DialogDescription>
             </DialogHeader>

@@ -278,7 +278,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
           if (event.autoFlagged) {
             toast({
               title: `${workerName} flagged Do Not Book`,
-              description: "Reached 5 no-shows — removed from the grid. You can allow booking again from the Do Not Book view.",
+              description: "Reached 5 no-shows — removed from the scheduler. You can allow booking again from the Do Not Book view.",
             });
           } else {
             toast({ title: `No-show logged for ${workerName}` });
@@ -335,7 +335,7 @@ export function BookingGrid({ sheetId, start, end, data, isLoading }: BookingGri
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-muted-foreground">Loading grid...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading scheduler...</div>;
   }
 
   if (!data?.workers.length) {

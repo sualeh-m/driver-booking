@@ -59,7 +59,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 className="gap-2"
               >
                 <CalendarDaysIcon className="h-4 w-4" />
-                Grid
+                Scheduler
               </Button>
             </Link>
             <Link href="/do-not-book">

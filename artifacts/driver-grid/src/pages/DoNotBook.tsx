@@ -41,7 +41,7 @@ export function DoNotBook() {
         <CardHeader>
           <CardTitle>Do Not Book</CardTitle>
           <CardDescription>
-            Workers flagged as Do Not Book are hidden from the booking grid. Flagging is reversible —
+            Workers flagged as Do Not Book are hidden from the scheduler. Flagging is reversible —
             allow a worker again to bring them back. Workers are auto-flagged after 5 logged no-shows.
           </CardDescription>
         </CardHeader>

@@ -160,7 +160,7 @@ export function Grid() {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
-            Select a sheet to view the grid, or create one with "New Sheet".
+            Select a sheet to view the scheduler, or create one with "New Sheet".
           </div>
         )}
       </div>

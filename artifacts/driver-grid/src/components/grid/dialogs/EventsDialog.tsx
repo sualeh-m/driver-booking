@@ -92,7 +92,7 @@ export function EventsDialog({
           if (event.autoFlagged) {
             toast({
               title: `${workerName} flagged Do Not Book`,
-              description: "Reached 5 no-shows — removed from the grid. You can allow booking again from the Do Not Book view.",
+              description: "Reached 5 no-shows — removed from the scheduler. You can allow booking again from the Do Not Book view.",
             });
           } else {
             toast({ title: `${EVENT_LABELS[eventType]} logged for ${workerName}` });

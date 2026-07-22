@@ -143,7 +143,7 @@ export function RecordSubmissionDialog({
           {mode === "new" && (
             <p className="text-xs text-muted-foreground">
               A new person is recorded on this submission only — they are NOT added to the worker
-              list and will not appear on the grid.
+              list and will not appear on the scheduler.
             </p>
           )}
         </div>

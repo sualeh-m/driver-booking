@@ -96,7 +96,7 @@ export function Leavers() {
         <CardHeader>
           <CardTitle>Leavers</CardTitle>
           <CardDescription>
-            Workers who have left. They are removed from the booking grid. If someone was marked as a
+            Workers who have left. They are removed from the scheduler. If someone was marked as a
             leaver by mistake, restore them to bring them back to active and bookable.
           </CardDescription>
         </CardHeader>
@@ -205,7 +205,7 @@ export function Leavers() {
             The leaver record for{" "}
             <span className="font-semibold">{deleteTarget?.fullName}</span> is
             permanently removed from the Leavers list. The worker stays marked as
-            left and off the booking grid — use{" "}
+            left and off the scheduler — use{" "}
             <span className="font-semibold">Restore</span> instead if you want
             them back. Their worker, booking and event history is kept. This
             cannot be undone.
