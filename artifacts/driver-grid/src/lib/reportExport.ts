@@ -1,5 +1,4 @@
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { LOGO_DATA_URL, LOGO_WIDTH_PX, LOGO_HEIGHT_PX } from "./reportLogo";
 
@@ -8,11 +7,11 @@ const LOGO_ASPECT = LOGO_WIDTH_PX / LOGO_HEIGHT_PX;
 // Everything the export needs, captured from the Reports page's CURRENT
 // filter state and already-fetched metric data — what you see is what exports.
 export interface ReportExportModel {
-  rangeLabel: string;
+  rangeLabel: string; // always "DD.MM.YYYY - DD.MM.YYYY"
   coverage: string[]; // depot/client lines covered by the current filter
-  workerType: string; // "All" | "HGV" | "Warehouse"
-  operational: { label: string; value: string }[];
-  people: { label: string; value: string }[];
+  workerType: string; // actual worker types included, e.g. "HGV and Warehouse"
+  operational: { label: string; value: string; hint?: string }[];
+  people: { label: string; value: string; hint?: string }[]; // CPC/Test omitted when HGV excluded
   leaverReasons: { label: string; value: string }[];
   leaversTotal: string;
   retention: { label: string; value: string }[];
@@ -242,15 +241,16 @@ export function exportReportPdf(model: ReportExportModel) {
     y += 26;
   };
 
-  // Stat cards, like the on-screen KPI tiles: gold top accent, big navy
-  // value, muted label. `perRow` cards per row, wrapping as needed.
+  // Stat cards mirroring the on-screen KPI tiles, in the SAME reading order
+  // as the app: label on top (small, muted), big navy number underneath,
+  // short description below. `perRow` cards per row, wrapping as needed.
   const statCards = (
-    stats: { label: string; value: string }[],
+    stats: { label: string; value: string; hint?: string }[],
     perRow: number,
   ) => {
     const gap = 10;
     const cardW = (contentW - gap * (perRow - 1)) / perRow;
-    const cardH = 64;
+    const cardH = 82;
     for (let i = 0; i < stats.length; i += perRow) {
       ensureRoom(cardH + gap);
       const rowStats = stats.slice(i, i + perRow);
@@ -262,67 +262,94 @@ export function exportReportPdf(model: ReportExportModel) {
         doc.roundedRect(x, y, cardW, cardH, 4, 4, "FD");
         doc.setFillColor(...GOLD);
         doc.rect(x + 10, y, cardW - 20, 2.5, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(17);
-        doc.setTextColor(...NAVY);
-        doc.text(s.value, x + 12, y + 30);
+        // Label first (top), like CardDescription on screen.
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(...MUTED);
-        const label = doc.splitTextToSize(s.label.toUpperCase(), cardW - 24);
-        doc.text(label, x + 12, y + 44);
+        const label = doc
+          .splitTextToSize(s.label.toUpperCase(), cardW - 24)
+          .slice(0, 2) as string[];
+        doc.text(label, x + 12, y + 17);
+        // Big number underneath.
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(17);
+        doc.setTextColor(...NAVY);
+        doc.text(s.value, x + 12, y + 30 + label.length * 9);
+        // Short description below the number.
+        if (s.hint) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.8);
+          doc.setTextColor(...MUTED);
+          const hint = doc
+            .splitTextToSize(s.hint, cardW - 24)
+            .slice(0, 2) as string[];
+          doc.text(hint, x + 12, y + 42 + label.length * 9);
+        }
       });
       y += cardH + gap;
     }
     y += 12;
   };
 
-  const breakdownTable = (
-    head: [string, string],
-    rows: { label: string; value: string }[],
-  ) => {
-    autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
-      head: [head],
-      body: rows.map((r) => [r.label, r.value]),
-      theme: "plain",
-      styles: {
-        fontSize: 9.5,
-        cellPadding: { top: 7, bottom: 7, left: 10, right: 10 },
-        textColor: INK,
-        lineColor: CARD_BORDER,
-      },
-      headStyles: {
-        fillColor: NAVY,
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        fontSize: 9,
-      },
-      alternateRowStyles: { fillColor: PANEL_BG },
-      columnStyles: { 1: { halign: "right", cellWidth: 110, fontStyle: "bold" } },
-      didParseCell: (data) => {
-        if (data.section === "body" && data.column.index === 1) {
-          data.cell.styles.textColor = NAVY;
+  // Side-by-side white breakdown cards with simple label/value rows,
+  // matching the on-screen "Leaver reasons" / "Retention" cards.
+  interface BreakdownCard {
+    title: string;
+    subtitle?: string;
+    rows: { label: string; value: string }[];
+  }
+  const breakdownCards = (cards: [BreakdownCard, BreakdownCard]) => {
+    const gap = 12;
+    const cardW = (contentW - gap) / 2;
+    const pad = 14;
+    const rowH = 17;
+    const headerH = (c: BreakdownCard) => pad + 14 + (c.subtitle ? 13 : 0) + 8;
+    const cardH = (c: BreakdownCard) => headerH(c) + c.rows.length * rowH + pad - 6;
+    const maxH = Math.max(...cards.map(cardH));
+    ensureRoom(maxH + 16);
+    cards.forEach((c, idx) => {
+      const x = margin + idx * (cardW + gap);
+      const h = cardH(c);
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(...CARD_BORDER);
+      doc.setLineWidth(0.75);
+      doc.roundedRect(x, y, cardW, h, 4, 4, "FD");
+      doc.setFillColor(...GOLD);
+      doc.rect(x + 10, y, cardW - 20, 2.5, "F");
+      // Title + optional subtitle, like the on-screen card header.
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(...NAVY);
+      doc.text(c.title, x + pad, y + pad + 4);
+      if (c.subtitle) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...MUTED);
+        doc.text(
+          doc.splitTextToSize(c.subtitle, cardW - pad * 2)[0] as string,
+          x + pad,
+          y + pad + 16,
+        );
+      }
+      // Simple rows: label left, value right, hairline dividers.
+      let ry = y + headerH(c) + 6;
+      c.rows.forEach((r, i) => {
+        if (i > 0) {
+          doc.setDrawColor(...CARD_BORDER);
+          doc.setLineWidth(0.5);
+          doc.line(x + pad, ry - 11, x + cardW - pad, ry - 11);
         }
-      },
-      didDrawCell: (data) => {
-        // Gold underline beneath the header row.
-        if (data.section === "head") {
-          doc.setDrawColor(...GOLD);
-          doc.setLineWidth(1.5);
-          doc.line(
-            data.cell.x,
-            data.cell.y + data.cell.height,
-            data.cell.x + data.cell.width,
-            data.cell.y + data.cell.height,
-          );
-        }
-      },
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(...(r.value === "0" ? MUTED : INK));
+        doc.text(r.label, x + pad, ry);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...NAVY);
+        doc.text(r.value, x + cardW - pad, ry, { align: "right" });
+        ry += rowH;
+      });
     });
-    y =
-      (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
-        .finalY + 28;
+    y += maxH + 24;
   };
 
   // ----- Sections ----------------------------------------------------------
@@ -332,16 +359,18 @@ export function exportReportPdf(model: ReportExportModel) {
   sectionTitle("People");
   statCards(model.people, 3);
 
-  sectionTitle(`Leaver reasons (total ${model.leaversTotal})`);
-  breakdownTable(["Reason", "Count"], model.leaverReasons);
-
-  sectionTitle("Retention by length of service");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...MUTED);
-  doc.text("Current snapshot of active workers, not limited to the date range.", margin, y - 8);
-  y += 4;
-  breakdownTable(["Length of service", "Workers"], model.retention);
+  breakdownCards([
+    {
+      title: `Leaver reasons (total ${model.leaversTotal})`,
+      subtitle: "Leavers in range by reason",
+      rows: model.leaverReasons,
+    },
+    {
+      title: "Retention by length of service",
+      subtitle: "Current snapshot, not limited to the date range",
+      rows: model.retention,
+    },
+  ]);
 
   // ----- Footer: gold hairline + page numbers on every page ---------------
   const pages = doc.getNumberOfPages();

@@ -5,7 +5,7 @@ generated = []
 id = "zMVaiOYUQnVfdZpV5T6QR"
 uri = "file://exports/kpi-report-sample.pdf"
 type = "pdf"
-title = "Redesigned KPI Report (PDF)"
+title = "Updated KPI Report (PDF)"
 
 [[outputs]]
 id = "4iG8oCEgCi_PmSoyfoqME"

@@ -16,6 +16,7 @@ import {
   addWeeks,
   addMonths,
   format,
+  parseISO,
 } from "date-fns";
 import {
   Card,
@@ -205,6 +206,10 @@ export function Reports() {
       ? "None selected"
       : `${effectiveSelected.length} selected`;
 
+  // CPC / Test failures are HGV-only metrics — hide them entirely (screen
+  // AND exports) whenever the worker-type filter excludes HGV.
+  const hgvIncluded = workerType === "All" || workerType === "HGV";
+
   const peopleMetrics = [
     {
       label: "Submitted",
@@ -231,16 +236,20 @@ export function Reports() {
       value: people?.leavers,
       hint: "Workers who left in range",
     },
-    {
-      label: "CPC failures",
-      value: people?.cpcFailures,
-      hint: "HGV only",
-    },
-    {
-      label: "Test failures",
-      value: people?.testFailures,
-      hint: "HGV only",
-    },
+    ...(hgvIncluded
+      ? [
+          {
+            label: "CPC failures",
+            value: people?.cpcFailures,
+            hint: "HGV only",
+          },
+          {
+            label: "Test failures",
+            value: people?.testFailures,
+            hint: "HGV only",
+          },
+        ]
+      : []),
   ];
 
   const metrics = [
@@ -289,29 +298,73 @@ export function Reports() {
           .filter((o) => effectiveSelected.includes(o.key))
           .map((o) => (o.depot ? `${o.client} — ${o.depot}` : o.client));
     return {
-      rangeLabel,
+      // Always the actual from/to dates in DD.MM.YYYY, whatever the mode.
+      rangeLabel: `${format(parseISO(start), "dd.MM.yyyy")} - ${format(parseISO(end), "dd.MM.yyyy")}`,
       coverage: coverage.length ? coverage : ["None selected"],
-      workerType: workerType === "All" ? "All workers" : workerType,
+      // List the actual worker types included rather than "All workers".
+      workerType: workerType === "All" ? "HGV and Warehouse" : workerType,
       operational: [
-        { label: "Active workers", value: String(data.activeWorkers) },
-        { label: "Requirements received", value: String(data.requirementsReceived) },
-        { label: "Filled", value: String(data.filled) },
+        {
+          label: "Active workers",
+          value: String(data.activeWorkers),
+          hint: "Status active, matching the filters",
+        },
+        {
+          label: "Requirements received",
+          value: String(data.requirementsReceived),
+          hint: "Sum of shift requirements in range",
+        },
+        {
+          label: "Filled",
+          value: String(data.filled),
+          hint: "Bookings Confirmed or Pre-Booked",
+        },
         {
           label: "Fill rate",
           value: data.fillRate == null ? "—" : `${data.fillRate}%`,
+          hint: "Filled ÷ requirements",
         },
-        { label: "No-shows", value: String(data.noShows) },
+        {
+          label: "No-shows",
+          value: String(data.noShows),
+          hint: "No-show events in range",
+        },
       ],
       people: [
-        { label: "Submitted", value: String(people.submitted) },
-        { label: "Passed", value: String(people.passed) },
+        {
+          label: "Submitted",
+          value: String(people.submitted),
+          hint: "Submissions in range",
+        },
+        {
+          label: "Passed",
+          value: String(people.passed),
+          hint: "Submissions with outcome Passed",
+        },
         {
           label: "Pass rate",
           value: people.passRate == null ? "—" : `${people.passRate}%`,
+          hint: "Passed ÷ submitted",
         },
-        { label: "Leavers", value: String(people.leavers) },
-        { label: "CPC failures (HGV only)", value: String(people.cpcFailures) },
-        { label: "Test failures (HGV only)", value: String(people.testFailures) },
+        {
+          label: "Leavers",
+          value: String(people.leavers),
+          hint: "Workers who left in range",
+        },
+        ...(hgvIncluded
+          ? [
+              {
+                label: "CPC failures",
+                value: String(people.cpcFailures),
+                hint: "HGV only",
+              },
+              {
+                label: "Test failures",
+                value: String(people.testFailures),
+                hint: "HGV only",
+              },
+            ]
+          : []),
       ],
       leaverReasons: (people.leaverReasons ?? []).map((r) => ({
         label: LEAVER_REASON_LABELS[r.reason] ?? r.reason,
