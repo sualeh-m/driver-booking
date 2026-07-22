@@ -4,6 +4,7 @@ import {
   db,
   submissionsTable,
   workersTable,
+  workerSheetsTable,
   sheetsTable,
   shiftRequirementsTable,
 } from "@workspace/db";
@@ -15,7 +16,9 @@ import {
   DeleteSubmissionParams,
 } from "@workspace/api-zod";
 import { getUserId, requireAdmin } from "../lib/auth";
-import { formatNameOrNull, formatUkMobile } from "../lib/format";
+import { formatNameOrNull, formatUkMobile, strictUkMobile } from "../lib/format";
+import { resolveCustomJobTitle, rememberJobTitle } from "../lib/jobTitles";
+import { workerTypeForJobRole } from "../lib/workerType";
 
 const router: IRouter = Router();
 
@@ -30,6 +33,8 @@ function submissionSelect() {
     // name for a candidate submission (workerId null).
     workerName: sql<string>`coalesce(${workersTable.fullName}, ${submissionsTable.candidateName})`,
     candidatePhone: submissionsTable.candidatePhone,
+    jobRole: submissionsTable.jobRole,
+    customJobTitle: submissionsTable.customJobTitle,
     submittedDate: submissionsTable.submittedDate,
     outcome: submissionsTable.outcome,
     sheetId: submissionsTable.sheetId,
@@ -60,6 +65,8 @@ type SubmissionRow = {
   workerId: number | null;
   workerName: string;
   candidatePhone: string | null;
+  jobRole: string | null;
+  customJobTitle: string | null;
   submittedDate: string;
   outcome: string;
   sheetId: number | null;
@@ -77,6 +84,8 @@ function serializeRow(r: SubmissionRow) {
     workerId: r.workerId,
     workerName: r.workerName,
     candidatePhone: r.candidatePhone,
+    jobRole: r.jobRole,
+    customJobTitle: r.customJobTitle,
     submittedDate: r.submittedDate,
     outcome: r.outcome,
     sheetId: r.sheetId,
@@ -144,12 +153,22 @@ router.post("/submissions", async (req, res): Promise<void> => {
     workerId,
     candidateName,
     candidatePhone,
+    jobRole,
+    customJobTitle,
     submittedDate,
     outcome,
     requirementId,
     sheetId,
   } = parsed.data;
   const userId = getUserId(req);
+
+  // The role is part of the submission record; "Other" requires a free-text
+  // title exactly like it does on a worker.
+  const resolvedTitle = resolveCustomJobTitle(jobRole, customJobTitle ?? null);
+  if (!resolvedTitle.ok) {
+    res.status(400).json({ error: resolvedTitle.error });
+    return;
+  }
 
   // A submission is EITHER for an existing worker OR a brand-new candidate not in
   // the worker list. Recording a candidate here must NEVER create a bookable
@@ -180,7 +199,7 @@ router.post("/submissions", async (req, res): Promise<void> => {
   // sheet — the requirement is the source of truth. We force the sheet to match
   // (overriding any conflicting client-supplied sheetId) so a submission can
   // never claim one sheet while its requirement linkage/count belongs to another.
-  let resolvedSheetId = sheetId ?? null;
+  let resolvedSheetId: number | null = sheetId;
   if (requirementId != null) {
     const [req2] = await db
       .select({ sheetId: shiftRequirementsTable.sheetId })
@@ -193,19 +212,35 @@ router.post("/submissions", async (req, res): Promise<void> => {
     resolvedSheetId = req2.sheetId;
   }
 
-  const [created] = await db
-    .insert(submissionsTable)
-    .values({
-      workerId: hasWorker ? workerId : null,
-      candidateName: hasWorker ? null : trimmedCandidate,
-      candidatePhone: hasWorker ? null : formatUkMobile(candidatePhone),
-      submittedDate,
-      outcome,
-      requirementId: requirementId ?? null,
-      sheetId: resolvedSheetId,
-      createdBy: userId ?? null,
-    })
-    .returning({ id: submissionsTable.id });
+  // Ensure the sheet actually exists (it is now a required part of the record).
+  const [sheet] = await db
+    .select({ id: sheetsTable.id })
+    .from(sheetsTable)
+    .where(eq(sheetsTable.id, resolvedSheetId));
+  if (!sheet) {
+    res.status(400).json({ error: "Sheet not found" });
+    return;
+  }
+
+  const created = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(submissionsTable)
+      .values({
+        workerId: hasWorker ? workerId : null,
+        candidateName: hasWorker ? null : trimmedCandidate,
+        candidatePhone: hasWorker ? null : formatUkMobile(candidatePhone),
+        jobRole,
+        customJobTitle: resolvedTitle.value,
+        submittedDate,
+        outcome,
+        requirementId: requirementId ?? null,
+        sheetId: resolvedSheetId,
+        createdBy: userId ?? null,
+      })
+      .returning({ id: submissionsTable.id });
+    await rememberJobTitle(tx, resolvedTitle.value);
+    return row;
+  });
 
   const row = await fetchOne(created.id);
   if (!row) {
@@ -228,23 +263,118 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [updated] = await db
-    .update(submissionsTable)
-    .set({ outcome: parsed.data.outcome })
-    .where(eq(submissionsTable.id, params.data.id))
-    .returning({ id: submissionsTable.id });
-
-  if (!updated) {
+  const [existing] = await db
+    .select()
+    .from(submissionsTable)
+    .where(eq(submissionsTable.id, params.data.id));
+  if (!existing) {
     res.status(404).json({ error: "Submission not found" });
     return;
   }
 
-  const row = await fetchOne(updated.id);
+  const newOutcome = parsed.data.outcome;
+  const becomingPassed = newOutcome === "passed" && existing.outcome !== "passed";
+
+  // Changing to "passed" is the moment a candidate becomes a real, bookable
+  // worker on the sheet + role recorded on the submission. An existing worker
+  // is never duplicated — they are just linked to the sheet. Changing AWAY
+  // from "passed" deliberately does NOT delete the worker (the frontend warns
+  // and asks for confirmation before calling this).
+  let workerCreated = false;
+  let workerLinkedToSheet = false;
+
+  if (becomingPassed) {
+    if (existing.sheetId == null) {
+      res.status(400).json({
+        error:
+          "This submission has no sheet recorded, so the worker cannot be placed. Re-record the submission with a sheet.",
+      });
+      return;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        // Re-read WITH a row lock: two concurrent pass-transitions must not
+        // both see workerId=null and each create a worker. The second request
+        // blocks here until the first commits, then sees the created worker.
+        const [locked] = await tx
+          .select()
+          .from(submissionsTable)
+          .where(eq(submissionsTable.id, existing.id))
+          .for("update");
+        if (!locked) return;
+
+        let targetWorkerId = locked.workerId;
+
+        if (targetWorkerId == null) {
+          // Candidate → create the worker now, with the submission's role.
+          if (locked.jobRole == null) {
+            throw Object.assign(
+              new Error(
+                "This submission has no job role recorded, so the worker cannot be created. Re-record the submission with a job role.",
+              ),
+              { statusCode: 400 },
+            );
+          }
+          const [worker] = await tx
+            .insert(workersTable)
+            .values({
+              fullName: locked.candidateName ?? "Unknown",
+              // Keep the candidate's phone if it is a valid UK mobile;
+              // otherwise leave it blank — the strict rule then applies the
+              // next time the worker is edited.
+              phone: strictUkMobile(locked.candidatePhone),
+              jobRole: locked.jobRole,
+              customJobTitle: locked.customJobTitle,
+              workerType: workerTypeForJobRole(locked.jobRole),
+              status: "active",
+            })
+            .returning({ id: workersTable.id });
+          targetWorkerId = worker.id;
+          workerCreated = true;
+
+          // The submission now belongs to a real worker (identity CHECK:
+          // worker_id set ⇒ candidate_name must be null).
+          await tx
+            .update(submissionsTable)
+            .set({ workerId: targetWorkerId, candidateName: null })
+            .where(eq(submissionsTable.id, existing.id));
+        }
+
+        // Link the worker to the submission's sheet (no-op when already linked).
+        const linked = await tx
+          .insert(workerSheetsTable)
+          .values({ workerId: targetWorkerId, sheetId: locked.sheetId ?? existing.sheetId! })
+          .onConflictDoNothing()
+          .returning({ workerId: workerSheetsTable.workerId });
+        if (linked.length > 0 && !workerCreated) workerLinkedToSheet = true;
+
+        await tx
+          .update(submissionsTable)
+          .set({ outcome: newOutcome })
+          .where(eq(submissionsTable.id, existing.id));
+      });
+    } catch (err) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 400) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      throw err;
+    }
+  } else {
+    await db
+      .update(submissionsTable)
+      .set({ outcome: newOutcome })
+      .where(eq(submissionsTable.id, existing.id));
+  }
+
+  const row = await fetchOne(existing.id);
   if (!row) {
     res.status(500).json({ error: "Failed to load updated submission" });
     return;
   }
-  res.json(serializeRow(row));
+  res.json({ ...serializeRow(row), workerCreated, workerLinkedToSheet });
 });
 
 // Admin only. Permanently delete a single submission record. Nothing references

@@ -123,6 +123,10 @@ CREATE TABLE submissions (
     worker_id       INTEGER REFERENCES workers(id) ON DELETE CASCADE,
     candidate_name  TEXT,
     candidate_phone TEXT,
+    -- Job role + sheet the person is submitted for; used to auto-create the
+    -- worker when the outcome becomes 'passed'. Nullable for legacy rows.
+    job_role        TEXT,
+    custom_job_title TEXT,
     requirement_id  INTEGER REFERENCES shift_requirements(id) ON DELETE SET NULL,
     sheet_id        INTEGER REFERENCES sheets(id) ON DELETE SET NULL,
     submitted_date  DATE NOT NULL,

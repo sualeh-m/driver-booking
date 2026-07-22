@@ -1799,6 +1799,18 @@ components:
         candidatePhone:
           type: ["string", "null"]
           description: Optional phone for a candidate submission (null for existing-worker submissions).
+        jobRole:
+          type: ["string", "null"]
+          description: The job role the person was submitted for (null on legacy rows recorded before role capture).
+        customJobTitle:
+          type: ["string", "null"]
+          description: Free-text job title when jobRole is "Other".
+        workerCreated:
+          type: boolean
+          description: Present (true) on the response of an outcome change to "passed" that auto-created a new worker from a candidate submission.
+        workerLinkedToSheet:
+          type: boolean
+          description: Present (true) on the response of an outcome change to "passed" that added the (existing) worker to the submission's sheet.
         submittedDate: { type: string }
         outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
         sheetId: { type: ["integer", "null"] }
@@ -1815,15 +1827,20 @@ components:
 
     SubmissionInput:
       type: object
-      required: [submittedDate, outcome]
+      required: [submittedDate, outcome, sheetId, jobRole]
       description: >-
         Provide EITHER workerId (existing worker) OR candidateName (a brand-new
         person not in the worker list). A candidate submission never creates a
-        bookable worker.
+        bookable worker until its outcome is changed to "passed". The sheet and
+        job role the person is submitted for are always captured.
       properties:
         workerId: { type: integer }
         candidateName: { type: string }
         candidatePhone: { type: string }
+        jobRole: { $ref: "#/components/schemas/JobRole" }
+        customJobTitle:
+          type: string
+          description: Required free-text job title when jobRole is "Other"; ignored otherwise.
         submittedDate: { type: string }
         outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
         requirementId: { type: integer }

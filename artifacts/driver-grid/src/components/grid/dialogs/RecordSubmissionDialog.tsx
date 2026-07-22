@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { SubmissionOutcome } from "@workspace/api-client-react";
 import {
+  JobRole,
   useListWorkers,
   useListSheets,
   useListRequirements,
@@ -13,11 +14,14 @@ import {
   getListRequirementsQueryKey,
   getListSubmissionsQueryKey,
 } from "@workspace/api-client-react";
+import { CustomJobTitleInput } from "./CustomJobTitleInput";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { SUBMISSION_OUTCOME_LABELS, SUBMISSION_OUTCOMES } from "@/pages/Submissions";
 
 const NONE = "__none__";
+
+const JOB_ROLES = Object.values(JobRole);
 
 export function RecordSubmissionDialog({
   open,
@@ -38,6 +42,8 @@ export function RecordSubmissionDialog({
   const [workerId, setWorkerId] = useState<string>("");
   const [candidateName, setCandidateName] = useState<string>("");
   const [candidatePhone, setCandidatePhone] = useState<string>("");
+  const [jobRole, setJobRole] = useState<string>("");
+  const [customJobTitle, setCustomJobTitle] = useState<string>("");
   const [submittedDate, setSubmittedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [outcome, setOutcome] = useState<SubmissionOutcome>("submitted");
   const [sheetId, setSheetId] = useState<string>(defaultSheetId ? String(defaultSheetId) : NONE);
@@ -62,6 +68,17 @@ export function RecordSubmissionDialog({
 
   const create = useCreateSubmission();
 
+  // When an existing worker is picked, default the submission's role to the
+  // worker's own role (still changeable — they may be submitted for another).
+  const handleWorkerPick = (id: string) => {
+    setWorkerId(id);
+    const w = (workers ?? []).find((x) => String(x.id) === id);
+    if (w?.jobRole) {
+      setJobRole(w.jobRole);
+      setCustomJobTitle(w.jobRole === JobRole.Other ? (w.customJobTitle ?? "") : "");
+    }
+  };
+
   const handleConfirm = () => {
     if (mode === "existing" && !workerId) {
       toast({ title: "Pick a worker", variant: "destructive" });
@@ -69,6 +86,18 @@ export function RecordSubmissionDialog({
     }
     if (mode === "new" && !candidateName.trim()) {
       toast({ title: "Enter the person's name", variant: "destructive" });
+      return;
+    }
+    if (!jobRole) {
+      toast({ title: "Pick the job role they are being submitted for", variant: "destructive" });
+      return;
+    }
+    if (jobRole === JobRole.Other && !customJobTitle.trim()) {
+      toast({ title: "Enter a job title for the Other role", variant: "destructive" });
+      return;
+    }
+    if (sheetId === NONE) {
+      toast({ title: "Pick the sheet they are being submitted for", variant: "destructive" });
       return;
     }
     if (!submittedDate) {
@@ -84,25 +113,37 @@ export function RecordSubmissionDialog({
                 candidateName: candidateName.trim(),
                 candidatePhone: candidatePhone.trim() || undefined,
               }),
+          jobRole: jobRole as (typeof JOB_ROLES)[number],
+          customJobTitle:
+            jobRole === JobRole.Other ? customJobTitle.trim() : undefined,
           submittedDate,
           outcome,
-          sheetId: sheetId !== NONE ? Number(sheetId) : undefined,
+          sheetId: Number(sheetId),
           requirementId: requirementId !== NONE ? Number(requirementId) : undefined,
         },
       },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["/api/submissions"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/people"] });
           toast({ title: "Submission recorded" });
           onOpenChange(false);
           setMode("existing");
           setWorkerId("");
           setCandidateName("");
           setCandidatePhone("");
+          setJobRole("");
+          setCustomJobTitle("");
           setRequirementId(NONE);
           setOutcome("submitted");
         },
-        onError: () => toast({ title: "Could not record submission", variant: "destructive" }),
+        onError: (err) =>
+          toast({
+            title: "Could not record submission",
+            description:
+              (err as { response?: { data?: { error?: string } } })?.response?.data?.error,
+            variant: "destructive",
+          }),
       },
     );
   };
@@ -152,7 +193,7 @@ export function RecordSubmissionDialog({
           {mode === "existing" ? (
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Worker</label>
-              <Select value={workerId} onValueChange={setWorkerId}>
+              <Select value={workerId} onValueChange={handleWorkerPick}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select worker" />
                 </SelectTrigger>
@@ -194,7 +235,37 @@ export function RecordSubmissionDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Sheet (optional)</label>
+            <label className="text-xs font-medium text-muted-foreground">Job role</label>
+            <Select
+              value={jobRole}
+              onValueChange={(v) => {
+                setJobRole(v);
+                if (v !== JobRole.Other) setCustomJobTitle("");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {JOB_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {jobRole === JobRole.Other && (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Job title</label>
+              <CustomJobTitleInput value={customJobTitle} onChange={setCustomJobTitle} />
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Sheet</label>
             <Select
               value={sheetId}
               onValueChange={(v) => {
@@ -203,13 +274,12 @@ export function RecordSubmissionDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="No sheet" />
+                <SelectValue placeholder="Select sheet" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>No sheet</SelectItem>
                 {sheets?.map((s) => (
                   <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name} — {s.clientCompany}
+                    {s.name}
                   </SelectItem>
                 ))}
               </SelectContent>

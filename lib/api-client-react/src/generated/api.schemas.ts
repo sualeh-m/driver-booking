@@ -369,6 +369,20 @@ export interface Submission {
      * @nullable
      */
   candidatePhone?: string | null;
+  /**
+     * The job role the person was submitted for (null on legacy rows recorded before role capture).
+     * @nullable
+     */
+  jobRole?: string | null;
+  /**
+     * Free-text job title when jobRole is "Other".
+     * @nullable
+     */
+  customJobTitle?: string | null;
+  /** Present (true) on the response of an outcome change to "passed" that auto-created a new worker from a candidate submission. */
+  workerCreated?: boolean;
+  /** Present (true) on the response of an outcome change to "passed" that added the (existing) worker to the submission's sheet. */
+  workerLinkedToSheet?: boolean;
   submittedDate: string;
   outcome: SubmissionOutcome;
   /** @nullable */
@@ -394,16 +408,19 @@ export interface Submission {
 }
 
 /**
- * Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker.
+ * Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker until its outcome is changed to "passed". The sheet and job role the person is submitted for are always captured.
  */
 export interface SubmissionInput {
   workerId?: number;
   candidateName?: string;
   candidatePhone?: string;
+  jobRole: JobRole;
+  /** Required free-text job title when jobRole is "Other"; ignored otherwise. */
+  customJobTitle?: string;
   submittedDate: string;
   outcome: SubmissionOutcome;
   requirementId?: number;
-  sheetId?: number;
+  sheetId: number;
 }
 
 export interface UpdateSubmissionOutcomeInput {

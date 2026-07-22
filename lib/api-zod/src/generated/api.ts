@@ -599,6 +599,10 @@ export const ListSubmissionsResponseItem = zod.object({
   "workerId": zod.number().nullish().describe('The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.'),
   "workerName": zod.string().describe('Display name — the existing worker\'s full name, or the candidate\'s name for a candidate submission.'),
   "candidatePhone": zod.string().nullish().describe('Optional phone for a candidate submission (null for existing-worker submissions).'),
+  "jobRole": zod.string().nullish().describe('The job role the person was submitted for (null on legacy rows recorded before role capture).'),
+  "customJobTitle": zod.string().nullish().describe('Free-text job title when jobRole is \"Other\".'),
+  "workerCreated": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that auto-created a new worker from a candidate submission.'),
+  "workerLinkedToSheet": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that added the (existing) worker to the submission\'s sheet.'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "sheetId": zod.number().nullish(),
@@ -619,17 +623,23 @@ export const CreateSubmissionBody = zod.object({
   "workerId": zod.number().optional(),
   "candidateName": zod.string().optional(),
   "candidatePhone": zod.string().optional(),
+  "jobRole": zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Bus/Coach', 'Van', 'Warehouse', 'Forklift', 'Drivers Mate', 'Other']).describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Bus\/Coach).'),
+  "customJobTitle": zod.string().optional().describe('Required free-text job title when jobRole is \"Other\"; ignored otherwise.'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "requirementId": zod.number().optional(),
-  "sheetId": zod.number().optional()
-}).describe('Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker.')
+  "sheetId": zod.number()
+}).describe('Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker until its outcome is changed to \"passed\". The sheet and job role the person is submitted for are always captured.')
 
 export const CreateSubmissionResponse = zod.object({
   "id": zod.number(),
   "workerId": zod.number().nullish().describe('The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.'),
   "workerName": zod.string().describe('Display name — the existing worker\'s full name, or the candidate\'s name for a candidate submission.'),
   "candidatePhone": zod.string().nullish().describe('Optional phone for a candidate submission (null for existing-worker submissions).'),
+  "jobRole": zod.string().nullish().describe('The job role the person was submitted for (null on legacy rows recorded before role capture).'),
+  "customJobTitle": zod.string().nullish().describe('Free-text job title when jobRole is \"Other\".'),
+  "workerCreated": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that auto-created a new worker from a candidate submission.'),
+  "workerLinkedToSheet": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that added the (existing) worker to the submission\'s sheet.'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "sheetId": zod.number().nullish(),
@@ -658,6 +668,10 @@ export const UpdateSubmissionOutcomeResponse = zod.object({
   "workerId": zod.number().nullish().describe('The existing worker this submission is for, or null when it is for a standalone candidate not in the worker list.'),
   "workerName": zod.string().describe('Display name — the existing worker\'s full name, or the candidate\'s name for a candidate submission.'),
   "candidatePhone": zod.string().nullish().describe('Optional phone for a candidate submission (null for existing-worker submissions).'),
+  "jobRole": zod.string().nullish().describe('The job role the person was submitted for (null on legacy rows recorded before role capture).'),
+  "customJobTitle": zod.string().nullish().describe('Free-text job title when jobRole is \"Other\".'),
+  "workerCreated": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that auto-created a new worker from a candidate submission.'),
+  "workerLinkedToSheet": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that added the (existing) worker to the submission\'s sheet.'),
   "submittedDate": zod.string(),
   "outcome": zod.enum(['submitted', 'passed', 'rejected']),
   "sheetId": zod.number().nullish(),

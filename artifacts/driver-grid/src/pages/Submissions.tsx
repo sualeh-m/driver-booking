@@ -23,6 +23,16 @@ import { useToast } from "@/hooks/use-toast";
 import { RecordSubmissionDialog } from "@/components/grid/dialogs/RecordSubmissionDialog";
 import { WorkerProfileDialog } from "@/components/grid/dialogs/WorkerProfileDialog";
 import { ConfirmDeleteDialog } from "@/components/grid/dialogs/ConfirmDeleteDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const SUBMISSION_OUTCOMES: SubmissionOutcome[] = ["submitted", "passed", "rejected"];
 
@@ -50,6 +60,11 @@ export function Submissions() {
   const [recordOpen, setRecordOpen] = useState(false);
   const [profileFor, setProfileFor] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; workerName: string } | null>(null);
+  const [unpassTarget, setUnpassTarget] = useState<{
+    id: number;
+    workerName: string;
+    outcome: SubmissionOutcome;
+  } | null>(null);
 
   const { data: currentUser } = useGetCurrentUser({
     query: { retry: false, queryKey: getGetCurrentUserQueryKey() },
@@ -91,17 +106,57 @@ export function Submissions() {
     );
   };
 
-  const handleOutcomeChange = (id: number, outcome: SubmissionOutcome) => {
+  const applyOutcomeChange = (id: number, outcome: SubmissionOutcome) => {
     update.mutate(
       { id, data: { outcome } },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           queryClient.invalidateQueries({ queryKey: ["/api/submissions"] });
-          toast({ title: "Outcome updated" });
+          queryClient.invalidateQueries({ queryKey: ["/api/reports/people"] });
+          if (outcome === "passed") {
+            // A pass may have created a worker and/or linked them to a sheet.
+            queryClient.invalidateQueries({ queryKey: ["/api/workers"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/grid"] });
+            if (data.workerCreated) {
+              toast({
+                title: `${data.workerName} added as a worker`,
+                description: `They are now bookable on ${data.sheetName ?? "the recorded sheet"}.`,
+              });
+            } else if (data.workerLinkedToSheet) {
+              toast({
+                title: "Outcome updated",
+                description: `${data.workerName} was added to ${data.sheetName ?? "the recorded sheet"}.`,
+              });
+            } else {
+              toast({ title: "Outcome updated" });
+            }
+          } else {
+            toast({ title: "Outcome updated" });
+          }
         },
-        onError: () => toast({ title: "Could not update outcome", variant: "destructive" }),
+        onError: (err) =>
+          toast({
+            title: "Could not update outcome",
+            description:
+              (err as { response?: { data?: { error?: string } } })?.response?.data?.error,
+            variant: "destructive",
+          }),
       },
     );
+  };
+
+  const handleOutcomeChange = (
+    s: { id: number; workerName: string; outcome: SubmissionOutcome },
+    outcome: SubmissionOutcome,
+  ) => {
+    if (outcome === s.outcome) return;
+    // Moving AWAY from Passed never deletes the worker — make that explicit
+    // before applying, so nobody expects the worker to disappear.
+    if (s.outcome === "passed") {
+      setUnpassTarget({ id: s.id, workerName: s.workerName, outcome });
+      return;
+    }
+    applyOutcomeChange(s.id, outcome);
   };
 
   const clearDates = () => {
@@ -162,6 +217,7 @@ export function Submissions() {
             <TableHeader>
               <TableRow>
                 <TableHead>Worker</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Submitted</TableHead>
                 <TableHead>Sheet</TableHead>
                 <TableHead>Requirement</TableHead>
@@ -173,13 +229,13 @@ export function Submissions() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 8 : 7} className="py-10 text-center text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : !submissions?.length ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 8 : 7} className="py-10 text-center text-muted-foreground">
                     No submissions match these filters.
                   </TableCell>
                 </TableRow>
@@ -209,6 +265,11 @@ export function Submissions() {
                           )}
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.jobRole === "Other" && s.customJobTitle
+                        ? s.customJobTitle
+                        : (s.jobRole ?? "—")}
                     </TableCell>
                     <TableCell className="text-sm">
                       {format(new Date(s.submittedDate), "d MMM yyyy")}
@@ -246,7 +307,7 @@ export function Submissions() {
                     <TableCell>
                       <Select
                         value={s.outcome}
-                        onValueChange={(v) => handleOutcomeChange(s.id, v as SubmissionOutcome)}
+                        onValueChange={(v) => handleOutcomeChange(s, v as SubmissionOutcome)}
                       >
                         <SelectTrigger className="h-8 w-40">
                           <SelectValue>
@@ -303,6 +364,35 @@ export function Submissions() {
           }
         />
       )}
+
+      <AlertDialog
+        open={unpassTarget != null}
+        onOpenChange={(o) => !o && setUnpassTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change outcome from Passed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {unpassTarget?.workerName} will stay in the worker list — changing
+              the outcome back to{" "}
+              {unpassTarget ? SUBMISSION_OUTCOME_LABELS[unpassTarget.outcome] : ""}{" "}
+              does not remove them or their bookings. Only this submission's
+              outcome changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (unpassTarget) applyOutcomeChange(unpassTarget.id, unpassTarget.outcome);
+                setUnpassTarget(null);
+              }}
+            >
+              Change outcome
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ConfirmDeleteDialog
         open={deleteTarget != null}

@@ -10,7 +10,7 @@ import {
   leaversTable,
   messagesTable,
 } from "@workspace/db";
-import { isRestRuleJobRole } from "@workspace/rest-rules";
+import { workerTypeForJobRole } from "../lib/workerType";
 import {
   CreateWorkerBody,
   ListWorkersQueryParams,
@@ -33,14 +33,6 @@ function cleanText(v: string | null | undefined): string | null {
   if (v == null) return null;
   const t = v.trim();
   return t.length > 0 ? t : null;
-}
-
-// A worker is only ever HGV or Warehouse. The type is derived from the job role
-// (the single source of truth): HGV-type roles → HGV, everything else →
-// Warehouse. This keeps worker_type aligned with the rest-day rule and the
-// HGV-only event check, and lets a "Both" sheet hold workers of any role.
-function workerTypeForJobRole(jobRole: string | null): "HGV" | "Warehouse" {
-  return isRestRuleJobRole(jobRole) ? "HGV" : "Warehouse";
 }
 
 const router: IRouter = Router();

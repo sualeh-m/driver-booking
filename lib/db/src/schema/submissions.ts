@@ -26,6 +26,12 @@ export const submissionsTable = pgTable(
     }),
     candidateName: text("candidate_name"),
     candidatePhone: text("candidate_phone"),
+    // The job role and sheet the person is being submitted for. Captured on the
+    // submission so that, when the outcome becomes "passed", a candidate can be
+    // auto-created as a worker with this role on this sheet. Nullable only for
+    // legacy rows recorded before these fields existed.
+    jobRole: text("job_role"),
+    customJobTitle: text("custom_job_title"),
     requirementId: integer("requirement_id").references(
       () => shiftRequirementsTable.id,
       { onDelete: "set null" },

@@ -21,6 +21,20 @@ export interface Submission {
      * @nullable
      */
   candidatePhone?: string | null;
+  /**
+     * The job role the person was submitted for (null on legacy rows recorded before role capture).
+     * @nullable
+     */
+  jobRole?: string | null;
+  /**
+     * Free-text job title when jobRole is "Other".
+     * @nullable
+     */
+  customJobTitle?: string | null;
+  /** Present (true) on the response of an outcome change to "passed" that auto-created a new worker from a candidate submission. */
+  workerCreated?: boolean;
+  /** Present (true) on the response of an outcome change to "passed" that added the (existing) worker to the submission's sheet. */
+  workerLinkedToSheet?: boolean;
   submittedDate: string;
   outcome: SubmissionOutcome;
   /** @nullable */

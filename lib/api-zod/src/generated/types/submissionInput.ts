@@ -5,17 +5,21 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
+import type { JobRole } from './jobRole';
 import type { SubmissionOutcome } from './submissionOutcome';
 
 /**
- * Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker.
+ * Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker until its outcome is changed to "passed". The sheet and job role the person is submitted for are always captured.
  */
 export interface SubmissionInput {
   workerId?: number;
   candidateName?: string;
   candidatePhone?: string;
+  jobRole: JobRole;
+  /** Required free-text job title when jobRole is "Other"; ignored otherwise. */
+  customJobTitle?: string;
   submittedDate: string;
   outcome: SubmissionOutcome;
   requirementId?: number;
-  sheetId?: number;
+  sheetId: number;
 }

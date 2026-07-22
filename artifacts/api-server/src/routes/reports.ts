@@ -252,14 +252,57 @@ router.get("/reports/people", async (req, res): Promise<void> => {
     count: 0,
   }));
 
-  // No eligible workers → every people metric is zero.
+  // Submissions in range (and how many passed). Submissions are NOT scoped via
+  // eligibleWorkerIds — candidate submissions have no worker at all and must
+  // still count. Instead they are scoped by the submission's OWN sheet, and the
+  // worker-type filter uses the linked worker's type when there is one,
+  // otherwise the type derived from the submission's recorded job role
+  // (HGV-type roles → HGV, anything else → Warehouse; legacy rows with no role
+  // only match when no type filter is set).
+  const submissionsPromise = (async (): Promise<{
+    submitted: number;
+    passed: number;
+  }> => {
+    const conds: ReturnType<typeof sql>[] = [];
+    conds.push(sql`${submissionsTable.submittedDate} >= ${start}`);
+    conds.push(sql`${submissionsTable.submittedDate} <= ${end}`);
+    if (restrictToSheets) {
+      if (selectedIds.length === 0) return { submitted: 0, passed: 0 };
+      conds.push(inArray(submissionsTable.sheetId, selectedIds));
+    }
+    if (workerType) {
+      conds.push(sql`
+        CASE
+          WHEN ${workersTable.id} IS NOT NULL THEN ${workersTable.workerType}
+          WHEN ${submissionsTable.jobRole} IN ('HGV 1','HGV 2','Trunker','Bus/Coach') THEN 'HGV'
+          WHEN ${submissionsTable.jobRole} IS NOT NULL THEN 'Warehouse'
+          ELSE NULL
+        END = ${workerType}`);
+    }
+    const [row] = await db
+      .select({
+        submitted: count(),
+        passed: sql<number>`coalesce(sum(case when ${submissionsTable.outcome} = 'passed' then 1 else 0 end), 0)::int`,
+      })
+      .from(submissionsTable)
+      .leftJoin(workersTable, eq(workersTable.id, submissionsTable.workerId))
+      .where(and(...conds));
+    return { submitted: row?.submitted ?? 0, passed: row?.passed ?? 0 };
+  })();
+
+  // No eligible workers → every worker-scoped people metric is zero, but the
+  // submission metrics above still apply (candidates are not workers).
   if (eligibleWorkerIds.length === 0) {
+    const submissions = await submissionsPromise;
     res.json({
       start,
       end,
-      submitted: 0,
-      passed: 0,
-      passRate: null,
+      submitted: submissions.submitted,
+      passed: submissions.passed,
+      passRate:
+        submissions.submitted > 0
+          ? Math.round((submissions.passed / submissions.submitted) * 1000) / 10
+          : null,
       leavers: 0,
       leaverReasons: emptyLeaverReasons,
       retention: emptyRetention,
@@ -269,27 +312,6 @@ router.get("/reports/people", async (req, res): Promise<void> => {
     });
     return;
   }
-
-  // Submissions in range (and how many passed).
-  const submissionsPromise = (async (): Promise<{
-    submitted: number;
-    passed: number;
-  }> => {
-    const [row] = await db
-      .select({
-        submitted: count(),
-        passed: sql<number>`coalesce(sum(case when ${submissionsTable.outcome} = 'passed' then 1 else 0 end), 0)::int`,
-      })
-      .from(submissionsTable)
-      .where(
-        and(
-          inArray(submissionsTable.workerId, eligibleWorkerIds),
-          gte(submissionsTable.submittedDate, start),
-          lte(submissionsTable.submittedDate, end),
-        ),
-      );
-    return { submitted: row?.submitted ?? 0, passed: row?.passed ?? 0 };
-  })();
 
   // Leavers in range, grouped by reason.
   const leaversPromise = (async (): Promise<Map<string, number>> => {
