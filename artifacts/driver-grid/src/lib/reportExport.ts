@@ -60,12 +60,18 @@ export async function exportReportExcel(model: ReportExportModel) {
   const logoRows = Math.ceil(logoDisplayH / 20) + 1;
   let r = logoRows + 1;
 
-  const navy = "FF1E3A5F";
-  const lightFill = "FFEBEFF5";
+  const navy = "FF1B2A4A";
+  const gold = "FFBF9854";
+  const lightFill = "FFF4F6FA";
 
   const titleRow = ws.getRow(r++);
   titleRow.getCell(1).value = "ShiftControl — KPI Report";
   titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: navy } };
+  for (const c of [1, 2]) {
+    titleRow.getCell(c).border = {
+      bottom: { style: "medium", color: { argb: gold } },
+    };
+  }
 
   const meta: [string, string][] = [
     ["Coverage", model.coverage.join("; ")],
@@ -94,6 +100,9 @@ export async function exportReportExcel(model: ReportExportModel) {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: navy },
+      };
+      titleRow.getCell(c).border = {
+        bottom: { style: "medium", color: { argb: gold } },
       };
     }
     const headRow = ws.getRow(r++);
@@ -133,118 +142,221 @@ export async function exportReportExcel(model: ReportExportModel) {
 }
 
 // ---------------------------------------------------------------------------
-// PDF — polished, client-ready document with the company logo top-right.
+// PDF — designed, on-brand (navy + gold) client-ready report: branded header,
+// KPI stat cards mirroring the on-screen Reports page, styled breakdown tables.
 // ---------------------------------------------------------------------------
+const NAVY: [number, number, number] = [27, 42, 74];
+const GOLD: [number, number, number] = [191, 152, 84];
+const INK: [number, number, number] = [55, 62, 74];
+const MUTED: [number, number, number] = [120, 128, 140];
+const CARD_BORDER: [number, number, number] = [222, 226, 233];
+const PANEL_BG: [number, number, number] = [244, 246, 250];
+
 export function exportReportPdf(model: ReportExportModel) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 48;
-  const brand: [number, number, number] = [30, 58, 95]; // deep navy
-  const light: [number, number, number] = [120, 128, 140];
+  const contentW = pageW - margin * 2;
 
-  // Company logo (top-right), proportions preserved.
-  const logoW = 132;
+  // ----- Header: title left, logo top-right, gold accent rule ------------
+  const logoW = 128;
   const logoH = logoW / LOGO_ASPECT;
-  doc.addImage(
-    LOGO_DATA_URL,
-    "JPEG",
-    pageW - margin - logoW,
-    margin - 8,
-    logoW,
-    logoH,
-  );
+  doc.addImage(LOGO_DATA_URL, "JPEG", pageW - margin - logoW, margin - 10, logoW, logoH);
 
-  // Title block.
-  doc.setTextColor(...brand);
+  doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
+  doc.setFontSize(22);
   doc.text("KPI Report", margin, margin + 12);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(60, 66, 76);
-  doc.text("ShiftControl — Workforce performance summary", margin, margin + 30);
+  doc.setFontSize(10.5);
+  doc.setTextColor(...MUTED);
+  doc.text("ShiftControl · Workforce performance summary", margin, margin + 30);
 
-  // Meta lines: coverage, range, worker type, generated date.
-  let y = margin + 58;
-  doc.setFontSize(9.5);
+  // Gold accent under the title, navy hairline across the rest.
+  const ruleY = margin + 44;
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(3);
+  doc.line(margin, ruleY, margin + 64, ruleY);
+  doc.setDrawColor(...CARD_BORDER);
+  doc.setLineWidth(0.75);
+  doc.line(margin + 72, ruleY, pageW - margin, ruleY);
+
+  // ----- Meta panel: soft navy-tinted box with gold edge -----------------
+  // Cap very large depot/client selections so the header stays compact.
+  const maxCoverage = 8;
+  const coverageText =
+    model.coverage.length > maxCoverage
+      ? `${model.coverage.slice(0, maxCoverage).join("; ")} (+${model.coverage.length - maxCoverage} more)`
+      : model.coverage.join("; ");
   const meta: [string, string][] = [
-    ["Coverage", model.coverage.join("; ")],
+    ["Coverage", coverageText],
     ["Date range", model.rangeLabel],
     ["Worker type", model.workerType],
     ["Report generated", generatedAt()],
   ];
-  for (const [k, v] of meta) {
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...brand);
-    doc.text(`${k}:`, margin, y);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 66, 76);
-    const wrapped = doc.splitTextToSize(v, pageW - margin * 2 - 110);
-    doc.text(wrapped, margin + 110, y);
-    y += 14 * wrapped.length;
-  }
-  y += 6;
-  doc.setDrawColor(...brand);
-  doc.setLineWidth(1.5);
-  doc.line(margin, y, pageW - margin, y);
-  y += 18;
+  const metaTextW = contentW - 24 - 110;
+  const metaLines = meta.map(([k, v]) => [k, doc.splitTextToSize(v, metaTextW)] as const);
+  const metaLineH = 14;
+  const panelPad = 12;
+  const panelH =
+    panelPad * 2 + metaLines.reduce((h, [, w]) => h + w.length * metaLineH, 0) - 4;
+  let y = ruleY + 16;
+  doc.setFillColor(...PANEL_BG);
+  doc.roundedRect(margin, y, contentW, panelH, 4, 4, "F");
+  doc.setFillColor(...GOLD);
+  doc.rect(margin, y + 4, 3, panelH - 8, "F");
 
-  const section = (
-    title: string,
+  let my = y + panelPad + 8;
+  doc.setFontSize(9.5);
+  for (const [k, wrapped] of metaLines) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...NAVY);
+    doc.text(k.toUpperCase(), margin + 16, my);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...INK);
+    doc.text(wrapped, margin + 126, my);
+    my += wrapped.length * metaLineH;
+  }
+  y += panelH + 26;
+
+  // ----- Helpers ----------------------------------------------------------
+  const ensureRoom = (needed: number) => {
+    if (y + needed > pageH - 56) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  const sectionTitle = (title: string) => {
+    ensureRoom(60);
+    doc.setFillColor(...GOLD);
+    doc.rect(margin, y - 9, 4, 13, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12.5);
+    doc.setTextColor(...NAVY);
+    doc.text(title.toUpperCase(), margin + 12, y + 2);
+    doc.setDrawColor(...CARD_BORDER);
+    doc.setLineWidth(0.75);
+    doc.line(margin, y + 10, pageW - margin, y + 10);
+    y += 26;
+  };
+
+  // Stat cards, like the on-screen KPI tiles: gold top accent, big navy
+  // value, muted label. `perRow` cards per row, wrapping as needed.
+  const statCards = (
+    stats: { label: string; value: string }[],
+    perRow: number,
+  ) => {
+    const gap = 10;
+    const cardW = (contentW - gap * (perRow - 1)) / perRow;
+    const cardH = 64;
+    for (let i = 0; i < stats.length; i += perRow) {
+      ensureRoom(cardH + gap);
+      const rowStats = stats.slice(i, i + perRow);
+      rowStats.forEach((s, j) => {
+        const x = margin + j * (cardW + gap);
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(...CARD_BORDER);
+        doc.setLineWidth(0.75);
+        doc.roundedRect(x, y, cardW, cardH, 4, 4, "FD");
+        doc.setFillColor(...GOLD);
+        doc.rect(x + 10, y, cardW - 20, 2.5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(17);
+        doc.setTextColor(...NAVY);
+        doc.text(s.value, x + 12, y + 30);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...MUTED);
+        const label = doc.splitTextToSize(s.label.toUpperCase(), cardW - 24);
+        doc.text(label, x + 12, y + 44);
+      });
+      y += cardH + gap;
+    }
+    y += 12;
+  };
+
+  const breakdownTable = (
     head: [string, string],
     rows: { label: string; value: string }[],
   ) => {
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [[{ content: title, colSpan: 2 }], head],
+      head: [head],
       body: rows.map((r) => [r.label, r.value]),
-      theme: "grid",
-      styles: { fontSize: 9.5, cellPadding: 6, textColor: [50, 56, 66] },
-      headStyles: { fillColor: brand, textColor: 255, fontStyle: "bold" },
-      columnStyles: { 1: { halign: "right", cellWidth: 120 } },
+      theme: "plain",
+      styles: {
+        fontSize: 9.5,
+        cellPadding: { top: 7, bottom: 7, left: 10, right: 10 },
+        textColor: INK,
+        lineColor: CARD_BORDER,
+      },
+      headStyles: {
+        fillColor: NAVY,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 9,
+      },
+      alternateRowStyles: { fillColor: PANEL_BG },
+      columnStyles: { 1: { halign: "right", cellWidth: 110, fontStyle: "bold" } },
       didParseCell: (data) => {
-        // Second header row (Metric/Value) rendered lighter.
-        if (data.section === "head" && data.row.index === 1) {
-          data.cell.styles.fillColor = [235, 239, 245];
-          data.cell.styles.textColor = brand;
+        if (data.section === "body" && data.column.index === 1) {
+          data.cell.styles.textColor = NAVY;
+        }
+      },
+      didDrawCell: (data) => {
+        // Gold underline beneath the header row.
+        if (data.section === "head") {
+          doc.setDrawColor(...GOLD);
+          doc.setLineWidth(1.5);
+          doc.line(
+            data.cell.x,
+            data.cell.y + data.cell.height,
+            data.cell.x + data.cell.width,
+            data.cell.y + data.cell.height,
+          );
         }
       },
     });
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
-      .finalY + 20;
+    y =
+      (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 28;
   };
 
-  section("Operational", ["Metric", "Value"], model.operational);
-  section("People", ["Metric", "Value"], model.people);
-  section(
-    `Leaver reasons (total ${model.leaversTotal})`,
-    ["Reason", "Count"],
-    model.leaverReasons,
-  );
-  section(
-    "Retention by length of service (current snapshot)",
-    ["Length of service", "Workers"],
-    model.retention,
-  );
+  // ----- Sections ----------------------------------------------------------
+  sectionTitle("Operational");
+  statCards(model.operational, 5);
 
-  // Footer with page numbers.
+  sectionTitle("People");
+  statCards(model.people, 3);
+
+  sectionTitle(`Leaver reasons (total ${model.leaversTotal})`);
+  breakdownTable(["Reason", "Count"], model.leaverReasons);
+
+  sectionTitle("Retention by length of service");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED);
+  doc.text("Current snapshot of active workers, not limited to the date range.", margin, y - 8);
+  y += 4;
+  breakdownTable(["Length of service", "Workers"], model.retention);
+
+  // ----- Footer: gold hairline + page numbers on every page ---------------
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
+    doc.setDrawColor(...GOLD);
+    doc.setLineWidth(1);
+    doc.line(margin, pageH - 38, pageW - margin, pageH - 38);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(...light);
-    doc.text(
-      `ShiftControl KPI Report · ${model.rangeLabel}`,
-      margin,
-      doc.internal.pageSize.getHeight() - 24,
-    );
-    doc.text(
-      `Page ${i} of ${pages}`,
-      pageW - margin,
-      doc.internal.pageSize.getHeight() - 24,
-      { align: "right" },
-    );
+    doc.setTextColor(...MUTED);
+    doc.text(`ShiftControl KPI Report · ${model.rangeLabel}`, margin, pageH - 24);
+    doc.text(`Page ${i} of ${pages}`, pageW - margin, pageH - 24, {
+      align: "right",
+    });
   }
 
   doc.save(`kpi-report-${fileStamp()}.pdf`);
