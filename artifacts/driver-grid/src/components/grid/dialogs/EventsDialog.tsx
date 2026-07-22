@@ -16,19 +16,13 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
+// Worker events are no-shows only — CPC and driving-test results are tracked
+// on the Submissions page (they happen before someone becomes a worker).
 const EVENT_LABELS: Record<EventType, string> = {
   no_show: "No Show",
-  cpc_failure: "CPC Failure",
-  test_failure: "Test Failure",
 };
 
-// CPC and test failures are HGV-only (also enforced server-side); Warehouse
-// workers can only ever have a No Show.
-function typesForWorker(workerType: WorkerType): EventType[] {
-  return workerType === "HGV"
-    ? ["no_show", "cpc_failure", "test_failure"]
-    : ["no_show"];
-}
+const ALLOWED_TYPES: EventType[] = ["no_show"];
 
 export function EventsDialog({
   open,
@@ -50,7 +44,7 @@ export function EventsDialog({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const allowedTypes = typesForWorker(workerType);
+  const allowedTypes = ALLOWED_TYPES;
   const [eventType, setEventType] = useState<EventType>(allowedTypes[0]);
   const [eventDate, setEventDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
@@ -131,7 +125,8 @@ export function EventsDialog({
         <DialogHeader>
           <DialogTitle>Events — {workerName}</DialogTitle>
           <DialogDescription>
-            Log an event against this {workerType} worker, or review past events.
+            Log a no-show against this {workerType} worker, or review past events.
+            CPC and driving-test results are recorded on the Submissions page.
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +187,7 @@ export function EventsDialog({
                   className="flex items-start justify-between gap-2 rounded-md border p-2 text-sm"
                 >
                   <div>
-                    <div className="font-medium">{EVENT_LABELS[ev.eventType]}</div>
+                    <div className="font-medium">{EVENT_LABELS[ev.eventType] ?? ev.eventType}</div>
                     <div className="text-xs text-muted-foreground">
                       {format(new Date(ev.eventDate), "EEE d MMM yyyy")}
                     </div>

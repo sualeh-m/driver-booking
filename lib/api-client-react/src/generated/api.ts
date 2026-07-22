@@ -3890,7 +3890,7 @@ export const getCreateEventUrl = () => {
 }
 
 /**
- * @summary Log a worker event (no-show, CPC failure, test failure)
+ * @summary Log a worker event (no-show)
  */
 export const createEvent = async (eventInput: EventInput, options?: RequestInit): Promise<Event> => {
 
@@ -3939,7 +3939,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateEventMutationError = ErrorType<Error>
 
     /**
- * @summary Log a worker event (no-show, CPC failure, test failure)
+ * @summary Log a worker event (no-show)
  */
 export const useCreateEvent = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvent>>, TError,{data: BodyType<EventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

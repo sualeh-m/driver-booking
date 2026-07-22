@@ -5,6 +5,7 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
+import type { CpcTestStatus } from './cpcTestStatus';
 import type { SubmissionOutcome } from './submissionOutcome';
 
 export interface Submission {
@@ -37,6 +38,8 @@ export interface Submission {
   workerLinkedToSheet?: boolean;
   submittedDate: string;
   outcome: SubmissionOutcome;
+  cpcStatus: CpcTestStatus;
+  testStatus: CpcTestStatus;
   /** @nullable */
   sheetId?: number | null;
   /** @nullable */

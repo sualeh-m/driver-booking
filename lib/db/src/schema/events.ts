@@ -36,7 +36,7 @@ export const eventsTable = pgTable(
     index("idx_events_type").on(t.eventType),
     check(
       "events_event_type",
-      sql`${t.eventType} IN ('no_show','cpc_failure','test_failure')`,
+      sql`${t.eventType} IN ('no_show')`,
     ),
   ],
 );

@@ -35,6 +35,8 @@ function submissionSelect() {
     candidatePhone: submissionsTable.candidatePhone,
     jobRole: submissionsTable.jobRole,
     customJobTitle: submissionsTable.customJobTitle,
+    cpcStatus: submissionsTable.cpcStatus,
+    testStatus: submissionsTable.testStatus,
     submittedDate: submissionsTable.submittedDate,
     outcome: submissionsTable.outcome,
     sheetId: submissionsTable.sheetId,
@@ -67,6 +69,8 @@ type SubmissionRow = {
   candidatePhone: string | null;
   jobRole: string | null;
   customJobTitle: string | null;
+  cpcStatus: string;
+  testStatus: string;
   submittedDate: string;
   outcome: string;
   sheetId: number | null;
@@ -86,6 +90,8 @@ function serializeRow(r: SubmissionRow) {
     candidatePhone: r.candidatePhone,
     jobRole: r.jobRole,
     customJobTitle: r.customJobTitle,
+    cpcStatus: r.cpcStatus,
+    testStatus: r.testStatus,
     submittedDate: r.submittedDate,
     outcome: r.outcome,
     sheetId: r.sheetId,
@@ -162,6 +168,17 @@ router.post("/submissions", async (req, res): Promise<void> => {
   } = parsed.data;
   const userId = getUserId(req);
 
+  // A brand-new submission starts with CPC/Test both "pending", so it can
+  // never be created directly as Passed — both checks must be marked Passed
+  // first (via PATCH), which is also what creates/links the worker.
+  if (outcome === "passed") {
+    res.status(400).json({
+      error:
+        "A submission cannot be recorded as Passed straight away — mark the CPC and driving test as Passed first, then set the outcome to Passed.",
+    });
+    return;
+  }
+
   // The role is part of the submission record; "Other" requires a free-text
   // title exactly like it does on a worker.
   const resolvedTitle = resolveCustomJobTitle(jobRole, customJobTitle ?? null);
@@ -233,6 +250,9 @@ router.post("/submissions", async (req, res): Promise<void> => {
         customJobTitle: resolvedTitle.value,
         submittedDate,
         outcome,
+        // Keep the check statuses consistent with a failed outcome on create.
+        cpcStatus: outcome === "cpc_failed" ? "failed" : "pending",
+        testStatus: outcome === "test_failed" ? "failed" : "pending",
         requirementId: requirementId ?? null,
         sheetId: resolvedSheetId,
         createdBy: userId ?? null,
@@ -263,46 +283,76 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [existing] = await db
-    .select()
-    .from(submissionsTable)
-    .where(eq(submissionsTable.id, params.data.id));
-  if (!existing) {
-    res.status(404).json({ error: "Submission not found" });
+  const {
+    outcome: requestedOutcome,
+    cpcStatus: requestedCpc,
+    testStatus: requestedTest,
+  } = parsed.data;
+  if (
+    requestedOutcome === undefined &&
+    requestedCpc === undefined &&
+    requestedTest === undefined
+  ) {
+    res.status(400).json({
+      error: "Provide an outcome, a CPC status or a Test status to update.",
+    });
     return;
   }
 
-  const newOutcome = parsed.data.outcome;
-  const becomingPassed = newOutcome === "passed" && existing.outcome !== "passed";
-
   // Changing to "passed" is the moment a candidate becomes a real, bookable
-  // worker on the sheet + role recorded on the submission. An existing worker
-  // is never duplicated — they are just linked to the sheet. Changing AWAY
-  // from "passed" deliberately does NOT delete the worker (the frontend warns
-  // and asks for confirmation before calling this).
+  // worker on the sheet + role recorded on the submission — and it is only
+  // allowed once BOTH the CPC and driving-test statuses are "passed". An
+  // existing worker is never duplicated — they are just linked to the sheet.
+  // Changing AWAY from "passed" deliberately does NOT delete the worker (the
+  // frontend warns and asks for confirmation before calling this).
   let workerCreated = false;
   let workerLinkedToSheet = false;
 
-  if (becomingPassed) {
-    if (existing.sheetId == null) {
-      res.status(400).json({
-        error:
-          "This submission has no sheet recorded, so the worker cannot be placed. Re-record the submission with a sheet.",
-      });
-      return;
-    }
+  try {
+    const found = await db.transaction(async (tx) => {
+      // Row lock: two concurrent pass-transitions must not both see
+      // workerId=null and each create a worker. The second request blocks
+      // here until the first commits, then sees the created worker.
+      const [locked] = await tx
+        .select()
+        .from(submissionsTable)
+        .where(eq(submissionsTable.id, params.data.id))
+        .for("update");
+      if (!locked) return false;
 
-    try {
-      await db.transaction(async (tx) => {
-        // Re-read WITH a row lock: two concurrent pass-transitions must not
-        // both see workerId=null and each create a worker. The second request
-        // blocks here until the first commits, then sees the created worker.
-        const [locked] = await tx
-          .select()
-          .from(submissionsTable)
-          .where(eq(submissionsTable.id, existing.id))
-          .for("update");
-        if (!locked) return;
+      const newCpc = requestedCpc ?? locked.cpcStatus;
+      const newTest = requestedTest ?? locked.testStatus;
+
+      // Resolve the outcome: an explicit outcome wins; otherwise a status
+      // marked "failed" in this request auto-sets the matching failed
+      // outcome (CPC first when both fail at once).
+      let newOutcome = requestedOutcome ?? locked.outcome;
+      if (requestedOutcome === undefined) {
+        if (requestedCpc === "failed") newOutcome = "cpc_failed";
+        else if (requestedTest === "failed") newOutcome = "test_failed";
+      }
+
+      if (newOutcome === "passed" && !(newCpc === "passed" && newTest === "passed")) {
+        throw Object.assign(
+          new Error(
+            "The outcome can only be Passed once both the CPC and the driving test are marked Passed.",
+          ),
+          { statusCode: 400 },
+        );
+      }
+
+      const becomingPassed =
+        newOutcome === "passed" && locked.outcome !== "passed";
+
+      if (becomingPassed) {
+        if (locked.sheetId == null) {
+          throw Object.assign(
+            new Error(
+              "This submission has no sheet recorded, so the worker cannot be placed. Re-record the submission with a sheet.",
+            ),
+            { statusCode: 400 },
+          );
+        }
 
         let targetWorkerId = locked.workerId;
 
@@ -338,38 +388,38 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
           await tx
             .update(submissionsTable)
             .set({ workerId: targetWorkerId, candidateName: null })
-            .where(eq(submissionsTable.id, existing.id));
+            .where(eq(submissionsTable.id, locked.id));
         }
 
         // Link the worker to the submission's sheet (no-op when already linked).
         const linked = await tx
           .insert(workerSheetsTable)
-          .values({ workerId: targetWorkerId, sheetId: locked.sheetId ?? existing.sheetId! })
+          .values({ workerId: targetWorkerId, sheetId: locked.sheetId })
           .onConflictDoNothing()
           .returning({ workerId: workerSheetsTable.workerId });
         if (linked.length > 0 && !workerCreated) workerLinkedToSheet = true;
-
-        await tx
-          .update(submissionsTable)
-          .set({ outcome: newOutcome })
-          .where(eq(submissionsTable.id, existing.id));
-      });
-    } catch (err) {
-      const e = err as Error & { statusCode?: number };
-      if (e.statusCode === 400) {
-        res.status(400).json({ error: e.message });
-        return;
       }
-      throw err;
+
+      await tx
+        .update(submissionsTable)
+        .set({ outcome: newOutcome, cpcStatus: newCpc, testStatus: newTest })
+        .where(eq(submissionsTable.id, locked.id));
+      return true;
+    });
+    if (!found) {
+      res.status(404).json({ error: "Submission not found" });
+      return;
     }
-  } else {
-    await db
-      .update(submissionsTable)
-      .set({ outcome: newOutcome })
-      .where(eq(submissionsTable.id, existing.id));
+  } catch (err) {
+    const e = err as Error & { statusCode?: number };
+    if (e.statusCode === 400) {
+      res.status(400).json({ error: e.message });
+      return;
+    }
+    throw err;
   }
 
-  const row = await fetchOne(existing.id);
+  const row = await fetchOne(params.data.id);
   if (!row) {
     res.status(500).json({ error: "Failed to load updated submission" });
     return;

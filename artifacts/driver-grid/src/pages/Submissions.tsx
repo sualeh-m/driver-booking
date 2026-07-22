@@ -8,6 +8,7 @@ import {
   getListSubmissionsQueryKey,
   getGetCurrentUserQueryKey,
   type SubmissionOutcome,
+  type CpcTestStatus,
   type ListSubmissionsParams,
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
@@ -34,18 +35,42 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export const SUBMISSION_OUTCOMES: SubmissionOutcome[] = ["submitted", "passed", "rejected"];
+export const SUBMISSION_OUTCOMES: SubmissionOutcome[] = [
+  "submitted",
+  "cpc_failed",
+  "test_failed",
+  "passed",
+  "rejected",
+];
 
 export const SUBMISSION_OUTCOME_LABELS: Record<SubmissionOutcome, string> = {
   submitted: "Submitted",
+  cpc_failed: "CPC Failed",
+  test_failed: "Test Failed",
   passed: "Passed",
   rejected: "Rejected",
 };
 
 const OUTCOME_VARIANT: Record<SubmissionOutcome, "secondary" | "default" | "destructive"> = {
   submitted: "secondary",
+  cpc_failed: "destructive",
+  test_failed: "destructive",
   passed: "default",
   rejected: "destructive",
+};
+
+const CPC_TEST_STATUSES: CpcTestStatus[] = ["pending", "passed", "failed"];
+
+const CPC_TEST_STATUS_LABELS: Record<CpcTestStatus, string> = {
+  pending: "Pending",
+  passed: "Passed",
+  failed: "Failed",
+};
+
+const CPC_TEST_STATUS_CLASS: Record<CpcTestStatus, string> = {
+  pending: "text-muted-foreground",
+  passed: "text-green-700 dark:text-green-400 font-medium",
+  failed: "text-destructive font-medium",
 };
 
 const ALL_SHEETS = "__all__";
@@ -106,9 +131,13 @@ export function Submissions() {
     );
   };
 
-  const applyOutcomeChange = (id: number, outcome: SubmissionOutcome) => {
+  const applyUpdate = (
+    id: number,
+    data: { outcome?: SubmissionOutcome; cpcStatus?: CpcTestStatus; testStatus?: CpcTestStatus },
+  ) => {
+    const { outcome } = data;
     update.mutate(
-      { id, data: { outcome } },
+      { id, data },
       {
         onSuccess: (data) => {
           queryClient.invalidateQueries({ queryKey: ["/api/submissions"] });
@@ -131,12 +160,12 @@ export function Submissions() {
               toast({ title: "Outcome updated" });
             }
           } else {
-            toast({ title: "Outcome updated" });
+            toast({ title: "Submission updated" });
           }
         },
         onError: (err) =>
           toast({
-            title: "Could not update outcome",
+            title: "Could not update submission",
             description:
               (err as { response?: { data?: { error?: string } } })?.response?.data?.error,
             variant: "destructive",
@@ -146,17 +175,48 @@ export function Submissions() {
   };
 
   const handleOutcomeChange = (
-    s: { id: number; workerName: string; outcome: SubmissionOutcome },
+    s: {
+      id: number;
+      workerName: string;
+      outcome: SubmissionOutcome;
+      cpcStatus: CpcTestStatus;
+      testStatus: CpcTestStatus;
+    },
     outcome: SubmissionOutcome,
   ) => {
     if (outcome === s.outcome) return;
+    // Passing requires both checks passed — mirror the server rule with a
+    // clear message instead of a failed request.
+    if (
+      outcome === "passed" &&
+      !(s.cpcStatus === "passed" && s.testStatus === "passed")
+    ) {
+      toast({
+        title: "Cannot mark as Passed yet",
+        description:
+          "Both the CPC and the driving test must be marked Passed before the outcome can be Passed.",
+        variant: "destructive",
+      });
+      return;
+    }
     // Moving AWAY from Passed never deletes the worker — make that explicit
     // before applying, so nobody expects the worker to disappear.
     if (s.outcome === "passed") {
       setUnpassTarget({ id: s.id, workerName: s.workerName, outcome });
       return;
     }
-    applyOutcomeChange(s.id, outcome);
+    applyUpdate(s.id, { outcome });
+  };
+
+  const handleStatusChange = (
+    s: { id: number; cpcStatus: CpcTestStatus; testStatus: CpcTestStatus },
+    field: "cpcStatus" | "testStatus",
+    value: CpcTestStatus,
+  ) => {
+    if (s[field] === value) return;
+    // Marking a check Failed auto-sets the matching failed outcome
+    // server-side; the outcome dropdown stays editable to override it.
+    applyUpdate(s.id, { [field]: value });
   };
 
   const clearDates = () => {
@@ -222,6 +282,8 @@ export function Submissions() {
                 <TableHead>Sheet</TableHead>
                 <TableHead>Requirement</TableHead>
                 <TableHead>Submitted vs needed</TableHead>
+                <TableHead className="w-28">CPC</TableHead>
+                <TableHead className="w-28">Test</TableHead>
                 <TableHead className="w-44">Outcome</TableHead>
                 {isAdmin && <TableHead className="w-12 text-right">Delete</TableHead>}
               </TableRow>
@@ -229,13 +291,13 @@ export function Submissions() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 10 : 9} className="py-10 text-center text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : !submissions?.length ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 10 : 9} className="py-10 text-center text-muted-foreground">
                     No submissions match these filters.
                   </TableCell>
                 </TableRow>
@@ -303,6 +365,52 @@ export function Submissions() {
                       ) : (
                         "—"
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={s.cpcStatus}
+                        onValueChange={(v) =>
+                          handleStatusChange(s, "cpcStatus", v as CpcTestStatus)
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-28" aria-label="CPC status">
+                          <SelectValue>
+                            <span className={CPC_TEST_STATUS_CLASS[s.cpcStatus]}>
+                              {CPC_TEST_STATUS_LABELS[s.cpcStatus]}
+                            </span>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CPC_TEST_STATUSES.map((st) => (
+                            <SelectItem key={st} value={st}>
+                              {CPC_TEST_STATUS_LABELS[st]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={s.testStatus}
+                        onValueChange={(v) =>
+                          handleStatusChange(s, "testStatus", v as CpcTestStatus)
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-28" aria-label="Driving test status">
+                          <SelectValue>
+                            <span className={CPC_TEST_STATUS_CLASS[s.testStatus]}>
+                              {CPC_TEST_STATUS_LABELS[s.testStatus]}
+                            </span>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CPC_TEST_STATUSES.map((st) => (
+                            <SelectItem key={st} value={st}>
+                              {CPC_TEST_STATUS_LABELS[st]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <Select
@@ -384,7 +492,7 @@ export function Submissions() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (unpassTarget) applyOutcomeChange(unpassTarget.id, unpassTarget.outcome);
+                if (unpassTarget) applyUpdate(unpassTarget.id, { outcome: unpassTarget.outcome });
                 setUnpassTarget(null);
               }}
             >

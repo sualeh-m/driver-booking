@@ -1,0 +1,16 @@
+Restructure how CPC and driving-test results are tracked. Currently CPC failures and Test failures are logged as events against a worker who's already on a sheet. That's wrong for our process: a candidate must pass BOTH the CPC and the driving test BEFORE they become a worker on a sheet. If they fail either, they never become a worker at all. So this belongs in Submissions, not worker events.
+
+Build this:
+
+ADD CPC AND TEST TRACKING TO SUBMISSIONS: Each submission gets two separate status fields:
+CPC: Pending / Passed / Failed
+Test: Pending / Passed / Failed
+Both default to Pending. I can update each independently as results come in, so I can see partial progress (e.g. CPC Passed, Test Pending).
+UPDATE THE SUBMISSION OUTCOMES to: Submitted, CPC Failed, Test Failed, Passed, Rejected.
+"Passed" must only be selectable once BOTH the CPC and Test fields are marked Passed. Prevent setting the outcome to Passed otherwise, with a clear message explaining why.
+If CPC is marked Failed, the outcome should reflect CPC Failed. If Test is marked Failed, it should reflect Test Failed. (Set these automatically where sensible, but let me override.)
+WORKER CREATION RULE STAYS: A submission still only creates a worker on the sheet when the outcome becomes "Passed" (which now requires both CPC and Test passed). Submitted, CPC Failed, Test Failed and Rejected must NEVER create a bookable worker.
+REMOVE CPC/TEST FAILURE LOGGING FROM WORKER EVENTS entirely — those event types should no longer be available against a worker on a sheet, since they now belong to submissions. Keep no-show event logging on workers exactly as it is.
+REPORTING: Update the KPI reports so CPC failures and Test failures are counted from SUBMISSIONS (not worker events). Keep them as HGV-only metrics, and keep the existing rule that they're hidden when the filter isn't HGV. Make sure existing report filters still work.
+
+When done, confirm: submissions track CPC and Test separately, "Passed" is blocked until both are passed, a Passed submission creates the worker, failures never create a worker, CPC/Test logging is gone from worker events, and the reports count CPC/Test failures from submissions. Tell me the result of each.

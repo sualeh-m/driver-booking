@@ -7,13 +7,11 @@
  */
 
 /**
- * Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.
+ * Worker event type. Only no-shows are logged against workers — CPC and driving-test results are tracked on submissions, before someone ever becomes a worker.
  */
 export type EventType = typeof EventType[keyof typeof EventType];
 
 
 export const EventType = {
   no_show: 'no_show',
-  cpc_failure: 'cpc_failure',
-  test_failure: 'test_failure',
 } as const;

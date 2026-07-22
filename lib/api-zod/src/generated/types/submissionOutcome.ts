@@ -11,6 +11,8 @@ export type SubmissionOutcome = typeof SubmissionOutcome[keyof typeof Submission
 
 export const SubmissionOutcome = {
   submitted: 'submitted',
+  cpc_failed: 'cpc_failed',
+  test_failed: 'test_failed',
   passed: 'passed',
   rejected: 'rejected',
 } as const;

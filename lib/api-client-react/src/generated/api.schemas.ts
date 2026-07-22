@@ -69,15 +69,13 @@ export const JobRole = {
 } as const;
 
 /**
- * Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.
+ * Worker event type. Only no-shows are logged against workers — CPC and driving-test results are tracked on submissions, before someone ever becomes a worker.
  */
 export type EventType = typeof EventType[keyof typeof EventType];
 
 
 export const EventType = {
   no_show: 'no_show',
-  cpc_failure: 'cpc_failure',
-  test_failure: 'test_failure',
 } as const;
 
 export interface Event {
@@ -342,8 +340,22 @@ export type SubmissionOutcome = typeof SubmissionOutcome[keyof typeof Submission
 
 export const SubmissionOutcome = {
   submitted: 'submitted',
+  cpc_failed: 'cpc_failed',
+  test_failed: 'test_failed',
   passed: 'passed',
   rejected: 'rejected',
+} as const;
+
+/**
+ * Result of a CPC or driving-test check on a submission.
+ */
+export type CpcTestStatus = typeof CpcTestStatus[keyof typeof CpcTestStatus];
+
+
+export const CpcTestStatus = {
+  pending: 'pending',
+  passed: 'passed',
+  failed: 'failed',
 } as const;
 
 export interface Requirement {
@@ -385,6 +397,8 @@ export interface Submission {
   workerLinkedToSheet?: boolean;
   submittedDate: string;
   outcome: SubmissionOutcome;
+  cpcStatus: CpcTestStatus;
+  testStatus: CpcTestStatus;
   /** @nullable */
   sheetId?: number | null;
   /** @nullable */
@@ -423,8 +437,13 @@ export interface SubmissionInput {
   sheetId: number;
 }
 
+/**
+ * Update the outcome and/or the CPC / driving-test statuses. At least one field must be provided. The outcome may only be set to "passed" when both cpcStatus and testStatus are (or become) "passed". Marking a status "failed" without an explicit outcome auto-sets the outcome to cpc_failed / test_failed.
+ */
 export interface UpdateSubmissionOutcomeInput {
-  outcome: SubmissionOutcome;
+  outcome?: SubmissionOutcome;
+  cpcStatus?: CpcTestStatus;
+  testStatus?: CpcTestStatus;
 }
 
 export interface Booking {

@@ -15,10 +15,9 @@ import {
   reconcileAutoFlagAfterRemoval,
 } from "../lib/noShow";
 
-// CPC and driving-test failures only make sense for HGV drivers, so they may
-// not be logged against Warehouse workers. No-shows apply to anyone.
-const HGV_ONLY_EVENT_TYPES = new Set(["cpc_failure", "test_failure"]);
-
+// Worker events are no-shows only — CPC and driving-test results are tracked
+// on submissions (they happen before someone becomes a worker). The zod
+// EventType enum enforces this at the API boundary.
 const router: IRouter = Router();
 
 router.post("/events", async (req, res): Promise<void> => {
@@ -38,19 +37,12 @@ router.post("/events", async (req, res): Promise<void> => {
   const sheetId = parsed.data.sheetId ?? null;
 
   const [worker] = await db
-    .select({ workerType: workersTable.workerType, fullName: workersTable.fullName })
+    .select({ id: workersTable.id })
     .from(workersTable)
     .where(eq(workersTable.id, workerId));
 
   if (!worker) {
     res.status(400).json({ error: "Unknown worker" });
-    return;
-  }
-
-  if (HGV_ONLY_EVENT_TYPES.has(eventType) && worker.workerType !== "HGV") {
-    res.status(400).json({
-      error: `${worker.fullName} is a ${worker.workerType} worker — CPC and test failures can only be logged against HGV workers.`,
-    });
     return;
   }
 

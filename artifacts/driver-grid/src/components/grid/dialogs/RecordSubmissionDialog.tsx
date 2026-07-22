@@ -314,7 +314,10 @@ export function RecordSubmissionDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SUBMISSION_OUTCOMES.map((o) => (
+              {/* A new submission cannot start as Passed — both the CPC and
+                  driving test must be marked Passed first (on the Submissions
+                  page), and only then can the outcome become Passed. */}
+              {SUBMISSION_OUTCOMES.filter((o) => o !== "passed").map((o) => (
                 <SelectItem key={o} value={o}>
                   {SUBMISSION_OUTCOME_LABELS[o]}
                 </SelectItem>

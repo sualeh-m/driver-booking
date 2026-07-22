@@ -21,6 +21,7 @@ export * from './clientEmailRow';
 export * from './confirmationPreview';
 export * from './confirmationPreviewInput';
 export * from './confirmationShift';
+export * from './cpcTestStatus';
 export * from './createUserInput';
 export * from './dailyRequirementInput';
 export * from './dashboardSummary';

@@ -604,7 +604,9 @@ export const ListSubmissionsResponseItem = zod.object({
   "workerCreated": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that auto-created a new worker from a candidate submission.'),
   "workerLinkedToSheet": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that added the (existing) worker to the submission\'s sheet.'),
   "submittedDate": zod.string(),
-  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "outcome": zod.enum(['submitted', 'cpc_failed', 'test_failed', 'passed', 'rejected']),
+  "cpcStatus": zod.enum(['pending', 'passed', 'failed']).describe('Result of a CPC or driving-test check on a submission.'),
+  "testStatus": zod.enum(['pending', 'passed', 'failed']).describe('Result of a CPC or driving-test check on a submission.'),
   "sheetId": zod.number().nullish(),
   "sheetName": zod.string().nullish(),
   "requirementId": zod.number().nullish(),
@@ -626,7 +628,7 @@ export const CreateSubmissionBody = zod.object({
   "jobRole": zod.enum(['HGV 1', 'HGV 2', 'Trunker', 'Bus/Coach', 'Van', 'Warehouse', 'Forklift', 'Drivers Mate', 'Other']).describe('A worker\'s job role. The rest-day rule applies only to the HGV-type roles (HGV 1, HGV 2, Trunker, Bus\/Coach).'),
   "customJobTitle": zod.string().optional().describe('Required free-text job title when jobRole is \"Other\"; ignored otherwise.'),
   "submittedDate": zod.string(),
-  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "outcome": zod.enum(['submitted', 'cpc_failed', 'test_failed', 'passed', 'rejected']),
   "requirementId": zod.number().optional(),
   "sheetId": zod.number()
 }).describe('Provide EITHER workerId (existing worker) OR candidateName (a brand-new person not in the worker list). A candidate submission never creates a bookable worker until its outcome is changed to \"passed\". The sheet and job role the person is submitted for are always captured.')
@@ -641,7 +643,9 @@ export const CreateSubmissionResponse = zod.object({
   "workerCreated": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that auto-created a new worker from a candidate submission.'),
   "workerLinkedToSheet": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that added the (existing) worker to the submission\'s sheet.'),
   "submittedDate": zod.string(),
-  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "outcome": zod.enum(['submitted', 'cpc_failed', 'test_failed', 'passed', 'rejected']),
+  "cpcStatus": zod.enum(['pending', 'passed', 'failed']).describe('Result of a CPC or driving-test check on a submission.'),
+  "testStatus": zod.enum(['pending', 'passed', 'failed']).describe('Result of a CPC or driving-test check on a submission.'),
   "sheetId": zod.number().nullish(),
   "sheetName": zod.string().nullish(),
   "requirementId": zod.number().nullish(),
@@ -660,8 +664,10 @@ export const UpdateSubmissionOutcomeParams = zod.object({
 })
 
 export const UpdateSubmissionOutcomeBody = zod.object({
-  "outcome": zod.enum(['submitted', 'passed', 'rejected'])
-})
+  "outcome": zod.enum(['submitted', 'cpc_failed', 'test_failed', 'passed', 'rejected']).optional(),
+  "cpcStatus": zod.enum(['pending', 'passed', 'failed']).optional().describe('Result of a CPC or driving-test check on a submission.'),
+  "testStatus": zod.enum(['pending', 'passed', 'failed']).optional().describe('Result of a CPC or driving-test check on a submission.')
+}).describe('Update the outcome and\/or the CPC \/ driving-test statuses. At least one field must be provided. The outcome may only be set to \"passed\" when both cpcStatus and testStatus are (or become) \"passed\". Marking a status \"failed\" without an explicit outcome auto-sets the outcome to cpc_failed \/ test_failed.')
 
 export const UpdateSubmissionOutcomeResponse = zod.object({
   "id": zod.number(),
@@ -673,7 +679,9 @@ export const UpdateSubmissionOutcomeResponse = zod.object({
   "workerCreated": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that auto-created a new worker from a candidate submission.'),
   "workerLinkedToSheet": zod.boolean().optional().describe('Present (true) on the response of an outcome change to \"passed\" that added the (existing) worker to the submission\'s sheet.'),
   "submittedDate": zod.string(),
-  "outcome": zod.enum(['submitted', 'passed', 'rejected']),
+  "outcome": zod.enum(['submitted', 'cpc_failed', 'test_failed', 'passed', 'rejected']),
+  "cpcStatus": zod.enum(['pending', 'passed', 'failed']).describe('Result of a CPC or driving-test check on a submission.'),
+  "testStatus": zod.enum(['pending', 'passed', 'failed']).describe('Result of a CPC or driving-test check on a submission.'),
   "sheetId": zod.number().nullish(),
   "sheetName": zod.string().nullish(),
   "requirementId": zod.number().nullish(),
@@ -1006,7 +1014,7 @@ export const ImportBookingsResponse = zod.object({
 
 
 /**
- * @summary Log a worker event (no-show, CPC failure, test failure)
+ * @summary Log a worker event (no-show)
  */
 
 
@@ -1015,7 +1023,7 @@ export const CreateEventBody = zod.object({
   "workerId": zod.number(),
   "sheetId": zod.number().nullish(),
   "eventDate": zod.string().min(1),
-  "eventType": zod.enum(['no_show', 'cpc_failure', 'test_failure']).describe('Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.'),
+  "eventType": zod.enum(['no_show']).describe('Worker event type. Only no-shows are logged against workers — CPC and driving-test results are tracked on submissions, before someone ever becomes a worker.'),
   "notes": zod.string().optional()
 })
 
@@ -1032,7 +1040,7 @@ export const ListWorkerEventsResponseItem = zod.object({
   "workerId": zod.number(),
   "sheetId": zod.number().nullish(),
   "eventDate": zod.string(),
-  "eventType": zod.enum(['no_show', 'cpc_failure', 'test_failure']).describe('Worker event type. cpc_failure and test_failure may only be logged against HGV workers; no_show applies to any worker.'),
+  "eventType": zod.enum(['no_show']).describe('Worker event type. Only no-shows are logged against workers — CPC and driving-test results are tracked on submissions, before someone ever becomes a worker.'),
   "notes": zod.string().nullish(),
   "createdBy": zod.number().nullish(),
   "createdAt": zod.string(),

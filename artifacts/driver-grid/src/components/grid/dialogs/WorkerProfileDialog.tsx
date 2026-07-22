@@ -476,7 +476,7 @@ export function WorkerProfileDialog({
             <ul className="mt-1 list-disc pl-5">
               <li>{deleteImpact?.bookings ?? 0} booking{(deleteImpact?.bookings ?? 0) === 1 ? "" : "s"}</li>
               <li>{deleteImpact?.submissions ?? 0} submission{(deleteImpact?.submissions ?? 0) === 1 ? "" : "s"}</li>
-              <li>{deleteImpact?.events ?? 0} event{(deleteImpact?.events ?? 0) === 1 ? "" : "s"} (no-shows, CPC / test failures)</li>
+              <li>{deleteImpact?.events ?? 0} event{(deleteImpact?.events ?? 0) === 1 ? "" : "s"} (no-shows)</li>
               <li>{deleteImpact?.workerSheets ?? 0} sheet link{(deleteImpact?.workerSheets ?? 0) === 1 ? "" : "s"}</li>
               {deleteImpact?.hasLeaverRecord && <li>their leaver record</li>}
             </ul>

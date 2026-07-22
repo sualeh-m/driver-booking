@@ -290,10 +290,50 @@ router.get("/reports/people", async (req, res): Promise<void> => {
     return { submitted: row?.submitted ?? 0, passed: row?.passed ?? 0 };
   })();
 
+  // CPC and driving-test failures now live ON SUBMISSIONS (statuses marked
+  // "failed"), not worker events — a candidate can fail before ever becoming a
+  // worker. Scoped exactly like the submission metrics (submitted-date range +
+  // the submission's own sheet), and always HGV-only: the linked worker's type
+  // when there is one, else the type derived from the recorded job role. A
+  // Warehouse worker-type filter therefore yields zero.
+  const failuresPromise = (async (): Promise<{
+    cpc: number;
+    test: number;
+  }> => {
+    if (workerType === "Warehouse") return { cpc: 0, test: 0 };
+    const conds: ReturnType<typeof sql>[] = [];
+    conds.push(sql`${submissionsTable.submittedDate} >= ${start}`);
+    conds.push(sql`${submissionsTable.submittedDate} <= ${end}`);
+    if (restrictToSheets) {
+      if (selectedIds.length === 0) return { cpc: 0, test: 0 };
+      conds.push(inArray(submissionsTable.sheetId, selectedIds));
+    }
+    conds.push(sql`
+      CASE
+        WHEN ${workersTable.id} IS NOT NULL THEN ${workersTable.workerType}
+        WHEN ${submissionsTable.jobRole} IN ('HGV 1','HGV 2','Trunker','Bus/Coach') THEN 'HGV'
+        WHEN ${submissionsTable.jobRole} IS NOT NULL THEN 'Warehouse'
+        ELSE NULL
+      END = 'HGV'`);
+    const [row] = await db
+      .select({
+        cpc: sql<number>`coalesce(sum(case when ${submissionsTable.cpcStatus} = 'failed' then 1 else 0 end), 0)::int`,
+        test: sql<number>`coalesce(sum(case when ${submissionsTable.testStatus} = 'failed' then 1 else 0 end), 0)::int`,
+      })
+      .from(submissionsTable)
+      .leftJoin(workersTable, eq(workersTable.id, submissionsTable.workerId))
+      .where(and(...conds));
+    return { cpc: row?.cpc ?? 0, test: row?.test ?? 0 };
+  })();
+
   // No eligible workers → every worker-scoped people metric is zero, but the
-  // submission metrics above still apply (candidates are not workers).
+  // submission metrics above still apply (candidates are not workers, and
+  // CPC/Test failures are submission-based too).
   if (eligibleWorkerIds.length === 0) {
-    const submissions = await submissionsPromise;
+    const [submissions, failures] = await Promise.all([
+      submissionsPromise,
+      failuresPromise,
+    ]);
     res.json({
       start,
       end,
@@ -307,8 +347,8 @@ router.get("/reports/people", async (req, res): Promise<void> => {
       leaverReasons: emptyLeaverReasons,
       retention: emptyRetention,
       notStarted: 0,
-      cpcFailures: 0,
-      testFailures: 0,
+      cpcFailures: failures.cpc,
+      testFailures: failures.test,
     });
     return;
   }
@@ -341,29 +381,6 @@ router.get("/reports/people", async (req, res): Promise<void> => {
       .where(inArray(leaversTable.workerId, eligibleWorkerIds))
       .groupBy(leaversTable.workerId);
     return new Map(rows.map((r) => [r.workerId, r.leaveDate]));
-  })();
-
-  // CPC and test failures in range (events are HGV-only at creation, so a
-  // Warehouse worker-type filter naturally yields zero here).
-  const failuresPromise = (async (): Promise<{
-    cpc: number;
-    test: number;
-  }> => {
-    const [row] = await db
-      .select({
-        cpc: sql<number>`coalesce(sum(case when ${eventsTable.eventType} = 'cpc_failure' then 1 else 0 end), 0)::int`,
-        test: sql<number>`coalesce(sum(case when ${eventsTable.eventType} = 'test_failure' then 1 else 0 end), 0)::int`,
-      })
-      .from(eventsTable)
-      .where(
-        and(
-          inArray(eventsTable.workerId, eligibleWorkerIds),
-          inArray(eventsTable.eventType, ["cpc_failure", "test_failure"]),
-          gte(eventsTable.eventDate, start),
-          lte(eventsTable.eventDate, end),
-        ),
-      );
-    return { cpc: row?.cpc ?? 0, test: row?.test ?? 0 };
   })();
 
   const [submissions, leaverCounts, leaveDates, failures] = await Promise.all([

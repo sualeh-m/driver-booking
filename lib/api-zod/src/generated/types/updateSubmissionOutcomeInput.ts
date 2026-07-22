@@ -5,8 +5,14 @@
  * Internal HGV/Warehouse worker shift booking system
  * OpenAPI spec version: 0.1.0
  */
+import type { CpcTestStatus } from './cpcTestStatus';
 import type { SubmissionOutcome } from './submissionOutcome';
 
+/**
+ * Update the outcome and/or the CPC / driving-test statuses. At least one field must be provided. The outcome may only be set to "passed" when both cpcStatus and testStatus are (or become) "passed". Marking a status "failed" without an explicit outcome auto-sets the outcome to cpc_failed / test_failed.
+ */
 export interface UpdateSubmissionOutcomeInput {
-  outcome: SubmissionOutcome;
+  outcome?: SubmissionOutcome;
+  cpcStatus?: CpcTestStatus;
+  testStatus?: CpcTestStatus;
 }

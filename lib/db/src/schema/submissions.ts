@@ -41,6 +41,11 @@ export const submissionsTable = pgTable(
     }),
     submittedDate: date("submitted_date", { mode: "string" }).notNull(),
     outcome: text("outcome").notNull().default("submitted"),
+    // CPC and driving-test results tracked independently. A candidate must
+    // pass BOTH before the outcome can become "passed" (which is what creates
+    // the worker).
+    cpcStatus: text("cpc_status").notNull().default("pending"),
+    testStatus: text("test_status").notNull().default("pending"),
     createdBy: integer("created_by").references(() => usersTable.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -50,7 +55,15 @@ export const submissionsTable = pgTable(
     index("idx_submissions_date").on(t.submittedDate),
     check(
       "submissions_outcome",
-      sql`${t.outcome} IN ('submitted','passed','rejected')`,
+      sql`${t.outcome} IN ('submitted','cpc_failed','test_failed','passed','rejected')`,
+    ),
+    check(
+      "submissions_cpc_status",
+      sql`${t.cpcStatus} IN ('pending','passed','failed')`,
+    ),
+    check(
+      "submissions_test_status",
+      sql`${t.testStatus} IN ('pending','passed','failed')`,
     ),
     // Exactly one identity source: an existing worker OR a standalone candidate
     // name. Never both, never neither.

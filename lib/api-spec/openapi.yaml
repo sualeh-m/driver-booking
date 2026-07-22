@@ -1349,7 +1349,7 @@ paths:
     post:
       operationId: createEvent
       tags: [events]
-      summary: Log a worker event (no-show, CPC failure, test failure)
+      summary: Log a worker event (no-show)
       requestBody:
         required: true
         content:
@@ -1364,7 +1364,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Event"
         "400":
-          description: Invalid request (e.g. CPC/Test failure on a non-HGV worker)
+          description: Invalid request
           content:
             application/json:
               schema:
@@ -1499,9 +1499,10 @@ components:
     EventType:
       type: string
       description: >-
-        Worker event type. cpc_failure and test_failure may only be logged
-        against HGV workers; no_show applies to any worker.
-      enum: [no_show, cpc_failure, test_failure]
+        Worker event type. Only no-shows are logged against workers — CPC and
+        driving-test results are tracked on submissions, before someone ever
+        becomes a worker.
+      enum: [no_show]
 
     Event:
       type: object
@@ -1772,8 +1773,18 @@ components:
       type: string
       enum:
         - submitted
+        - cpc_failed
+        - test_failed
         - passed
         - rejected
+
+    CpcTestStatus:
+      type: string
+      description: Result of a CPC or driving-test check on a submission.
+      enum:
+        - pending
+        - passed
+        - failed
 
     Requirement:
       type: object
@@ -1787,7 +1798,7 @@ components:
 
     Submission:
       type: object
-      required: [id, workerName, submittedDate, outcome]
+      required: [id, workerName, submittedDate, outcome, cpcStatus, testStatus]
       properties:
         id: { type: integer }
         workerId:
@@ -1813,6 +1824,8 @@ components:
           description: Present (true) on the response of an outcome change to "passed" that added the (existing) worker to the submission's sheet.
         submittedDate: { type: string }
         outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
+        cpcStatus: { $ref: "#/components/schemas/CpcTestStatus" }
+        testStatus: { $ref: "#/components/schemas/CpcTestStatus" }
         sheetId: { type: ["integer", "null"] }
         sheetName: { type: ["string", "null"] }
         requirementId: { type: ["integer", "null"] }
@@ -1848,9 +1861,16 @@ components:
 
     UpdateSubmissionOutcomeInput:
       type: object
-      required: [outcome]
+      description: >-
+        Update the outcome and/or the CPC / driving-test statuses. At least one
+        field must be provided. The outcome may only be set to "passed" when
+        both cpcStatus and testStatus are (or become) "passed". Marking a
+        status "failed" without an explicit outcome auto-sets the outcome to
+        cpc_failed / test_failed.
       properties:
         outcome: { $ref: "#/components/schemas/SubmissionOutcome" }
+        cpcStatus: { $ref: "#/components/schemas/CpcTestStatus" }
+        testStatus: { $ref: "#/components/schemas/CpcTestStatus" }
 
     Booking:
       type: object

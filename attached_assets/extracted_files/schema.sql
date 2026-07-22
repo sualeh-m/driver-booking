@@ -131,7 +131,13 @@ CREATE TABLE submissions (
     sheet_id        INTEGER REFERENCES sheets(id) ON DELETE SET NULL,
     submitted_date  DATE NOT NULL,
     outcome         TEXT NOT NULL DEFAULT 'submitted'
-                    CHECK (outcome IN ('submitted','passed','rejected')),
+                    CHECK (outcome IN ('submitted','cpc_failed','test_failed','passed','rejected')),
+    -- CPC and driving-test results tracked independently; both must be
+    -- 'passed' before the outcome can be set to 'passed'.
+    cpc_status      TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (cpc_status IN ('pending','passed','failed')),
+    test_status     TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (test_status IN ('pending','passed','failed')),
     created_by      INTEGER REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- Exactly one identity source: an existing worker OR a standalone candidate.
@@ -157,15 +163,15 @@ CREATE TABLE leavers (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 10. Events — no-shows (both types) and CPC/test failures (HGV only).
---     Enforce "HGV only" for cpc/test failures in the app at entry time.
+-- 10. Events — no-shows only. CPC and driving-test results are tracked on
+--     submissions (cpc_status / test_status), not as worker events.
 CREATE TABLE events (
     id          SERIAL PRIMARY KEY,
     worker_id   INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
     sheet_id    INTEGER REFERENCES sheets(id) ON DELETE SET NULL,
     event_date  DATE NOT NULL,
     event_type  TEXT NOT NULL
-                CHECK (event_type IN ('no_show','cpc_failure','test_failure')),
+                CHECK (event_type IN ('no_show')),
     notes       TEXT,
     created_by  INTEGER REFERENCES users(id),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -213,6 +219,7 @@ CREATE INDEX idx_messages_worker ON messages (worker_id);
 --   Leavers / reasons   = count leavers grouped by reason
 --   Retention buckets   = (leave_date or today) - start_date, bucketed:
 --                         <1wk, 1-4wk, 1-3mo, 3-6mo, 6mo+
---   No-shows / CPC/test = count events by event_type
+--   No-shows            = count no_show events
+--   CPC/test failures   = count submissions with cpc_status/test_status='failed' (HGV only)
 --   All filterable by depot, worker_type, client, and date range.
 -- ============================================================
